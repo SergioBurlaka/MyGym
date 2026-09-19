@@ -257,16 +257,15 @@ export default function WorkoutFormPage() {
                 {block.weightPerUnitKg !== '' && (
                   <div>
                     <label className="label">Одиниць</label>
-                    <select
-                      className="input w-28"
-                      value={block.weightUnits}
-                      onChange={(e) =>
-                        updateBlock(block.exerciseId, { weightUnits: Number(e.target.value) as 1 | 2 })
-                      }
-                    >
-                      <option value={2}>2 (обидві сторони)</option>
-                      <option value={1}>1</option>
-                    </select>
+                    <Select
+                      className="w-28"
+                      value={String(block.weightUnits)}
+                      onChange={(v) => updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 })}
+                      options={[
+                        { value: '2', label: '2 (обидві сторони)' },
+                        { value: '1', label: '1' },
+                      ]}
+                    />
                   </div>
                 )}
               </div>

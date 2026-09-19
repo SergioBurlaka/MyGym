@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useArchiveExerciseMutation, useCreateExerciseMutation, useExercisesQuery } from '../shared/api/exercises/index.js';
 import Popconfirm from '../components/Popconfirm.js';
+import Select from '../components/Select.js';
 
 const CATEGORY_LABEL: Record<string, string> = {
   large: 'Велика група (6-15, крок 1.25 кг)',
@@ -74,30 +75,30 @@ export default function ExercisesPage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
               <label className="label">Обладнання</label>
-              <select
-                className="input"
+              <Select
                 value={form.equipment}
-                onChange={(e) => setForm((f) => ({ ...f, equipment: e.target.value as any }))}
-              >
-                <option value="barbell">Штанга</option>
-                <option value="dumbbell">Гантелі</option>
-                <option value="bodyweight">Вага тіла</option>
-              </select>
+                onChange={(v) => setForm((f) => ({ ...f, equipment: v as any }))}
+                options={[
+                  { value: 'barbell', label: 'Штанга' },
+                  { value: 'dumbbell', label: 'Гантелі' },
+                  { value: 'bodyweight', label: 'Вага тіла' },
+                ]}
+              />
             </div>
             <div className="col-span-2">
               <label className="label">Категорія (правило прогресії)</label>
-              <select
-                className="input"
+              <Select
                 value={form.category}
-                onChange={(e) => {
-                  const category = e.target.value as any;
+                onChange={(v) => {
+                  const category = v as typeof form.category;
                   setForm((f) => ({ ...f, category, ...categoryDefaults(category) }));
                 }}
-              >
-                <option value="large">{CATEGORY_LABEL.large}</option>
-                <option value="small">{CATEGORY_LABEL.small}</option>
-                <option value="bodyweight">{CATEGORY_LABEL.bodyweight}</option>
-              </select>
+                options={[
+                  { value: 'large', label: CATEGORY_LABEL.large },
+                  { value: 'small', label: CATEGORY_LABEL.small },
+                  { value: 'bodyweight', label: CATEGORY_LABEL.bodyweight },
+                ]}
+              />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
