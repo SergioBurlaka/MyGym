@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
+import PasswordInput from '../components/PasswordInput.js';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -38,7 +39,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <label className="label" htmlFor="password">Пароль (мінімум 8 символів)</label>
-            <input id="password" type="password" className="input" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput id="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button type="submit" className="btn-primary w-full" disabled={busy}>
