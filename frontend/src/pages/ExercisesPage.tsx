@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useArchiveExerciseMutation, useCreateExerciseMutation, useExercisesQuery } from '../shared/api/exercises/index.js';
+import Popconfirm from '../components/Popconfirm.js';
 
 const CATEGORY_LABEL: Record<string, string> = {
   large: 'Велика група (6-15, крок 1.25 кг)',
@@ -39,7 +40,6 @@ export default function ExercisesPage() {
   }
 
   async function handleArchive(id: string) {
-    if (!confirm('Прибрати цю вправу зі списку?')) return;
     await archiveMutation.mutateAsync(id);
   }
 
@@ -146,9 +146,14 @@ export default function ExercisesPage() {
                   {ex.repRangeMin}-{ex.repRangeMax} повт. · крок {ex.weightStepKg} кг
                 </p>
               </div>
-              <button className="btn-ghost text-red-400" onClick={() => handleArchive(ex.id)}>
-                Прибрати
-              </button>
+              <Popconfirm
+                title="Прибрати вправу"
+                description="Вправу буде прибрано зі списку. Історія підходів у вже збережених тренуваннях не зникне."
+                confirmText="Так, прибрати"
+                onConfirm={() => handleArchive(ex.id)}
+              >
+                <button className="btn-ghost text-red-400">Прибрати</button>
+              </Popconfirm>
             </div>
           </div>
         ))}

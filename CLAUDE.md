@@ -84,6 +84,15 @@ prev/next). Без цього старі імпортовані тренуван
   диску вже повертав `{data, total, ...}`, а живий бекенд — старий голий
   масив). Виправлено через `CHOKIDAR_USEPOLLING`/`CHOKIDAR_INTERVAL` у
   `environment` сервісу `backend` в `docker-compose.dev.yml`.
+- Третій прояв того ж класу проблем: зміни `frontend/tailwind.config.js`
+  (нові `theme.extend.keyframes`/`animation`/кольори тощо) Vite коректно
+  бачить і робить full page reload у браузері, але Tailwind/PostCSS-кеш
+  усередині вже запущеного dev-сервера на Windows bind-mount інколи не
+  інвалідується — нові utility-класи (перевірено через `@keyframes`)
+  фізично відсутні в CSS, хоч інші класи з того самого редагування файлу є.
+  Ознака: новий клас (напр. `animate-*`) видимо не діє. Фікс — повний
+  рестарт контейнера: `docker compose -f docker-compose.dev.yml restart frontend`
+  (просто reload сторінки браузера не допомагає).
 - `npm install` виконується у named volume контейнера (`frontend_node_modules`),
   не на хості — після додавання нових залежностей треба також запустити
   `npm install` у `frontend/` **на хості**, інакше редактор (TS-сервер) не

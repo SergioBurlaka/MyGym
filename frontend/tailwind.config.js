@@ -22,6 +22,20 @@ export default {
         display: ['"Bebas Neue"', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
+      keyframes: {
+        'pop-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95) translateY(-4px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'pop-out': {
+          '0%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+          '100%': { opacity: '0', transform: 'scale(0.95) translateY(-4px)' },
+        },
+      },
+      animation: {
+        'pop-in': 'pop-in 0.12s ease-out',
+        'pop-out': 'pop-out 0.12s ease-in forwards',
+      },
     },
   },
   plugins: [],

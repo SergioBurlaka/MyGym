@@ -10,6 +10,7 @@ import {
 } from '../shared/api/workouts/index.js';
 import { formatDateUk, formatDuration } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
+import Popconfirm from '../components/Popconfirm.js';
 
 type EditableSet = { reps: string };
 type EditableExercise = {
@@ -144,7 +145,6 @@ export default function WorkoutFormPage() {
   }
 
   async function handleDelete() {
-    if (!confirm('Видалити це тренування назавжди?')) return;
     await deleteMutation.mutateAsync();
     navigate('/');
   }
@@ -167,7 +167,13 @@ export default function WorkoutFormPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary" onClick={handleDelete}>Видалити</button>
+          <Popconfirm
+            title="Видалити тренування"
+            description="Це незворотньо — усі вправи й підходи цього тренування буде втрачено назавжди."
+            onConfirm={handleDelete}
+          >
+            <button className="btn-secondary">Видалити</button>
+          </Popconfirm>
           {!workout.timeEnd && (
             <button className="btn-secondary" onClick={handleFinish} disabled={saving}>
               Завершити тренування
@@ -198,9 +204,14 @@ export default function WorkoutFormPage() {
                   </span>
                   {prog && <ProgressionBadge suggestion={prog.suggestion} title={prog.message} />}
                 </div>
-                <button className="btn-ghost text-red-400" onClick={() => removeExercise(block.exerciseId)}>
-                  Прибрати
-                </button>
+                <Popconfirm
+                  title="Прибрати вправу з тренування"
+                  description={`«${exercise.name}» разом з усіма введеними підходами буде прибрано з цього тренування.`}
+                  confirmText="Так, прибрати"
+                  onConfirm={() => removeExercise(block.exerciseId)}
+                >
+                  <button className="btn-ghost text-red-400">Прибрати</button>
+                </Popconfirm>
               </div>
 
               <div className="mb-4 flex flex-wrap items-end gap-3">
