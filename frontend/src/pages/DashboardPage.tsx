@@ -1,17 +1,22 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useInfiniteWorkoutsQuery, useStartWorkoutMutation } from '../shared/api/workouts/index.js';
+import { useWorkoutsQuery, useStartWorkoutMutation } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
+import Pagination from '../components/Pagination.js';
+
+const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
 
-  const workoutsQuery = useInfiniteWorkoutsQuery();
+  const workoutsQuery = useWorkoutsQuery({ page, pageSize: PAGE_SIZE });
   const progressionQuery = useProgressionQuery();
   const startWorkoutMutation = useStartWorkoutMutation();
 
-  const workouts = workoutsQuery.data?.pages.flat() ?? [];
+  const workouts = workoutsQuery.data?.data ?? [];
   const progression = progressionQuery.data ?? [];
 
   async function startWorkout() {
@@ -87,14 +92,13 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {workoutsQuery.hasNextPage && (
-        <button
-          className="btn-secondary w-full"
-          onClick={() => workoutsQuery.fetchNextPage()}
-          disabled={workoutsQuery.isFetchingNextPage}
-        >
-          {workoutsQuery.isFetchingNextPage ? 'Завантажуємо…' : 'Показати ще'}
-        </button>
+      {workoutsQuery.data && (
+        <Pagination
+          page={workoutsQuery.data.page}
+          totalPages={workoutsQuery.data.totalPages}
+          onPageChange={setPage}
+          disabled={workoutsQuery.isFetching}
+        />
       )}
     </div>
   );

@@ -13,7 +13,7 @@ export const useStartWorkoutMutation = (): UseMutationResult<Workout, Error, voi
       return data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: workoutsKeys.infiniteList._def });
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
     },
   });
 };

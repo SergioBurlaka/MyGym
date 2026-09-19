@@ -12,7 +12,7 @@ export const useDeleteWorkoutMutation = (id: string): UseMutationResult<unknown,
     },
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: workoutsKeys.detail(id).queryKey });
-      await queryClient.invalidateQueries({ queryKey: workoutsKeys.infiniteList._def });
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
     },
   });
 };

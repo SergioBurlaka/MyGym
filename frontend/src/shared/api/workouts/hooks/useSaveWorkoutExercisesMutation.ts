@@ -17,7 +17,7 @@ export const useSaveWorkoutExercisesMutation = (
     },
     onSuccess: async (data) => {
       queryClient.setQueryData(workoutsKeys.detail(id).queryKey, data);
-      await queryClient.invalidateQueries({ queryKey: workoutsKeys.infiniteList._def });
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
     },
   });
 };

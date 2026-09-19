@@ -1,4 +1,4 @@
-import { and, eq, desc, lt } from 'drizzle-orm';
+import { and, eq, desc, count } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
@@ -33,25 +33,34 @@ export async function finishWorkout(userId: string, workoutId: string) {
   return row;
 }
 
-export async function listWorkouts(userId: string, opts: { limit?: number; before?: string } = {}) {
-  const limit = opts.limit ?? 30;
-  const conditions = [eq(workouts.userId, userId)];
-  if (opts.before) {
-    conditions.push(lt(workouts.date, opts.before));
-  }
+export async function listWorkouts(userId: string, opts: { page?: number; pageSize?: number } = {}) {
+  const page = Math.max(1, Number.isFinite(opts.page) ? (opts.page as number) : 1);
+  const pageSize = Math.max(1, Number.isFinite(opts.pageSize) ? (opts.pageSize as number) : 20);
+  const offset = (page - 1) * pageSize;
+  const where = eq(workouts.userId, userId);
 
-  const rows = await db.query.workouts.findMany({
-    where: and(...conditions),
-    orderBy: [desc(workouts.date), desc(workouts.createdAt)],
-    limit,
-    with: {
-      workoutExercises: {
-        with: { exercise: true, sets: true },
+  const [rows, [{ total }]] = await Promise.all([
+    db.query.workouts.findMany({
+      where,
+      orderBy: [desc(workouts.date), desc(workouts.createdAt)],
+      limit: pageSize,
+      offset,
+      with: {
+        workoutExercises: {
+          with: { exercise: true, sets: true },
+        },
       },
-    },
-  });
+    }),
+    db.select({ total: count() }).from(workouts).where(where),
+  ]);
 
-  return rows;
+  return {
+    data: rows,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 export async function getWorkout(userId: string, workoutId: string) {

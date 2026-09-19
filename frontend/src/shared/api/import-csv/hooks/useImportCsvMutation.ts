@@ -16,7 +16,7 @@ export const useImportCsvMutation = (): UseMutationResult<ImportSummary, Error, 
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: workoutsKeys.infiniteList._def }),
+        queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def }),
         queryClient.invalidateQueries({ queryKey: exercisesKeys.list.queryKey }),
       ]);
     },

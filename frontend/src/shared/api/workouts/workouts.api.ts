@@ -1,10 +1,10 @@
 import { api } from '../../../api/client.js';
 import type { Workout } from '../../../types/index.js';
-import type { SaveWorkoutExercisesBody, WorkoutsListParams } from './workouts.types.js';
+import type { SaveWorkoutExercisesBody, WorkoutsListParams, WorkoutsPage } from './workouts.types.js';
 
 export const WorkoutsApi = {
   async list(params: WorkoutsListParams) {
-    return api.get<Workout[]>('/workouts', { params });
+    return api.get<WorkoutsPage>('/workouts', { params });
   },
   async getById(id: string) {
     return api.get<Workout>(`/workouts/${id}`);

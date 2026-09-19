@@ -67,14 +67,23 @@ end-to-end проти реального PostgreSQL. Frontend компілюєт
 up --build`) на машині користувача (Windows + Docker Desktop): postgres,
 backend, frontend піднімаються і відповідають на health-check.
 
-Журнал тренувань (Dashboard) вантажить тренування порціями по 20 з кнопкою
-"Показати ще" (курсорна пагінація `before` на `/api/workouts`, реалізована
-через `useInfiniteWorkoutsQuery`) — без цього старі імпортовані тренування
-були непомітні в UI.
+Журнал тренувань (Dashboard) використовує класичну пагінацію зі сторінками:
+`GET /api/workouts?page=&pageSize=` повертає `{ data, total, page, pageSize,
+totalPages }` (offset-запит + `count()` в одному запиті), фронтенд —
+`useWorkoutsQuery` + компонент `components/Pagination.tsx` (номери сторінок,
+prev/next). Без цього старі імпортовані тренування були непомітні в UI —
+раніше показувались лише останні 20 записів без способу побачити решту.
 
 **Windows-специфічні нюанси dev-середовища:**
 - Vite hot-reload не бачив змін файлів через bind-mount без polling —
   у `frontend/vite.config.ts` увімкнено `server.watch.usePolling`.
+- Той самий bind-mount-без-polling баг ловив і бекенд: `tsx watch` теж
+  побудований на chokidar, і без `CHOKIDAR_USEPOLLING=true` жодного разу
+  не перезапускався після правок файлів на Windows — контейнер тихо віддавав
+  стару логіку без помилок (виявлено на пагінації `/api/workouts`: код на
+  диску вже повертав `{data, total, ...}`, а живий бекенд — старий голий
+  масив). Виправлено через `CHOKIDAR_USEPOLLING`/`CHOKIDAR_INTERVAL` у
+  `environment` сервісу `backend` в `docker-compose.dev.yml`.
 - `npm install` виконується у named volume контейнера (`frontend_node_modules`),
   не на хості — після додавання нових залежностей треба також запустити
   `npm install` у `frontend/` **на хості**, інакше редактор (TS-сервер) не

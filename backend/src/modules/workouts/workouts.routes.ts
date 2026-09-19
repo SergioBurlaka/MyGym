@@ -12,9 +12,13 @@ import {
 export default async function workoutsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', fastify.authenticate);
 
-  fastify.get<{ Querystring: { limit?: string; before?: string } }>('/', async (request) => {
-    const limit = request.query.limit ? Number(request.query.limit) : undefined;
-    return listWorkouts(request.userId, { limit, before: request.query.before });
+  fastify.get<{ Querystring: { page?: string; pageSize?: string } }>('/', async (request) => {
+    const page = Number(request.query.page);
+    const pageSize = Number(request.query.pageSize);
+    return listWorkouts(request.userId, {
+      page: Number.isFinite(page) ? page : undefined,
+      pageSize: Number.isFinite(pageSize) ? pageSize : undefined,
+    });
   });
 
   fastify.post('/', async (request, reply) => {
