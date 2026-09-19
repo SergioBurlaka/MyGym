@@ -5,6 +5,7 @@ import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Pagination from '../components/Pagination.js';
 import NewWorkoutButton from '../components/NewWorkoutButton.js';
+import { labelColor } from '../utils/labelColor.js';
 
 const PAGE_SIZE = 20;
 
@@ -74,17 +75,20 @@ export default function DashboardPage() {
         )}
         {workouts.map((w) => {
           const duration = formatDuration(w.timeStart, w.timeEnd);
+          const colors = w.programLabel ? labelColor(w.programLabel) : null;
           return (
             <button
               key={w.id}
               onClick={() => navigate(`/workouts/${w.id}`)}
-              className="card block w-full text-left transition-colors hover:border-accent/50"
+              className={`card block w-full text-left transition-colors hover:border-accent/50 ${
+                colors ? `border-l-4 ${colors.border}` : ''
+              }`}
             >
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <span className="font-semibold text-slate-100">{formatDateUk(w.date)}</span>
-                  {w.programLabel && (
-                    <span className="badge bg-accent/10 text-accent">{w.programLabel}</span>
+                  {w.programLabel && colors && (
+                    <span className={`badge ${colors.badgeBg} ${colors.badgeText}`}>{w.programLabel}</span>
                   )}
                 </span>
                 <span className="text-xs text-slate-400">
