@@ -12,6 +12,7 @@ import {
 import { formatDateUk, formatDuration } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Popconfirm from '../components/Popconfirm.js';
+import Select from '../components/Select.js';
 
 type EditableSet = { reps: string };
 type EditableExercise = {
@@ -301,14 +302,13 @@ export default function WorkoutFormPage() {
       </div>
 
       <div className="card flex flex-wrap items-center gap-3">
-        <select className="input flex-1" value={addExerciseId} onChange={(e) => setAddExerciseId(e.target.value)}>
-          <option value="">Оберіть вправу…</option>
-          {availableExercises.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
+        <Select
+          className="flex-1"
+          value={addExerciseId}
+          onChange={setAddExerciseId}
+          options={availableExercises.map((e) => ({ value: e.id, label: e.name }))}
+          placeholder="Оберіть вправу…"
+        />
         <button className="btn-secondary" onClick={addExercise} disabled={!addExerciseId}>
           + Додати вправу
         </button>
