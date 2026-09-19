@@ -1,0 +1,13 @@
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 4000
+
+# The compose file mounts the source tree over this and runs migrate+dev
+# itself, but this keeps `docker build` on its own useful too.
+CMD ["npm", "run", "dev"]
