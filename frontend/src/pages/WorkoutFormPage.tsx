@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { api } from '../api/client.js';
-import type { Exercise, ExerciseProgression, Workout } from '../types/index.js';
+import { useExercisesQuery } from '../shared/api/exercises/index.js';
+import { useProgressionQuery } from '../shared/api/progression/index.js';
+import {
+  useDeleteWorkoutMutation,
+  useFinishWorkoutMutation,
+  useSaveWorkoutExercisesMutation,
+  useWorkoutQuery,
+} from '../shared/api/workouts/index.js';
 import { formatDateUk, formatDuration } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 
@@ -23,38 +29,37 @@ export default function WorkoutFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [workout, setWorkout] = useState<Workout | null>(null);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [progression, setProgression] = useState<ExerciseProgression[]>([]);
+  const workoutQuery = useWorkoutQuery(id);
+  const exercisesQuery = useExercisesQuery();
+  const progressionQuery = useProgressionQuery();
+
+  const saveMutation = useSaveWorkoutExercisesMutation(id ?? '');
+  const finishMutation = useFinishWorkoutMutation(id ?? '');
+  const deleteMutation = useDeleteWorkoutMutation(id ?? '');
+
+  const exercises = exercisesQuery.data ?? [];
+  const progression = progressionQuery.data ?? [];
+
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
   const [addExerciseId, setAddExerciseId] = useState('');
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const [workoutRes, exercisesRes, progressionRes] = await Promise.all([
-        api.get<Workout>(`/workouts/${id}`),
-        api.get<Exercise[]>('/exercises'),
-        api.get<ExerciseProgression[]>('/progression'),
-      ]);
-      setWorkout(workoutRes.data);
-      setExercises(exercisesRes.data);
-      setProgression(progressionRes.data);
-      setBlocks(
-        workoutRes.data.workoutExercises.map((we) => ({
-          exerciseId: we.exerciseId,
-          weightPerUnitKg: we.weightPerUnitKg ?? '',
-          weightUnits: (we.weightUnits as 1 | 2) ?? 2,
-          sets: we.sets
-            .sort((a, b) => a.setNumber - b.setNumber)
-            .map((s) => ({ reps: String(s.reps) })),
-        })),
-      );
-      setLoading(false);
-    })();
-  }, [id]);
+    if (!workoutQuery.data) return;
+    setBlocks(
+      workoutQuery.data.workoutExercises.map((we) => ({
+        exerciseId: we.exerciseId,
+        weightPerUnitKg: we.weightPerUnitKg ?? '',
+        weightUnits: (we.weightUnits as 1 | 2) ?? 2,
+        sets: we.sets
+          .sort((a, b) => a.setNumber - b.setNumber)
+          .map((s) => ({ reps: String(s.reps) })),
+      })),
+    );
+    // Only re-seed local edit state when we land on a (new) workout — not on
+    // every cache update a save/finish mutation triggers for this same id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutQuery.data?.id]);
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const progressionByExerciseId = useMemo(
@@ -102,9 +107,8 @@ export default function WorkoutFormPage() {
     );
   }
 
-  async function handleSave() {
-    setError(null);
-    const payload = {
+  function buildPayload() {
+    return {
       exercises: blocks.map((b) => ({
         exerciseId: b.exerciseId,
         weightPerUnitKg: b.weightPerUnitKg === '' ? null : Number(b.weightPerUnitKg),
@@ -115,6 +119,11 @@ export default function WorkoutFormPage() {
           .filter((s) => Number.isFinite(s.reps) && s.reps >= 0),
       })),
     };
+  }
+
+  async function handleSave() {
+    setError(null);
+    const payload = buildPayload();
 
     const emptyBlock = payload.exercises.find((e) => e.sets.length === 0);
     if (emptyBlock) {
@@ -122,31 +131,30 @@ export default function WorkoutFormPage() {
       return;
     }
 
-    setSaving(true);
     try {
-      const res = await api.put<Workout>(`/workouts/${id}/exercises`, payload);
-      setWorkout(res.data);
+      await saveMutation.mutateAsync(payload);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Не вдалося зберегти');
-    } finally {
-      setSaving(false);
     }
   }
 
   async function handleFinish() {
     await handleSave();
-    const res = await api.post<Workout>(`/workouts/${id}/finish`);
-    setWorkout(res.data);
+    await finishMutation.mutateAsync();
   }
 
   async function handleDelete() {
     if (!confirm('Видалити це тренування назавжди?')) return;
-    await api.delete(`/workouts/${id}`);
+    await deleteMutation.mutateAsync();
     navigate('/');
   }
 
-  if (loading || !workout) return <p className="text-slate-400">Завантаження…</p>;
+  if (workoutQuery.isPending || exercisesQuery.isPending || progressionQuery.isPending || !workoutQuery.data) {
+    return <p className="text-slate-400">Завантаження…</p>;
+  }
 
+  const workout = workoutQuery.data;
+  const saving = saveMutation.isPending || finishMutation.isPending;
   const duration = formatDuration(workout.timeStart, workout.timeEnd);
 
   return (

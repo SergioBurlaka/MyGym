@@ -8,7 +8,7 @@
 
 - **Backend:** Node.js + TypeScript, Fastify + Zod (валідація), Drizzle ORM + drizzle-kit (міграції), PostgreSQL
 - **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
-- **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки)
+- **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy на HTTP (SSL поки не налаштований — буде certbot пізніше, коли з'явиться домен)
 
 Ці рішення — результат явного обговорення з користувачем (Fastify+Zod над
@@ -63,10 +63,25 @@ Docker-стек (dev + prod), nginx reverse-proxy. Backend протестова�
 end-to-end проти реального PostgreSQL. Frontend компілюється і збирається
 (vite build) без помилок.
 
-**Не перевірено в хмарному середовищі розробки:** реальний `docker compose up`
-(там не було Docker-демона) — синтаксис compose-файлів валідний
-(`docker compose config` пройшов), але фактичний підйом контейнерів на
-сервері користувача ще належить перевірити.
+Перевірено реальний підйом dev-стека (`docker compose -f docker-compose.dev.yml
+up --build`) на машині користувача (Windows + Docker Desktop): postgres,
+backend, frontend піднімаються і відповідають на health-check.
+
+Журнал тренувань (Dashboard) вантажить тренування порціями по 20 з кнопкою
+"Показати ще" (курсорна пагінація `before` на `/api/workouts`, реалізована
+через `useInfiniteWorkoutsQuery`) — без цього старі імпортовані тренування
+були непомітні в UI.
+
+**Windows-специфічні нюанси dev-середовища:**
+- Vite hot-reload не бачив змін файлів через bind-mount без polling —
+  у `frontend/vite.config.ts` увімкнено `server.watch.usePolling`.
+- `npm install` виконується у named volume контейнера (`frontend_node_modules`),
+  не на хості — після додавання нових залежностей треба також запустити
+  `npm install` у `frontend/` **на хості**, інакше редактор (TS-сервер) не
+  бачить нових типів і показує хибні помилки (`JSX.IntrinsicElements` тощо).
+- Порт хоста для postgres у dev може конфліктувати з іншими проєктами
+  користувача — керується через `POSTGRES_PORT` у `.env` (зараз 5433,
+  бо 5432 зайнятий іншим контейнером на машині користувача).
 
 ## Стиль спілкування з користувачем
 

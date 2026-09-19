@@ -1,34 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
-import { api } from '../api/client.js';
-import type { ExerciseProgression, HistoryPoint } from '../types/index.js';
+import { useMemo, useState } from 'react';
+import { useProgressionHistoryQuery, useProgressionQuery } from '../shared/api/progression/index.js';
 import ProgressChart from '../components/ProgressChart.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 
 export default function ProgressPage() {
-  const [progression, setProgression] = useState<ExerciseProgression[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const progressionQuery = useProgressionQuery();
+  const progression = progressionQuery.data ?? [];
 
-  useEffect(() => {
-    (async () => {
-      const res = await api.get<ExerciseProgression[]>('/progression');
-      setProgression(res.data);
-      const firstWithData = res.data.find((p) => p.suggestion !== 'no_data');
-      setSelectedId((firstWithData ?? res.data[0])?.exerciseId ?? null);
-      setLoading(false);
-    })();
-  }, []);
+  const [manualSelectedId, setManualSelectedId] = useState<string | null>(null);
+  const defaultSelectedId = useMemo(() => {
+    const firstWithData = progression.find((p) => p.suggestion !== 'no_data');
+    return (firstWithData ?? progression[0])?.exerciseId ?? null;
+  }, [progression]);
+  const selectedId = manualSelectedId ?? defaultSelectedId;
 
-  useEffect(() => {
-    if (!selectedId) return;
-    setHistoryLoading(true);
-    api
-      .get<HistoryPoint[]>(`/progression/${selectedId}/history`)
-      .then((res) => setHistory(res.data))
-      .finally(() => setHistoryLoading(false));
-  }, [selectedId]);
+  const historyQuery = useProgressionHistoryQuery(selectedId);
+  const history = historyQuery.data ?? [];
 
   const selected = useMemo(
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
@@ -38,7 +25,7 @@ export default function ProgressPage() {
   const weightData = history.map((h) => ({ date: h.date, value: h.totalWeightKg }));
   const repsData = history.map((h) => ({ date: h.date, value: h.maxReps }));
 
-  if (loading) return <p className="text-slate-400">Завантаження…</p>;
+  if (progressionQuery.isPending) return <p className="text-slate-400">Завантаження…</p>;
 
   return (
     <div className="space-y-6">
@@ -48,7 +35,7 @@ export default function ProgressPage() {
         {progression.map((p) => (
           <button
             key={p.exerciseId}
-            onClick={() => setSelectedId(p.exerciseId)}
+            onClick={() => setManualSelectedId(p.exerciseId)}
             className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
               selectedId === p.exerciseId
                 ? 'border-accent bg-accent/10'
@@ -91,7 +78,7 @@ export default function ProgressPage() {
             </dl>
           </div>
 
-          {historyLoading ? (
+          {historyQuery.isPending ? (
             <p className="text-slate-400">Завантаження графіка…</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">

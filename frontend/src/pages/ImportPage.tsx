@@ -1,33 +1,28 @@
-import { useRef, useState } from 'react';
-import { api } from '../api/client.js';
-import type { ImportSummary } from '../types/index.js';
+import { useRef } from 'react';
+import { useImportCsvMutation } from '../shared/api/import-csv/index.js';
 
 export default function ImportPage() {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [summary, setSummary] = useState<ImportSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const importMutation = useImportCsvMutation();
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
-    setBusy(true);
-    setError(null);
-    setSummary(null);
+    importMutation.reset();
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await api.post<ImportSummary>('/import/csv', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setSummary(res.data);
+      await importMutation.mutateAsync(file);
       if (fileRef.current) fileRef.current.value = '';
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Не вдалося імпортувати файл');
-    } finally {
-      setBusy(false);
+    } catch {
+      // surfaced via importMutation.error below
     }
   }
+
+  const errorMessage =
+    importMutation.error && (importMutation.error as any)?.response?.data?.message
+      ? (importMutation.error as any).response.data.message
+      : importMutation.isError
+        ? 'Не вдалося імпортувати файл'
+        : null;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -45,28 +40,30 @@ export default function ImportPage() {
           accept=".csv,text/csv"
           className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-hover"
         />
-        <button className="btn-primary" onClick={handleUpload} disabled={busy}>
-          {busy ? 'Імпортуємо…' : 'Імпортувати'}
+        <button className="btn-primary" onClick={handleUpload} disabled={importMutation.isPending}>
+          {importMutation.isPending ? 'Імпортуємо…' : 'Імпортувати'}
         </button>
       </div>
 
-      {error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
+      {errorMessage && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{errorMessage}</p>}
 
-      {summary && (
+      {importMutation.data && (
         <div className="card space-y-2">
           <h2 className="text-lg text-slate-100">Результат імпорту</h2>
           <ul className="space-y-1 text-sm text-slate-300">
-            <li>Імпортовано тренувань: <strong>{summary.workoutsImported}</strong></li>
-            <li>Імпортовано підходів: <strong>{summary.setsImported}</strong></li>
-            {summary.workoutsSkippedExisting.length > 0 && (
+            <li>Імпортовано тренувань: <strong>{importMutation.data.workoutsImported}</strong></li>
+            <li>Імпортовано підходів: <strong>{importMutation.data.setsImported}</strong></li>
+            {importMutation.data.workoutsSkippedExisting.length > 0 && (
               <li>
-                Пропущено (вже існують): {summary.workoutsSkippedExisting.join(', ')}
+                Пропущено (вже існують): {importMutation.data.workoutsSkippedExisting.join(', ')}
               </li>
             )}
-            {summary.exercisesCreated.length > 0 && (
-              <li>Створено нові вправи: {summary.exercisesCreated.join(', ')}</li>
+            {importMutation.data.exercisesCreated.length > 0 && (
+              <li>Створено нові вправи: {importMutation.data.exercisesCreated.join(', ')}</li>
             )}
-            {summary.rowsSkipped > 0 && <li>Пропущено рядків (нерозпізнано): {summary.rowsSkipped}</li>}
+            {importMutation.data.rowsSkipped > 0 && (
+              <li>Пропущено рядків (нерозпізнано): {importMutation.data.rowsSkipped}</li>
+            )}
           </ul>
         </div>
       )}

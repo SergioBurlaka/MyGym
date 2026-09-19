@@ -1,74 +1,38 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api/client.js';
-import type { Workout, ExerciseProgression } from '../types/index.js';
+import { useInfiniteWorkoutsQuery, useStartWorkoutMutation } from '../shared/api/workouts/index.js';
+import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 
-const PAGE_SIZE = 20;
-
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [progression, setProgression] = useState<ExerciseProgression[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [starting, setStarting] = useState(false);
 
-  async function load() {
-    setLoading(true);
-    const [workoutsRes, progressionRes] = await Promise.all([
-      api.get<Workout[]>('/workouts', { params: { limit: PAGE_SIZE } }),
-      api.get<ExerciseProgression[]>('/progression'),
-    ]);
-    setWorkouts(workoutsRes.data);
-    setHasMore(workoutsRes.data.length === PAGE_SIZE);
-    setProgression(progressionRes.data);
-    setLoading(false);
-  }
+  const workoutsQuery = useInfiniteWorkoutsQuery();
+  const progressionQuery = useProgressionQuery();
+  const startWorkoutMutation = useStartWorkoutMutation();
 
-  async function loadMore() {
-    const last = workouts[workouts.length - 1];
-    if (!last) return;
-    setLoadingMore(true);
-    try {
-      const res = await api.get<Workout[]>('/workouts', {
-        params: { limit: PAGE_SIZE, before: last.date },
-      });
-      setWorkouts((prev) => [...prev, ...res.data]);
-      setHasMore(res.data.length === PAGE_SIZE);
-    } finally {
-      setLoadingMore(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
+  const workouts = workoutsQuery.data?.pages.flat() ?? [];
+  const progression = progressionQuery.data ?? [];
 
   async function startWorkout() {
-    setStarting(true);
-    try {
-      const res = await api.post<Workout>('/workouts', {});
-      navigate(`/workouts/${res.data.id}`);
-    } finally {
-      setStarting(false);
-    }
+    const workout = await startWorkoutMutation.mutateAsync();
+    navigate(`/workouts/${workout.id}`);
   }
 
   const needsAttention = progression.filter(
     (p) => p.suggestion === 'try_more' || p.suggestion === 'increase_weight' || p.suggestion === 'start_adding_weight',
   );
 
-  if (loading) return <p className="text-slate-400">Завантаження…</p>;
+  if (workoutsQuery.isPending || progressionQuery.isPending) {
+    return <p className="text-slate-400">Завантаження…</p>;
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl text-slate-100">Журнал тренувань</h1>
-        <button className="btn-primary" onClick={startWorkout} disabled={starting}>
-          {starting ? 'Створюємо…' : '+ Нове тренування'}
+        <button className="btn-primary" onClick={startWorkout} disabled={startWorkoutMutation.isPending}>
+          {startWorkoutMutation.isPending ? 'Створюємо…' : '+ Нове тренування'}
         </button>
       </div>
 
@@ -123,9 +87,13 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {hasMore && (
-        <button className="btn-secondary w-full" onClick={loadMore} disabled={loadingMore}>
-          {loadingMore ? 'Завантажуємо…' : 'Показати ще'}
+      {workoutsQuery.hasNextPage && (
+        <button
+          className="btn-secondary w-full"
+          onClick={() => workoutsQuery.fetchNextPage()}
+          disabled={workoutsQuery.isFetchingNextPage}
+        >
+          {workoutsQuery.isFetchingNextPage ? 'Завантажуємо…' : 'Показати ще'}
         </button>
       )}
     </div>

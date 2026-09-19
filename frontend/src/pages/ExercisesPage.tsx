@@ -1,6 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { api } from '../api/client.js';
-import type { Exercise } from '../types/index.js';
+import { useState, type FormEvent } from 'react';
+import { useArchiveExerciseMutation, useCreateExerciseMutation, useExercisesQuery } from '../shared/api/exercises/index.js';
 
 const CATEGORY_LABEL: Record<string, string> = {
   large: 'Велика група (6-15, крок 1.25 кг)',
@@ -18,30 +17,22 @@ const emptyForm = {
 };
 
 export default function ExercisesPage() {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [loading, setLoading] = useState(true);
+  const exercisesQuery = useExercisesQuery();
+  const createMutation = useCreateExerciseMutation();
+  const archiveMutation = useArchiveExerciseMutation();
+
+  const exercises = exercisesQuery.data ?? [];
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function load() {
-    const res = await api.get<Exercise[]>('/exercises');
-    setExercises(res.data);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      await api.post('/exercises', form);
+      await createMutation.mutateAsync(form);
       setForm(emptyForm);
       setShowForm(false);
-      await load();
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Не вдалося додати вправу');
     }
@@ -49,8 +40,7 @@ export default function ExercisesPage() {
 
   async function handleArchive(id: string) {
     if (!confirm('Прибрати цю вправу зі списку?')) return;
-    await api.delete(`/exercises/${id}`);
-    await load();
+    await archiveMutation.mutateAsync(id);
   }
 
   function categoryDefaults(category: typeof form.category) {
@@ -59,7 +49,7 @@ export default function ExercisesPage() {
     return { repRangeMin: 6, repRangeMax: 30, weightStepKg: 0.5 };
   }
 
-  if (loading) return <p className="text-slate-400">Завантаження…</p>;
+  if (exercisesQuery.isPending) return <p className="text-slate-400">Завантаження…</p>;
 
   return (
     <div className="space-y-6">
