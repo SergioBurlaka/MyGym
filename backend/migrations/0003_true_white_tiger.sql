@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "training_days" jsonb DEFAULT '[1,3,5]'::jsonb NOT NULL;

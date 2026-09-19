@@ -10,6 +10,7 @@ import workoutsRoutes from './modules/workouts/workouts.routes.js';
 import progressionRoutes from './modules/progression/progression.routes.js';
 import csvImportRoutes from './modules/import/csvImport.routes.js';
 import programsRoutes from './modules/programs/programs.routes.js';
+import settingsRoutes from './modules/settings/settings.routes.js';
 
 export function buildApp() {
   const app = Fastify({
@@ -37,6 +38,7 @@ export function buildApp() {
   app.register(progressionRoutes, { prefix: '/api/progression' });
   app.register(csvImportRoutes, { prefix: '/api/import' });
   app.register(programsRoutes, { prefix: '/api/programs' });
+  app.register(settingsRoutes, { prefix: '/api/settings' });
 
   return app;
 }

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useArchiveExerciseMutation, useCreateExerciseMutation, useExercisesQuery } from '../shared/api/exercises/index.js';
+import { useSettingsQuery, useUpdateSettingsMutation } from '../shared/api/settings/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 
@@ -8,6 +9,16 @@ const CATEGORY_LABEL: Record<string, string> = {
   small: 'Мала група (6-20, крок 0.5 кг)',
   bodyweight: 'Без ваги (6-30)',
 };
+
+const WEEKDAY_LABELS: { day: number; label: string }[] = [
+  { day: 1, label: 'Пн' },
+  { day: 2, label: 'Вт' },
+  { day: 3, label: 'Ср' },
+  { day: 4, label: 'Чт' },
+  { day: 5, label: 'Пт' },
+  { day: 6, label: 'Сб' },
+  { day: 7, label: 'Нд' },
+];
 
 const emptyForm = {
   name: '',
@@ -158,6 +169,52 @@ export default function ExercisesPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <TrainingScheduleCard />
+    </div>
+  );
+}
+
+function TrainingScheduleCard() {
+  const settingsQuery = useSettingsQuery();
+  const updateMutation = useUpdateSettingsMutation();
+  const trainingDays = settingsQuery.data?.trainingDays ?? [];
+
+  function toggleDay(day: number) {
+    const next = trainingDays.includes(day)
+      ? trainingDays.filter((d) => d !== day)
+      : [...trainingDays, day];
+    updateMutation.mutate(next);
+  }
+
+  if (settingsQuery.isPending) return null;
+
+  return (
+    <div className="card">
+      <h2 className="text-lg text-slate-100">Розклад тренувань</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        Планові дні тренувань — використовується для календаря на журналі, щоб бачити пропущені дні.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {WEEKDAY_LABELS.map(({ day, label }) => {
+          const active = trainingDays.includes(day);
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => toggleDay(day)}
+              disabled={updateMutation.isPending}
+              className={`w-14 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                active
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-surface-border bg-surface-raised text-slate-400 hover:border-slate-600'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

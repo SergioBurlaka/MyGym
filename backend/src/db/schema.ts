@@ -7,6 +7,7 @@ import {
   smallint,
   numeric,
   pgEnum,
+  jsonb,
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -27,6 +28,9 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull(),
   passwordHash: text('password_hash').notNull(),
+  // ISO weekday numbers (1=Mon..7=Sun) the user plans to train on. Drives the
+  // consistency calendar's "missed a planned day" detection.
+  trainingDays: jsonb('training_days').$type<number[]>().notNull().default([1, 3, 5]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   emailIdx: uniqueIndex('users_email_idx').on(sql`lower(${table.email})`),
