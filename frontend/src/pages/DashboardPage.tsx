@@ -6,6 +6,7 @@ import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Pagination from '../components/Pagination.js';
 import NewWorkoutButton from '../components/NewWorkoutButton.js';
+import ConsistencyCalendar from '../components/ConsistencyCalendar.js';
 import { labelColor } from '../utils/labelColor.js';
 
 const PAGE_SIZE = 20;
@@ -76,6 +77,11 @@ export default function DashboardPage() {
           </ul>
         </div>
       )}
+
+      <div className="card">
+        <h2 className="mb-3 text-lg text-slate-100">Календар консистентності</h2>
+        <ConsistencyCalendar />
+      </div>
 
       <div className="space-y-3">
         {workouts.length === 0 && (

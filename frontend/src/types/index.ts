@@ -49,6 +49,12 @@ export type WorkoutTemplate = {
   exerciseNames: string[];
 };
 
+export type WorkoutDateSummary = {
+  date: string;
+  programLabel: string | null;
+  exerciseNames: string[];
+};
+
 export type ProgramExercise = {
   id: string;
   exerciseId: string;
@@ -90,6 +96,18 @@ export type HistoryPoint = {
   maxReps: number;
   avgReps: number;
   setsCount: number;
+  estimatedOneRepMaxKg: number | null;
+  volumeKg: number | null;
+  totalReps: number;
+  isWeightPR: boolean;
+  isRepsPR: boolean;
+};
+
+export type WeeklyCategoryVolume = {
+  weekStart: string;
+  large: number;
+  small: number;
+  bodyweight: number;
 };
 
 export type ImportSummary = {

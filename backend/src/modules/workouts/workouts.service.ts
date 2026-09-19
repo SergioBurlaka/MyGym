@@ -1,4 +1,4 @@
-import { and, eq, desc, count, isNotNull } from 'drizzle-orm';
+import { and, eq, desc, count, isNotNull, gte, lte } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
@@ -163,6 +163,27 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
+}
+
+// Lightweight summary for the consistency calendar - just dates + exercise
+// names for the tooltip, not the full workout payload listWorkouts returns.
+export async function listWorkoutDates(userId: string, from: string, to: string) {
+  const rows = await db.query.workouts.findMany({
+    where: and(eq(workouts.userId, userId), gte(workouts.date, from), lte(workouts.date, to)),
+    orderBy: [desc(workouts.date)],
+    with: {
+      workoutExercises: {
+        orderBy: (we, { asc }) => [asc(we.orderIndex)],
+        with: { exercise: true },
+      },
+    },
+  });
+
+  return rows.map((w) => ({
+    date: w.date,
+    programLabel: w.programLabel,
+    exerciseNames: w.workoutExercises.map((we) => we.exercise.name),
+  }));
 }
 
 export async function getWorkout(userId: string, workoutId: string) {

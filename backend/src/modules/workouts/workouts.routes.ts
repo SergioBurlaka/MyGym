@@ -4,6 +4,7 @@ import {
   startWorkout,
   finishWorkout,
   listWorkouts,
+  listWorkoutDates,
   getWorkout,
   deleteWorkout,
   saveWorkoutExercises,
@@ -34,6 +35,14 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/templates', async (request) => {
     return listWorkoutTemplates(request.userId);
+  });
+
+  fastify.get<{ Querystring: { from?: string; to?: string } }>('/dates', async (request, reply) => {
+    const { from, to } = request.query;
+    if (!from || !to) {
+      return reply.code(400).send({ error: 'validation_error', message: 'from and to are required (YYYY-MM-DD)' });
+    }
+    return listWorkoutDates(request.userId, from, to);
   });
 
   fastify.patch<{ Params: { id: string } }>('/:id', async (request, reply) => {

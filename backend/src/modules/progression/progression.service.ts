@@ -1,4 +1,4 @@
-import { and, eq, isNull, asc } from 'drizzle-orm';
+import { and, eq, gte, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises, workoutExercises, workouts, sets } from '../../db/schema.js';
 
@@ -33,6 +33,18 @@ type HistoryPoint = {
   maxReps: number;
   avgReps: number;
   setsCount: number;
+  // Epley formula (totalWeightKg * (1 + maxReps/30)) - only meaningful when
+  // the exercise was done with weight, and unreliable past ~15 reps, but we
+  // still compute it (the frontend just needs a trend, not a precise number).
+  estimatedOneRepMaxKg: number | null;
+  // totalWeightKg * sum(reps) for weighted exercises; null for bodyweight
+  // (use totalReps as the "volume" there instead).
+  volumeKg: number | null;
+  totalReps: number;
+  // true when this point's totalWeightKg/maxReps is strictly greater than
+  // every earlier point for this exercise (a personal record at the time).
+  isWeightPR: boolean;
+  isRepsPR: boolean;
 };
 
 function daysBetween(from: Date, to: Date): number {
@@ -90,15 +102,47 @@ async function buildHistory(exerciseId: string): Promise<HistoryPoint[]> {
     byDate.get(key)!.reps.push(row.reps);
   }
 
-  return [...byDate.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([date, entry]) => ({
+  const sorted = [...byDate.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+  // Running bests, walked chronologically, to flag PRs (task 5) - reset per
+  // exercise since buildHistory is called once per exerciseId.
+  let bestWeightKg: number | null = null;
+  let bestReps: number | null = null;
+
+  return sorted.map(([date, entry]) => {
+    const totalWeightKg = totalWeight(entry.weightPerUnitKg, entry.weightUnits);
+    const maxReps = Math.max(...entry.reps);
+    const totalReps = entry.reps.reduce((a, b) => a + b, 0);
+    const avgReps = totalReps / entry.reps.length;
+
+    const estimatedOneRepMaxKg =
+      totalWeightKg != null ? Math.round(totalWeightKg * (1 + maxReps / 30) * 10) / 10 : null;
+    const volumeKg = totalWeightKg != null ? totalWeightKg * totalReps : null;
+
+    let isWeightPR = false;
+    if (totalWeightKg != null && (bestWeightKg == null || totalWeightKg > bestWeightKg)) {
+      isWeightPR = true;
+      bestWeightKg = totalWeightKg;
+    }
+    let isRepsPR = false;
+    if (bestReps == null || maxReps > bestReps) {
+      isRepsPR = true;
+      bestReps = maxReps;
+    }
+
+    return {
       date,
-      totalWeightKg: totalWeight(entry.weightPerUnitKg, entry.weightUnits),
-      maxReps: Math.max(...entry.reps),
-      avgReps: entry.reps.reduce((a, b) => a + b, 0) / entry.reps.length,
+      totalWeightKg,
+      maxReps,
+      avgReps,
       setsCount: entry.reps.length,
-    }));
+      estimatedOneRepMaxKg,
+      volumeKg,
+      totalReps,
+      isWeightPR,
+      isRepsPR,
+    };
+  });
 }
 
 export async function getExerciseHistory(userId: string, exerciseId: string): Promise<HistoryPoint[]> {
@@ -187,4 +231,65 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
   }
 
   return results;
+}
+
+export type WeeklyCategoryVolume = {
+  weekStart: string;
+  large: number;
+  small: number;
+  bodyweight: number;
+};
+
+// Monday (ISO 8601 week start) of the week containing this date.
+function isoWeekStart(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay(); // 0=Sun..6=Sat
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+// Volume per category per ISO week, for the balance-check chart on the
+// Progress page: for weighted exercises, volume = weight * reps per set
+// (sums to the same totalWeightKg * totalReps as buildHistory's volumeKg);
+// for bodyweight exercises (no weight logged), volume = reps.
+export async function getVolumeByCategory(userId: string, weeks: number): Promise<WeeklyCategoryVolume[]> {
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const rows = await db
+    .select({
+      date: workouts.date,
+      category: exercises.category,
+      weightPerUnitKg: workoutExercises.weightPerUnitKg,
+      weightUnits: workoutExercises.weightUnits,
+      reps: sets.reps,
+    })
+    .from(workoutExercises)
+    .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+    .innerJoin(exercises, eq(workoutExercises.exerciseId, exercises.id))
+    .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
+    .where(and(eq(workouts.userId, userId), gte(workouts.date, cutoffStr)));
+
+  const byWeek = new Map<string, WeeklyCategoryVolume>();
+  for (const row of rows) {
+    const weekStart = isoWeekStart(row.date);
+    if (!byWeek.has(weekStart)) {
+      byWeek.set(weekStart, { weekStart, large: 0, small: 0, bodyweight: 0 });
+    }
+    const totals = byWeek.get(weekStart)!;
+    const weight = totalWeight(row.weightPerUnitKg, row.weightUnits);
+    const contribution = weight != null ? weight * row.reps : row.reps;
+    totals[row.category] += contribution;
+  }
+
+  return [...byWeek.values()]
+    .map((w) => ({
+      weekStart: w.weekStart,
+      large: Math.round(w.large),
+      small: Math.round(w.small),
+      bodyweight: Math.round(w.bodyweight),
+    }))
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1));
 }

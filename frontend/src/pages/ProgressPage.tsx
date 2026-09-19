@@ -1,11 +1,17 @@
 import { useMemo, useState } from 'react';
-import { useProgressionHistoryQuery, useProgressionQuery } from '../shared/api/progression/index.js';
+import {
+  useProgressionHistoryQuery,
+  useProgressionQuery,
+  useVolumeByCategoryQuery,
+} from '../shared/api/progression/index.js';
 import ProgressChart from '../components/ProgressChart.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
+import WeeklyCategoryChart from '../components/WeeklyCategoryChart.js';
 
 export default function ProgressPage() {
   const progressionQuery = useProgressionQuery();
   const progression = progressionQuery.data ?? [];
+  const volumeByCategoryQuery = useVolumeByCategoryQuery(12);
 
   const [manualSelectedId, setManualSelectedId] = useState<string | null>(null);
   const defaultSelectedId = useMemo(() => {
@@ -22,14 +28,35 @@ export default function ProgressPage() {
     [progression, selectedId],
   );
 
-  const weightData = history.map((h) => ({ date: h.date, value: h.totalWeightKg }));
-  const repsData = history.map((h) => ({ date: h.date, value: h.maxReps }));
+  const weightData = history.map((h) => ({ date: h.date, value: h.totalWeightKg, isPR: h.isWeightPR }));
+  const repsData = history.map((h) => ({ date: h.date, value: h.maxReps, isPR: h.isRepsPR }));
+  const oneRepMaxData = history.map((h) => ({ date: h.date, value: h.estimatedOneRepMaxKg }));
+  const hasWeightedVolume = history.some((h) => h.volumeKg != null);
+  const volumeData = history.map((h) => ({
+    date: h.date,
+    value: hasWeightedVolume ? h.volumeKg : h.totalReps,
+  }));
+  const volumeUnit = hasWeightedVolume ? 'кг' : 'повт.';
 
   if (progressionQuery.isPending) return <p className="text-slate-400">Завантаження…</p>;
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl text-slate-100">Прогрес по вправах</h1>
+
+      <div className="card">
+        <h2 className="text-lg text-slate-100">Обсяг по категоріях за тиждень</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Баланс навантаження між великими й малими групами м'язів — чи не занедбані малі групи.
+        </p>
+        <div className="mt-3">
+          {volumeByCategoryQuery.isPending ? (
+            <p className="text-slate-400">Завантаження…</p>
+          ) : (
+            <WeeklyCategoryChart data={volumeByCategoryQuery.data ?? []} />
+          )}
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {progression.map((p) => (
@@ -89,6 +116,14 @@ export default function ProgressPage() {
               <div className="card">
                 <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Максимум повторень за тренування</h3>
                 <ProgressChart data={repsData} color="#3ddc97" unit="повт." emptyLabel="Немає даних" />
+              </div>
+              <div className="card">
+                <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Розрахунковий 1ПМ, кг</h3>
+                <ProgressChart data={oneRepMaxData} color="#eda100" unit="кг" emptyLabel="Ця вправа без ваги" />
+              </div>
+              <div className="card">
+                <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Обсяг тренування</h3>
+                <ProgressChart data={volumeData} color="#7dd3fc" unit={volumeUnit} emptyLabel="Немає даних" />
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 export * from './useWorkoutsQuery.js';
 export * from './useWorkoutQuery.js';
 export * from './useWorkoutTemplatesQuery.js';
+export * from './useWorkoutDatesQuery.js';
 export * from './useStartWorkoutMutation.js';
 export * from './useSaveWorkoutExercisesMutation.js';
 export * from './useFinishWorkoutMutation.js';
