@@ -10,6 +10,12 @@ export type WorkoutsPage = {
   totalPages: number;
 };
 
+export type StartWorkoutBody = {
+  date?: string;
+  programLabel?: string | null;
+  copyFromWorkoutId?: string;
+};
+
 export type SaveWorkoutExercisesBody = {
   exercises: {
     exerciseId: string;

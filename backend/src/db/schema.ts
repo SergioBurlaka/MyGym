@@ -72,9 +72,14 @@ export const workouts = pgTable('workouts', {
   date: date('date').notNull(),
   timeStart: timestamp('time_start', { withTimezone: true }),
   timeEnd: timestamp('time_end', { withTimezone: true }),
+  // Free-text label the user assigns to a workout (e.g. "А" / "Б" for an
+  // alternating split) so a future workout can be started "from" the latest
+  // one with the same label, instead of re-adding every exercise by hand.
+  programLabel: text('program_label'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userDateIdx: index('workouts_user_date_idx').on(table.userId, table.date),
+  userLabelIdx: index('workouts_user_label_idx').on(table.userId, table.programLabel),
 }));
 
 // One row per exercise performed within a workout. The working weight is

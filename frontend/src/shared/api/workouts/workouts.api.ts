@@ -1,6 +1,6 @@
 import { api } from '../../../api/client.js';
-import type { Workout } from '../../../types/index.js';
-import type { SaveWorkoutExercisesBody, WorkoutsListParams, WorkoutsPage } from './workouts.types.js';
+import type { Workout, WorkoutTemplate } from '../../../types/index.js';
+import type { SaveWorkoutExercisesBody, StartWorkoutBody, WorkoutsListParams, WorkoutsPage } from './workouts.types.js';
 
 export const WorkoutsApi = {
   async list(params: WorkoutsListParams) {
@@ -9,8 +9,14 @@ export const WorkoutsApi = {
   async getById(id: string) {
     return api.get<Workout>(`/workouts/${id}`);
   },
-  async start() {
-    return api.post<Workout>('/workouts', {});
+  async start(body: StartWorkoutBody = {}) {
+    return api.post<Workout>('/workouts', body);
+  },
+  async templates() {
+    return api.get<WorkoutTemplate[]>('/workouts/templates');
+  },
+  async updateLabel(id: string, programLabel: string | null) {
+    return api.patch<Workout>(`/workouts/${id}`, { programLabel });
   },
   async saveExercises(id: string, body: SaveWorkoutExercisesBody) {
     return api.put<Workout>(`/workouts/${id}/exercises`, body);

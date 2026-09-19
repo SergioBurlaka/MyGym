@@ -1,4 +1,4 @@
-import { and, eq, desc, count } from 'drizzle-orm';
+import { and, eq, desc, count, isNotNull } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
@@ -7,16 +7,100 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function startWorkout(userId: string, date?: string) {
-  const [workout] = await db
-    .insert(workouts)
-    .values({
-      userId,
-      date: date ?? todayIso(),
-      timeStart: new Date(),
-    })
+export async function startWorkout(
+  userId: string,
+  opts: { date?: string; programLabel?: string | null; copyFromWorkoutId?: string } = {},
+) {
+  return db.transaction(async (tx) => {
+    const [workout] = await tx
+      .insert(workouts)
+      .values({
+        userId,
+        date: opts.date ?? todayIso(),
+        timeStart: new Date(),
+        programLabel: opts.programLabel ?? null,
+      })
+      .returning();
+
+    if (opts.copyFromWorkoutId) {
+      // Only copy from a workout that actually belongs to this user; a
+      // foreign/unknown id is silently ignored rather than failing the
+      // whole "start workout" action.
+      const source = await tx.query.workouts.findFirst({
+        where: and(eq(workouts.id, opts.copyFromWorkoutId), eq(workouts.userId, userId)),
+        with: { workoutExercises: { orderBy: (we, { asc }) => [asc(we.orderIndex)] } },
+      });
+      if (source && source.workoutExercises.length > 0) {
+        // No sets are copied - reps are filled in fresh each session, only
+        // the exercise list and working weight carry over as a starting point.
+        await tx.insert(workoutExercises).values(
+          source.workoutExercises.map((we) => ({
+            workoutId: workout.id,
+            exerciseId: we.exerciseId,
+            weightPerUnitKg: we.weightPerUnitKg,
+            weightUnits: we.weightUnits,
+            orderIndex: we.orderIndex,
+          })),
+        );
+      }
+    }
+
+    // Read back via tx (not the module-level `db`/getWorkout) - the insert
+    // above isn't committed yet, so a query on a separate connection
+    // wouldn't see it.
+    return tx.query.workouts.findFirst({
+      where: and(eq(workouts.id, workout.id), eq(workouts.userId, userId)),
+      with: {
+        workoutExercises: {
+          orderBy: (we, { asc }) => [asc(we.orderIndex)],
+          with: { exercise: true, sets: { orderBy: (s, { asc }) => [asc(s.setNumber)] } },
+        },
+      },
+    });
+  });
+}
+
+export async function updateWorkoutLabel(userId: string, workoutId: string, programLabel: string | null) {
+  const existing = await db.query.workouts.findFirst({
+    where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
+  });
+  if (!existing) return null;
+
+  const [row] = await db
+    .update(workouts)
+    .set({ programLabel })
+    .where(eq(workouts.id, workoutId))
     .returning();
-  return workout;
+  return row;
+}
+
+// One entry per distinct label the user has ever used, pointing at the most
+// recent workout with that label - lets "start a new workout" offer
+// "start from <label>" with a preview of what it'll copy.
+export async function listWorkoutTemplates(userId: string) {
+  const labeled = await db.query.workouts.findMany({
+    where: and(eq(workouts.userId, userId), isNotNull(workouts.programLabel)),
+    orderBy: [desc(workouts.date), desc(workouts.createdAt)],
+    with: {
+      workoutExercises: {
+        orderBy: (we, { asc }) => [asc(we.orderIndex)],
+        with: { exercise: true },
+      },
+    },
+  });
+
+  const latestByLabel = new Map<string, (typeof labeled)[number]>();
+  for (const w of labeled) {
+    const label = w.programLabel as string;
+    if (!latestByLabel.has(label)) latestByLabel.set(label, w);
+  }
+
+  return [...latestByLabel.values()].map((w) => ({
+    label: w.programLabel as string,
+    workoutId: w.id,
+    date: w.date,
+    exerciseNames: w.workoutExercises.map((we) => we.exercise.name),
+  }));
 }
 
 export async function finishWorkout(userId: string, workoutId: string) {

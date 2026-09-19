@@ -37,8 +37,16 @@ export type Workout = {
   date: string;
   timeStart: string | null;
   timeEnd: string | null;
+  programLabel: string | null;
   createdAt: string;
   workoutExercises: WorkoutExercise[];
+};
+
+export type WorkoutTemplate = {
+  label: string;
+  workoutId: string;
+  date: string;
+  exerciseNames: string[];
 };
 
 export type ProgressionSuggestion = 'no_data' | 'ok' | 'try_more' | 'increase_weight' | 'start_adding_weight';

@@ -1,9 +1,21 @@
 import { z } from 'zod';
 
+const programLabelSchema = z.string().trim().min(1).max(20).nullable();
+
 export const startWorkoutSchema = z.object({
   // Defaults to today (server time) when omitted - lets the CSV importer
   // and "log a past workout" flow set an explicit date.
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Формат дати: YYYY-MM-DD').optional(),
+  // Free-text template label ("А"/"Б"/...) to tag this workout with, chosen
+  // when starting "from" a previous workout with the same label.
+  programLabel: programLabelSchema.optional(),
+  // When starting from a template, copy that workout's exercises+weights
+  // (sets stay empty - reps are filled in fresh each session).
+  copyFromWorkoutId: z.string().uuid().optional(),
+});
+
+export const updateWorkoutLabelSchema = z.object({
+  programLabel: programLabelSchema,
 });
 
 const setInputSchema = z.object({

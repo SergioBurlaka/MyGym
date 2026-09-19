@@ -1,9 +1,10 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useWorkoutsQuery, useStartWorkoutMutation } from '../shared/api/workouts/index.js';
+import { useWorkoutsQuery, useStartWorkoutMutation, useWorkoutTemplatesQuery } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Pagination from '../components/Pagination.js';
+import NewWorkoutButton from '../components/NewWorkoutButton.js';
 
 const PAGE_SIZE = 20;
 
@@ -23,13 +24,15 @@ export default function DashboardPage() {
 
   const workoutsQuery = useWorkoutsQuery({ page, pageSize: PAGE_SIZE });
   const progressionQuery = useProgressionQuery();
+  const templatesQuery = useWorkoutTemplatesQuery();
   const startWorkoutMutation = useStartWorkoutMutation();
 
   const workouts = workoutsQuery.data?.data ?? [];
   const progression = progressionQuery.data ?? [];
+  const templates = templatesQuery.data ?? [];
 
-  async function startWorkout() {
-    const workout = await startWorkoutMutation.mutateAsync();
+  async function startWorkout(opts: { programLabel?: string; copyFromWorkoutId?: string }) {
+    const workout = await startWorkoutMutation.mutateAsync(opts);
     navigate(`/workouts/${workout.id}`);
   }
 
@@ -45,9 +48,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl text-slate-100">Журнал тренувань</h1>
-        <button className="btn-primary" onClick={startWorkout} disabled={startWorkoutMutation.isPending}>
-          {startWorkoutMutation.isPending ? 'Створюємо…' : '+ Нове тренування'}
-        </button>
+        <NewWorkoutButton templates={templates} busy={startWorkoutMutation.isPending} onStart={startWorkout} />
       </div>
 
       {needsAttention.length > 0 && (
@@ -80,7 +81,12 @@ export default function DashboardPage() {
               className="card block w-full text-left transition-colors hover:border-accent/50"
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-100">{formatDateUk(w.date)}</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-100">{formatDateUk(w.date)}</span>
+                  {w.programLabel && (
+                    <span className="badge bg-accent/10 text-accent">{w.programLabel}</span>
+                  )}
+                </span>
                 <span className="text-xs text-slate-400">
                   {duration ?? (w.timeEnd ? '' : 'триває…')}
                 </span>

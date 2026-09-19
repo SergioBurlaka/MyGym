@@ -6,6 +6,7 @@ import {
   useDeleteWorkoutMutation,
   useFinishWorkoutMutation,
   useSaveWorkoutExercisesMutation,
+  useUpdateWorkoutLabelMutation,
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
 import { formatDateUk, formatDuration } from '../utils/weight.js';
@@ -37,6 +38,7 @@ export default function WorkoutFormPage() {
   const saveMutation = useSaveWorkoutExercisesMutation(id ?? '');
   const finishMutation = useFinishWorkoutMutation(id ?? '');
   const deleteMutation = useDeleteWorkoutMutation(id ?? '');
+  const updateLabelMutation = useUpdateWorkoutLabelMutation(id ?? '');
 
   const exercises = exercisesQuery.data ?? [];
   const progression = progressionQuery.data ?? [];
@@ -44,6 +46,7 @@ export default function WorkoutFormPage() {
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
   const [addExerciseId, setAddExerciseId] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState('');
 
   useEffect(() => {
     if (!workoutQuery.data) return;
@@ -57,10 +60,17 @@ export default function WorkoutFormPage() {
           .map((s) => ({ reps: String(s.reps) })),
       })),
     );
+    setLabelDraft(workoutQuery.data.programLabel ?? '');
     // Only re-seed local edit state when we land on a (new) workout — not on
     // every cache update a save/finish mutation triggers for this same id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutQuery.data?.id]);
+
+  function commitLabel() {
+    const trimmed = labelDraft.trim();
+    if (trimmed === (workoutQuery.data?.programLabel ?? '')) return;
+    updateLabelMutation.mutate(trimmed === '' ? null : trimmed);
+  }
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const progressionByExerciseId = useMemo(
@@ -165,6 +175,20 @@ export default function WorkoutFormPage() {
           <p className="text-sm text-slate-400">
             {workout.timeEnd ? `Завершено · тривалість ${duration ?? '—'}` : 'Тренування триває…'}
           </p>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
+              Мітка
+            </label>
+            <input
+              id="programLabel"
+              className="input w-24 py-1 text-sm"
+              placeholder="А / Б…"
+              maxLength={20}
+              value={labelDraft}
+              onChange={(e) => setLabelDraft(e.target.value)}
+              onBlur={commitLabel}
+            />
+          </div>
         </div>
         <div className="flex gap-2">
           <Popconfirm
