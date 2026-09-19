@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkoutsQuery, useStartWorkoutMutation } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight.js';
@@ -10,7 +9,17 @@ const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
+
+  // Page lives in the URL (not local state) so it survives navigating into
+  // a workout and back — the browser's back button restores `?page=N`
+  // instead of always landing back on page 1.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = Number(searchParams.get('page'));
+  const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
+
+  function goToPage(nextPage: number) {
+    setSearchParams(nextPage <= 1 ? {} : { page: String(nextPage) }, { replace: true });
+  }
 
   const workoutsQuery = useWorkoutsQuery({ page, pageSize: PAGE_SIZE });
   const progressionQuery = useProgressionQuery();
@@ -96,7 +105,7 @@ export default function DashboardPage() {
         <Pagination
           page={workoutsQuery.data.page}
           totalPages={workoutsQuery.data.totalPages}
-          onPageChange={setPage}
+          onPageChange={goToPage}
           disabled={workoutsQuery.isFetching}
         />
       )}
