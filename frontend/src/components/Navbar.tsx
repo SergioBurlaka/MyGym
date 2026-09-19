@@ -14,6 +14,7 @@ const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 const NAV_ITEMS = [
   { to: '/', end: true, label: 'Журнал' },
+  { to: '/programs', end: false, label: 'Програми' },
   { to: '/progress', end: false, label: 'Прогрес' },
   { to: '/exercises', end: false, label: 'Вправи' },
   { to: '/import', end: false, label: 'Імпорт' },

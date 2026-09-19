@@ -49,6 +49,23 @@ export type WorkoutTemplate = {
   exerciseNames: string[];
 };
 
+export type ProgramExercise = {
+  id: string;
+  exerciseId: string;
+  weightPerUnitKg: string | null;
+  weightUnits: number | null;
+  orderIndex: number;
+  exercise: Exercise;
+};
+
+export type Program = {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+  programExercises: ProgramExercise[];
+};
+
 export type ProgressionSuggestion = 'no_data' | 'ok' | 'try_more' | 'increase_weight' | 'start_adding_weight';
 
 export type ExerciseProgression = {

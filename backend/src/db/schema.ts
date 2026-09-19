@@ -64,6 +64,32 @@ export const exercises = pgTable('exercises', {
   userIdx: index('exercises_user_idx').on(table.userId),
 }));
 
+// ---------- programs ----------
+// A named, reusable routine (e.g. "Програма А") the user authors up front -
+// picks exercises + starting weights - so a first workout can be started
+// from it without needing any prior workout history (unlike
+// workouts.programLabel, which only derives a template from a past workout).
+
+export const programs = pgTable('programs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdx: index('programs_user_idx').on(table.userId),
+}));
+
+export const programExercises = pgTable('program_exercises', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  programId: uuid('program_id').notNull().references(() => programs.id, { onDelete: 'cascade' }),
+  exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'restrict' }),
+  weightPerUnitKg: numeric('weight_per_unit_kg', { precision: 6, scale: 2 }),
+  weightUnits: smallint('weight_units').default(2),
+  orderIndex: smallint('order_index').notNull().default(0),
+}, (table) => ({
+  programIdx: index('program_exercises_program_idx').on(table.programId),
+}));
+
 // ---------- workouts ----------
 
 export const workouts = pgTable('workouts', {
@@ -120,11 +146,23 @@ export const usersRelations = relations(users, ({ many }) => ({
   exercises: many(exercises),
   workouts: many(workouts),
   refreshTokens: many(refreshTokens),
+  programs: many(programs),
 }));
 
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({
   user: one(users, { fields: [exercises.userId], references: [users.id] }),
   workoutExercises: many(workoutExercises),
+  programExercises: many(programExercises),
+}));
+
+export const programsRelations = relations(programs, ({ one, many }) => ({
+  user: one(users, { fields: [programs.userId], references: [users.id] }),
+  programExercises: many(programExercises),
+}));
+
+export const programExercisesRelations = relations(programExercises, ({ one }) => ({
+  program: one(programs, { fields: [programExercises.programId], references: [programs.id] }),
+  exercise: one(exercises, { fields: [programExercises.exerciseId], references: [exercises.id] }),
 }));
 
 export const workoutsRelations = relations(workouts, ({ one, many }) => ({

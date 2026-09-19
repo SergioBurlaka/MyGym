@@ -12,6 +12,9 @@ export const startWorkoutSchema = z.object({
   // When starting from a template, copy that workout's exercises+weights
   // (sets stay empty - reps are filled in fresh each session).
   copyFromWorkoutId: z.string().uuid().optional(),
+  // Or start from an explicitly authored Program - takes precedence over
+  // copyFromWorkoutId/programLabel when both are given.
+  programId: z.string().uuid().optional(),
 });
 
 export const updateWorkoutLabelSchema = z.object({

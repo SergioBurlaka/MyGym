@@ -1,28 +1,34 @@
 import { and, eq, desc, count, isNotNull } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { workouts, workoutExercises, sets, exercises } from '../../db/schema.js';
+import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+type SourceExercise = { exerciseId: string; weightPerUnitKg: string | null; weightUnits: number | null; orderIndex: number };
+
 export async function startWorkout(
   userId: string,
-  opts: { date?: string; programLabel?: string | null; copyFromWorkoutId?: string } = {},
+  opts: { date?: string; programLabel?: string | null; copyFromWorkoutId?: string; programId?: string } = {},
 ) {
   return db.transaction(async (tx) => {
-    const [workout] = await tx
-      .insert(workouts)
-      .values({
-        userId,
-        date: opts.date ?? todayIso(),
-        timeStart: new Date(),
-        programLabel: opts.programLabel ?? null,
-      })
-      .returning();
+    let programLabel = opts.programLabel ?? null;
+    let toCopy: SourceExercise[] = [];
 
-    if (opts.copyFromWorkoutId) {
+    if (opts.programId) {
+      // Explicitly authored Program - takes precedence, and its name becomes
+      // the workout's label regardless of what programLabel was passed.
+      const program = await tx.query.programs.findFirst({
+        where: and(eq(programs.id, opts.programId), eq(programs.userId, userId)),
+        with: { programExercises: { orderBy: (pe, { asc }) => [asc(pe.orderIndex)] } },
+      });
+      if (program) {
+        programLabel = program.name;
+        toCopy = program.programExercises;
+      }
+    } else if (opts.copyFromWorkoutId) {
       // Only copy from a workout that actually belongs to this user; a
       // foreign/unknown id is silently ignored rather than failing the
       // whole "start workout" action.
@@ -30,19 +36,31 @@ export async function startWorkout(
         where: and(eq(workouts.id, opts.copyFromWorkoutId), eq(workouts.userId, userId)),
         with: { workoutExercises: { orderBy: (we, { asc }) => [asc(we.orderIndex)] } },
       });
-      if (source && source.workoutExercises.length > 0) {
-        // No sets are copied - reps are filled in fresh each session, only
-        // the exercise list and working weight carry over as a starting point.
-        await tx.insert(workoutExercises).values(
-          source.workoutExercises.map((we) => ({
-            workoutId: workout.id,
-            exerciseId: we.exerciseId,
-            weightPerUnitKg: we.weightPerUnitKg,
-            weightUnits: we.weightUnits,
-            orderIndex: we.orderIndex,
-          })),
-        );
-      }
+      if (source) toCopy = source.workoutExercises;
+    }
+
+    const [workout] = await tx
+      .insert(workouts)
+      .values({
+        userId,
+        date: opts.date ?? todayIso(),
+        timeStart: new Date(),
+        programLabel,
+      })
+      .returning();
+
+    if (toCopy.length > 0) {
+      // No sets are copied - reps are filled in fresh each session, only
+      // the exercise list and working weight carry over as a starting point.
+      await tx.insert(workoutExercises).values(
+        toCopy.map((ex) => ({
+          workoutId: workout.id,
+          exerciseId: ex.exerciseId,
+          weightPerUnitKg: ex.weightPerUnitKg,
+          weightUnits: ex.weightUnits,
+          orderIndex: ex.orderIndex,
+        })),
+      );
     }
 
     // Read back via tx (not the module-level `db`/getWorkout) - the insert

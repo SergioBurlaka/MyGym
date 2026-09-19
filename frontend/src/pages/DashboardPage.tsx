@@ -1,6 +1,7 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkoutsQuery, useStartWorkoutMutation, useWorkoutTemplatesQuery } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
+import { useProgramsQuery } from '../shared/api/programs/index.js';
 import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Pagination from '../components/Pagination.js';
@@ -26,13 +27,15 @@ export default function DashboardPage() {
   const workoutsQuery = useWorkoutsQuery({ page, pageSize: PAGE_SIZE });
   const progressionQuery = useProgressionQuery();
   const templatesQuery = useWorkoutTemplatesQuery();
+  const programsQuery = useProgramsQuery();
   const startWorkoutMutation = useStartWorkoutMutation();
 
   const workouts = workoutsQuery.data?.data ?? [];
   const progression = progressionQuery.data ?? [];
   const templates = templatesQuery.data ?? [];
+  const programs = programsQuery.data ?? [];
 
-  async function startWorkout(opts: { programLabel?: string; copyFromWorkoutId?: string }) {
+  async function startWorkout(opts: { programLabel?: string; copyFromWorkoutId?: string; programId?: string }) {
     const workout = await startWorkoutMutation.mutateAsync(opts);
     navigate(`/workouts/${workout.id}`);
   }
@@ -49,7 +52,12 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl text-slate-100">Журнал тренувань</h1>
-        <NewWorkoutButton templates={templates} busy={startWorkoutMutation.isPending} onStart={startWorkout} />
+        <NewWorkoutButton
+          programs={programs}
+          templates={templates}
+          busy={startWorkoutMutation.isPending}
+          onStart={startWorkout}
+        />
       </div>
 
       {needsAttention.length > 0 && (

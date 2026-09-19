@@ -8,6 +8,7 @@ import WorkoutFormPage from './pages/WorkoutFormPage.js';
 import ExercisesPage from './pages/ExercisesPage.js';
 import ProgressPage from './pages/ProgressPage.js';
 import ImportPage from './pages/ImportPage.js';
+import ProgramsPage from './pages/ProgramsPage.js';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -67,6 +68,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/programs"
+            element={
+              <ProtectedRoute>
+                <ProgramsPage />
               </ProtectedRoute>
             }
           />
