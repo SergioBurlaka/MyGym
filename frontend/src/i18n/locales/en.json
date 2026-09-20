@@ -1,0 +1,262 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "loadingCalendar": "Loading calendar…",
+    "loadingChart": "Loading chart…",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "delete": "Delete",
+    "edit": "Edit",
+    "noOptionsAvailable": "No options available",
+    "selectPlaceholder": "Select…",
+    "kg": "kg",
+    "reps": "reps",
+    "confirmDelete": "Yes, delete"
+  },
+  "weekdays": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
+  },
+  "nav": {
+    "journal": "Journal",
+    "programs": "Programs",
+    "progress": "Progress",
+    "exercises": "Exercises",
+    "import": "Import",
+    "logout": "Log out",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "auth": {
+    "login": {
+      "subtitle": "Log in to continue your training journal",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "submitting": "Logging in…",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Sign up",
+      "genericError": "Couldn't log in"
+    },
+    "register": {
+      "subtitle": "Create an account — you'll get 13 starter exercises right away",
+      "email": "Email",
+      "password": "Password (min. 8 characters)",
+      "submit": "Sign up",
+      "submitting": "Signing up…",
+      "haveAccount": "Already have an account?",
+      "loginLink": "Log in",
+      "genericError": "Couldn't sign up"
+    }
+  },
+  "dashboard": {
+    "title": "Training Journal",
+    "newWorkout": "+ New workout",
+    "creating": "Creating…",
+    "emptyMenuItem": "Blank workout",
+    "startFromTemplate": "From «{{label}}»",
+    "reminders": "Progression reminders",
+    "calendarTitle": "Consistency calendar",
+    "emptyJournal": "No workouts yet. Click \"New workout\" to start.",
+    "inProgress": "in progress…",
+    "emptyWorkout": "Empty — add exercises",
+    "setsSummary": "{{count}} sets × {{weight}}"
+  },
+  "programs": {
+    "title": "Programs",
+    "newProgram": "+ New program",
+    "cancel": "Cancel",
+    "emptyState": "No programs yet. Create one and you can start a workout from it in one click, even without prior history.",
+    "deleteConfirmTitle": "Delete program",
+    "deleteConfirmDescription": "«{{name}}» will be deleted. Workouts already created from it are unaffected.",
+    "form": {
+      "nameLabel": "Program name",
+      "namePlaceholder": "E.g. \"Program A\"",
+      "targetSetsLabel": "Target number of sets",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove",
+      "addExercisePlaceholder": "Choose an exercise…",
+      "addExerciseButton": "+ Add exercise",
+      "saveButton": "Save program",
+      "saving": "Saving…",
+      "errorNameRequired": "Enter a program name.",
+      "errorExerciseRequired": "Add at least one exercise.",
+      "errorTargetSets": "Set the target number of sets (at least 1) for every exercise.",
+      "errorGeneric": "Couldn't save the program"
+    }
+  },
+  "workout": {
+    "finishedDuration": "Finished · {{duration}}",
+    "inProgress": "Workout in progress…",
+    "nameLabel": "Name",
+    "namePlaceholder": "Program A / Program B…",
+    "saveAsProgram": "Save as program",
+    "saveAsProgramNameLabel": "Program name",
+    "saveAsProgramNamePlaceholder": "E.g. \"Program A\"",
+    "saveAsProgramErrorNameRequired": "Enter a program name.",
+    "saveAsProgramErrorNoExercises": "There are no exercises in this workout to save.",
+    "saveAsProgramErrorGeneric": "Couldn't save the program",
+    "deleteConfirmTitle": "Delete workout",
+    "deleteConfirmDescription": "This can't be undone — every exercise and set in this workout will be lost for good.",
+    "finish": "Finish workout",
+    "save": "Save",
+    "saving": "Saving…",
+    "genericSaveError": "Couldn't save",
+    "emptySetError": "Every added exercise needs at least one set with reps filled in.",
+    "removeExerciseConfirmTitle": "Remove exercise from workout",
+    "removeExerciseConfirmDescription": "«{{name}}» and all its logged sets will be removed from this workout.",
+    "removeExerciseConfirmText": "Yes, remove",
+    "removeExercise": "Remove",
+    "weightPerUnitLabel": "Weight per side, kg",
+    "extraWeightLabel": "Extra weight (optional)",
+    "weightPlaceholderNoWeight": "no weight",
+    "unitsLabel": "Units",
+    "unitsBothSides": "2 (both sides)",
+    "unitsOne": "1",
+    "setsLabel": "Sets (reps)",
+    "addSet": "+ set",
+    "removeSetTitle": "Remove set",
+    "addExercisePlaceholder": "Choose an exercise…",
+    "addExerciseButton": "+ Add exercise"
+  },
+  "progress": {
+    "title": "Exercise progress",
+    "weeklyVolumeTitle": "Weekly volume by category",
+    "weeklyVolumeDescription": "Balance of load between large and small muscle groups — check small groups aren't neglected.",
+    "noPeriodData": "No data for this period",
+    "weekOf": "Week of {{date}}",
+    "stats": {
+      "lastWorkout": "Last time",
+      "lastWeight": "Last weight",
+      "maxReps": "Max reps",
+      "daysWithoutProgress": "Days without progress"
+    },
+    "charts": {
+      "workingWeightTitle": "Working weight, kg",
+      "workingWeightDescription": "The weight used for this exercise in that workout — fixed for the whole exercise, doesn't change between sets. The larger outlined point is a personal weight record.",
+      "workingWeightEmpty": "This exercise is done without weight",
+      "maxRepsTitle": "Max reps per workout",
+      "maxRepsDescription": "The highest rep count among all sets in that workout (not the sum, not the average). The larger outlined point is a personal reps record.",
+      "noData": "No data",
+      "oneRepMaxTitle": "Estimated 1RM, kg",
+      "oneRepMaxDescription": "One-rep max — how much you could theoretically lift for 1 rep, via the Epley formula: weight × (1 + reps / 30). Combines weight and reps into a single strength metric, so it keeps rising even when weight drops for higher reps. A rough estimate — the formula gets unreliable past 15+ reps.",
+      "oneRepMaxEmpty": "This exercise is done without weight",
+      "volumeTitle": "Session volume",
+      "volumeDescriptionWeighted": "Total work for the session: weight × sum of reps across all sets. Grows even when weight and max reps stay flat — from doing more sets.",
+      "volumeDescriptionBodyweight": "For bodyweight exercises — just the sum of reps across all sets in the session.",
+      "prBadge": "🏆 Personal record"
+    }
+  },
+  "exercises": {
+    "title": "Exercises",
+    "addButton": "+ Add exercise",
+    "cancelButton": "Cancel",
+    "form": {
+      "name": "Name",
+      "equipment": "Equipment",
+      "category": "Category (progression rule)",
+      "repRangeMin": "Min. reps",
+      "repRangeMax": "Max. reps",
+      "weightStep": "Weight step, kg",
+      "submit": "Save exercise",
+      "errorGeneric": "Couldn't add the exercise"
+    },
+    "equipment": {
+      "barbell": "Barbell",
+      "dumbbell": "Dumbbells",
+      "bodyweight": "Bodyweight"
+    },
+    "category": {
+      "large": "Large group",
+      "small": "Small group",
+      "bodyweight": "No weight",
+      "largeWithRange": "Large group (6-15, +1.25 kg step)",
+      "smallWithRange": "Small group (6-20, +0.5 kg step)",
+      "bodyweightWithRange": "No weight (6-30)"
+    },
+    "cardSummary": "{{equipment}} · {{min}}-{{max}} reps · step {{step}} kg",
+    "archiveConfirmTitle": "Remove exercise",
+    "archiveConfirmDescription": "The exercise will be removed from the list. Set history in already-saved workouts stays intact.",
+    "archiveConfirmText": "Yes, remove",
+    "archiveButton": "Remove",
+    "schedule": {
+      "title": "Training schedule",
+      "description": "Planned training days — used by the journal's calendar to spot missed days."
+    }
+  },
+  "import": {
+    "title": "Import from Google Sheets",
+    "description": "Export your workout spreadsheet as CSV (File → Download → Comma-separated values) and upload the file here. The format must match your original sheet: date on the first set's row, an \"exercise\" + \"weight\" column pair per exercise.",
+    "uploadButton": "Import",
+    "importing": "Importing…",
+    "genericError": "Couldn't import the file",
+    "resultTitle": "Import result",
+    "workoutsImported": "Workouts imported:",
+    "setsImported": "Sets imported:",
+    "skippedExisting": "Skipped (already exist):",
+    "exercisesCreated": "New exercises created:",
+    "rowsSkipped": "Rows skipped (unrecognized):"
+  },
+  "calendar": {
+    "legend": {
+      "trainedPlanned": "Plan done",
+      "trainedExtra": "Bonus workout",
+      "missedPlanned": "Missed",
+      "rest": "Rest day"
+    },
+    "tooltip": {
+      "noExercises": "no exercises",
+      "missedPlannedDay": "Missed a planned day",
+      "noWorkout": "No workout"
+    }
+  },
+  "progression": {
+    "badge": {
+      "no_data": "No data",
+      "ok": "On track",
+      "try_more": "Try more",
+      "increase_weight": "Time to add weight",
+      "start_adding_weight": "Time to add weight"
+    },
+    "message": {
+      "no_data": "No entries for this exercise yet.",
+      "start_adding_weight": "Reached {{repRangeMax}} reps with no weight — time to start adding some.",
+      "increase_weight": "Reached the top of the range ({{repRangeMax}} reps) — add +{{weightStep}} kg per side.",
+      "try_more": "No progress for {{days}} days — try more reps or weight.",
+      "ok": "On track."
+    }
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "validation_error": "Some fields are invalid",
+    "not_found": "Not found",
+    "email_taken": "An account with this email already exists",
+    "invalid_credentials": "Wrong email or password",
+    "invalid_refresh_token": "Your session has expired, please log in again",
+    "missing_refresh_token": "No active session",
+    "invalid_exercises": "One of the exercises isn't in your list anymore",
+    "no_file": "Attach a CSV file",
+    "import_failed": "Import failed: {{detail}}"
+  },
+  "duration": {
+    "hoursMinutes": "{{h}} h {{m}} min",
+    "minutes": "{{m}} min"
+  },
+  "passwordInput": {
+    "show": "Show password",
+    "hide": "Hide password"
+  },
+  "pagination": {
+    "label": "Pagination"
+  },
+  "newWorkoutButton": {
+    "programLabel": "Program «{{name}}»"
+  }
+}

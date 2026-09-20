@@ -1,0 +1,262 @@
+{
+  "common": {
+    "loading": "Завантаження…",
+    "loadingCalendar": "Завантаження календаря…",
+    "loadingChart": "Завантаження графіка…",
+    "cancel": "Скасувати",
+    "save": "Зберегти",
+    "saving": "Зберігаємо…",
+    "delete": "Видалити",
+    "edit": "Редагувати",
+    "noOptionsAvailable": "Немає доступних варіантів",
+    "selectPlaceholder": "Оберіть…",
+    "kg": "кг",
+    "reps": "повт.",
+    "confirmDelete": "Так, видалити"
+  },
+  "weekdays": {
+    "mon": "Пн",
+    "tue": "Вт",
+    "wed": "Ср",
+    "thu": "Чт",
+    "fri": "Пт",
+    "sat": "Сб",
+    "sun": "Нд"
+  },
+  "nav": {
+    "journal": "Журнал",
+    "programs": "Програми",
+    "progress": "Прогрес",
+    "exercises": "Вправи",
+    "import": "Імпорт",
+    "logout": "Вийти",
+    "openMenu": "Відкрити меню",
+    "closeMenu": "Закрити меню"
+  },
+  "auth": {
+    "login": {
+      "subtitle": "Увійдіть, щоб продовжити журнал тренувань",
+      "email": "Email",
+      "password": "Пароль",
+      "submit": "Увійти",
+      "submitting": "Входимо…",
+      "noAccount": "Немає акаунта?",
+      "registerLink": "Зареєструватись",
+      "genericError": "Не вдалося увійти"
+    },
+    "register": {
+      "subtitle": "Створіть акаунт — одразу отримаєте 13 базових вправ у списку",
+      "email": "Email",
+      "password": "Пароль (мінімум 8 символів)",
+      "submit": "Зареєструватись",
+      "submitting": "Реєструємо…",
+      "haveAccount": "Вже є акаунт?",
+      "loginLink": "Увійти",
+      "genericError": "Не вдалося зареєструватись"
+    }
+  },
+  "dashboard": {
+    "title": "Журнал тренувань",
+    "newWorkout": "+ Нове тренування",
+    "creating": "Створюємо…",
+    "emptyMenuItem": "Порожнє тренування",
+    "startFromTemplate": "З «{{label}}»",
+    "reminders": "Нагадування про прогресію",
+    "calendarTitle": "Календар консистентності",
+    "emptyJournal": "Ще немає жодного тренування. Натисніть «Нове тренування», щоб почати.",
+    "inProgress": "триває…",
+    "emptyWorkout": "Порожньо — додайте вправи",
+    "setsSummary": "{{count}} підх. × {{weight}}"
+  },
+  "programs": {
+    "title": "Програми",
+    "newProgram": "+ Нова програма",
+    "cancel": "Скасувати",
+    "emptyState": "Ще немає жодної програми. Створи програму — і зможеш стартувати з неї тренування одним кліком, навіть без попередньої історії.",
+    "deleteConfirmTitle": "Видалити програму",
+    "deleteConfirmDescription": "«{{name}}» буде видалено. Тренування, вже створені з неї, не постраждають.",
+    "form": {
+      "nameLabel": "Назва програми",
+      "namePlaceholder": "Наприклад, «Програма А»",
+      "targetSetsLabel": "Цільова кількість підходів",
+      "moveUp": "Підняти вище",
+      "moveDown": "Опустити нижче",
+      "remove": "Прибрати",
+      "addExercisePlaceholder": "Оберіть вправу…",
+      "addExerciseButton": "+ Додати вправу",
+      "saveButton": "Зберегти програму",
+      "saving": "Зберігаємо…",
+      "errorNameRequired": "Вкажи назву програми.",
+      "errorExerciseRequired": "Додай хоча б одну вправу.",
+      "errorTargetSets": "Вкажи цільову кількість підходів (мінімум 1) для кожної вправи.",
+      "errorGeneric": "Не вдалося зберегти програму"
+    }
+  },
+  "workout": {
+    "finishedDuration": "Завершено · тривалість {{duration}}",
+    "inProgress": "Тренування триває…",
+    "nameLabel": "Назва",
+    "namePlaceholder": "Програма А / Програма Б…",
+    "saveAsProgram": "Зберегти як програму",
+    "saveAsProgramNameLabel": "Назва програми",
+    "saveAsProgramNamePlaceholder": "Наприклад, «Програма А»",
+    "saveAsProgramErrorNameRequired": "Вкажи назву програми.",
+    "saveAsProgramErrorNoExercises": "У тренуванні немає жодної вправи для збереження.",
+    "saveAsProgramErrorGeneric": "Не вдалося зберегти програму",
+    "deleteConfirmTitle": "Видалити тренування",
+    "deleteConfirmDescription": "Це незворотньо — усі вправи й підходи цього тренування буде втрачено назавжди.",
+    "finish": "Завершити тренування",
+    "save": "Зберегти",
+    "saving": "Зберігаємо…",
+    "genericSaveError": "Не вдалося зберегти",
+    "emptySetError": "У кожній доданій вправі має бути хоча б один підхід із заповненими повтореннями.",
+    "removeExerciseConfirmTitle": "Прибрати вправу з тренування",
+    "removeExerciseConfirmDescription": "«{{name}}» разом з усіма введеними підходами буде прибрано з цього тренування.",
+    "removeExerciseConfirmText": "Так, прибрати",
+    "removeExercise": "Прибрати",
+    "weightPerUnitLabel": "Вага за одиницю, кг",
+    "extraWeightLabel": "Додаткова вага (опційно)",
+    "weightPlaceholderNoWeight": "без ваги",
+    "unitsLabel": "Одиниць",
+    "unitsBothSides": "2 (обидві сторони)",
+    "unitsOne": "1",
+    "setsLabel": "Підходи (повторення)",
+    "addSet": "+ підхід",
+    "removeSetTitle": "Прибрати підхід",
+    "addExercisePlaceholder": "Оберіть вправу…",
+    "addExerciseButton": "+ Додати вправу"
+  },
+  "progress": {
+    "title": "Прогрес по вправах",
+    "weeklyVolumeTitle": "Обсяг по категоріях за тиждень",
+    "weeklyVolumeDescription": "Баланс навантаження між великими й малими групами м'язів — чи не занедбані малі групи.",
+    "noPeriodData": "Немає даних за цей період",
+    "weekOf": "Тиждень з {{date}}",
+    "stats": {
+      "lastWorkout": "Востаннє",
+      "lastWeight": "Остання вага",
+      "maxReps": "Макс. повторень",
+      "daysWithoutProgress": "Без прогресу, днів"
+    },
+    "charts": {
+      "workingWeightTitle": "Робоча вага, кг",
+      "workingWeightDescription": "Вага, з якою виконувалась вправа в цьому тренуванні — фіксована на всю вправу й не змінюється між підходами. Більша точка з обвідкою — особистий рекорд ваги.",
+      "workingWeightEmpty": "Ця вправа виконується без ваги",
+      "maxRepsTitle": "Максимум повторень за тренування",
+      "maxRepsDescription": "Найбільша кількість повторень серед усіх підходів цього тренування (не сума й не середнє). Більша точка з обвідкою — особистий рекорд повторень.",
+      "noData": "Немає даних",
+      "oneRepMaxTitle": "Розрахунковий 1ПМ, кг",
+      "oneRepMaxDescription": "Одноповторний максимум — скільки ти теоретично міг(-ла) би підняти на 1 повторення, за формулою Еплі: вага × (1 + повторення / 30). Об'єднує вагу й повторення в одну метрику сили, тому росте, навіть коли вагу знизили заради більшої кількості повторень. Орієнтовний показник — на 15+ повтореннях формула стає ненадійною.",
+      "oneRepMaxEmpty": "Ця вправа без ваги",
+      "volumeTitle": "Обсяг тренування",
+      "volumeDescriptionWeighted": "Сумарна робота за сесію: вага × сума повторень усіх підходів. Росте навіть коли вага й максимум повторень не змінюються — за рахунок більшої кількості підходів.",
+      "volumeDescriptionBodyweight": "Для вправ без ваги — просто сума повторень усіх підходів за сесію.",
+      "prBadge": "🏆 Особистий рекорд"
+    }
+  },
+  "exercises": {
+    "title": "Вправи",
+    "addButton": "+ Додати вправу",
+    "cancelButton": "Скасувати",
+    "form": {
+      "name": "Назва",
+      "equipment": "Обладнання",
+      "category": "Категорія (правило прогресії)",
+      "repRangeMin": "Мін. повторень",
+      "repRangeMax": "Макс. повторень",
+      "weightStep": "Крок ваги, кг",
+      "submit": "Зберегти вправу",
+      "errorGeneric": "Не вдалося додати вправу"
+    },
+    "equipment": {
+      "barbell": "Штанга",
+      "dumbbell": "Гантелі",
+      "bodyweight": "Вага тіла"
+    },
+    "category": {
+      "large": "Велика група",
+      "small": "Мала група",
+      "bodyweight": "Без ваги",
+      "largeWithRange": "Велика група (6-15, крок 1.25 кг)",
+      "smallWithRange": "Мала група (6-20, крок 0.5 кг)",
+      "bodyweightWithRange": "Без ваги (6-30)"
+    },
+    "cardSummary": "{{equipment}} · {{min}}-{{max}} повт. · крок {{step}} кг",
+    "archiveConfirmTitle": "Прибрати вправу",
+    "archiveConfirmDescription": "Вправу буде прибрано зі списку. Історія підходів у вже збережених тренуваннях не зникне.",
+    "archiveConfirmText": "Так, прибрати",
+    "archiveButton": "Прибрати",
+    "schedule": {
+      "title": "Розклад тренувань",
+      "description": "Планові дні тренувань — використовується для календаря на журналі, щоб бачити пропущені дні."
+    }
+  },
+  "import": {
+    "title": "Імпорт з Google Таблиць",
+    "description": "Експортуйте вашу таблицю тренувань як CSV (Файл → Завантажити → Значення, розділені комами) і завантажте файл тут. Формат має відповідати вашій оригінальній таблиці: дата на першому підході, колонки «вправа» + «вага» по кожній вправі.",
+    "uploadButton": "Імпортувати",
+    "importing": "Імпортуємо…",
+    "genericError": "Не вдалося імпортувати файл",
+    "resultTitle": "Результат імпорту",
+    "workoutsImported": "Імпортовано тренувань:",
+    "setsImported": "Імпортовано підходів:",
+    "skippedExisting": "Пропущено (вже існують):",
+    "exercisesCreated": "Створено нові вправи:",
+    "rowsSkipped": "Пропущено рядків (нерозпізнано):"
+  },
+  "calendar": {
+    "legend": {
+      "trainedPlanned": "План виконано",
+      "trainedExtra": "Бонусне тренування",
+      "missedPlanned": "Пропущено",
+      "rest": "Вихідний"
+    },
+    "tooltip": {
+      "noExercises": "без вправ",
+      "missedPlannedDay": "Пропущений плановий день",
+      "noWorkout": "Без тренування"
+    }
+  },
+  "progression": {
+    "badge": {
+      "no_data": "Немає даних",
+      "ok": "Прогрес у нормі",
+      "try_more": "Спробуй більше",
+      "increase_weight": "Час додати вагу",
+      "start_adding_weight": "Час додати вагу"
+    },
+    "message": {
+      "no_data": "Ще немає жодного запису для цієї вправи.",
+      "start_adding_weight": "Досягнуто {{repRangeMax}} повторень без ваги — час почати додавати обтяження.",
+      "increase_weight": "Досягнуто верхньої межі ({{repRangeMax}} повт.) — додайте +{{weightStep}} кг з кожного боку.",
+      "try_more": "Без прогресу вже {{days}} дн. — спробуйте більше повторень або вагу.",
+      "ok": "Прогрес у нормі."
+    }
+  },
+  "errors": {
+    "generic": "Щось пішло не так",
+    "validation_error": "Деякі поля заповнені невірно",
+    "not_found": "Не знайдено",
+    "email_taken": "Користувач з таким email вже зареєстрований",
+    "invalid_credentials": "Невірний email або пароль",
+    "invalid_refresh_token": "Сесія недійсна, увійдіть повторно",
+    "missing_refresh_token": "Немає активної сесії",
+    "invalid_exercises": "Однієї з вправ уже немає у вашому списку",
+    "no_file": "Прикріпіть CSV-файл",
+    "import_failed": "Не вдалося імпортувати: {{detail}}"
+  },
+  "duration": {
+    "hoursMinutes": "{{h}} год {{m}} хв",
+    "minutes": "{{m}} хв"
+  },
+  "passwordInput": {
+    "show": "Показати пароль",
+    "hide": "Приховати пароль"
+  },
+  "pagination": {
+    "label": "Пагінація"
+  },
+  "newWorkoutButton": {
+    "programLabel": "Програма «{{name}}»"
+  }
+}

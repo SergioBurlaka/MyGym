@@ -1,23 +1,19 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useArchiveExerciseMutation, useCreateExerciseMutation, useExercisesQuery } from '../shared/api/exercises/index.js';
 import { useSettingsQuery, useUpdateSettingsMutation } from '../shared/api/settings/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
+import { translateApiError } from '../utils/apiError.js';
 
-const CATEGORY_LABEL: Record<string, string> = {
-  large: 'Велика група (6-15, крок 1.25 кг)',
-  small: 'Мала група (6-20, крок 0.5 кг)',
-  bodyweight: 'Без ваги (6-30)',
-};
-
-const WEEKDAY_LABELS: { day: number; label: string }[] = [
-  { day: 1, label: 'Пн' },
-  { day: 2, label: 'Вт' },
-  { day: 3, label: 'Ср' },
-  { day: 4, label: 'Чт' },
-  { day: 5, label: 'Пт' },
-  { day: 6, label: 'Сб' },
-  { day: 7, label: 'Нд' },
+const WEEKDAYS: { day: number; key: string }[] = [
+  { day: 1, key: 'mon' },
+  { day: 2, key: 'tue' },
+  { day: 3, key: 'wed' },
+  { day: 4, key: 'thu' },
+  { day: 5, key: 'fri' },
+  { day: 6, key: 'sat' },
+  { day: 7, key: 'sun' },
 ];
 
 const emptyForm = {
@@ -30,6 +26,7 @@ const emptyForm = {
 };
 
 export default function ExercisesPage() {
+  const { t } = useTranslation();
   const exercisesQuery = useExercisesQuery();
   const createMutation = useCreateExerciseMutation();
   const archiveMutation = useArchiveExerciseMutation();
@@ -39,6 +36,12 @@ export default function ExercisesPage() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const EQUIPMENT_LABEL: Record<string, string> = {
+    barbell: t('exercises.equipment.barbell'),
+    dumbbell: t('exercises.equipment.dumbbell'),
+    bodyweight: t('exercises.equipment.bodyweight'),
+  };
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -46,8 +49,8 @@ export default function ExercisesPage() {
       await createMutation.mutateAsync(form);
       setForm(emptyForm);
       setShowForm(false);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Не вдалося додати вправу');
+    } catch (err) {
+      setError(translateApiError(err, t, 'exercises.form.errorGeneric'));
     }
   }
 
@@ -61,21 +64,21 @@ export default function ExercisesPage() {
     return { repRangeMin: 6, repRangeMax: 30, weightStepKg: 0.5 };
   }
 
-  if (exercisesQuery.isPending) return <p className="text-slate-400">Завантаження…</p>;
+  if (exercisesQuery.isPending) return <p className="text-slate-400">{t('common.loading')}</p>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl text-slate-100">Вправи</h1>
+        <h1 className="text-3xl text-slate-100">{t('exercises.title')}</h1>
         <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? 'Скасувати' : '+ Додати вправу'}
+          {showForm ? t('exercises.cancelButton') : t('exercises.addButton')}
         </button>
       </div>
 
       {showForm && (
         <form onSubmit={handleCreate} className="card space-y-4">
           <div>
-            <label className="label">Назва</label>
+            <label className="label">{t('exercises.form.name')}</label>
             <input
               className="input"
               required
@@ -85,19 +88,19 @@ export default function ExercisesPage() {
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <label className="label">Обладнання</label>
+              <label className="label">{t('exercises.form.equipment')}</label>
               <Select
                 value={form.equipment}
                 onChange={(v) => setForm((f) => ({ ...f, equipment: v as any }))}
                 options={[
-                  { value: 'barbell', label: 'Штанга' },
-                  { value: 'dumbbell', label: 'Гантелі' },
-                  { value: 'bodyweight', label: 'Вага тіла' },
+                  { value: 'barbell', label: t('exercises.equipment.barbell') },
+                  { value: 'dumbbell', label: t('exercises.equipment.dumbbell') },
+                  { value: 'bodyweight', label: t('exercises.equipment.bodyweight') },
                 ]}
               />
             </div>
             <div className="col-span-2">
-              <label className="label">Категорія (правило прогресії)</label>
+              <label className="label">{t('exercises.form.category')}</label>
               <Select
                 value={form.category}
                 onChange={(v) => {
@@ -105,16 +108,16 @@ export default function ExercisesPage() {
                   setForm((f) => ({ ...f, category, ...categoryDefaults(category) }));
                 }}
                 options={[
-                  { value: 'large', label: CATEGORY_LABEL.large },
-                  { value: 'small', label: CATEGORY_LABEL.small },
-                  { value: 'bodyweight', label: CATEGORY_LABEL.bodyweight },
+                  { value: 'large', label: t('exercises.category.largeWithRange') },
+                  { value: 'small', label: t('exercises.category.smallWithRange') },
+                  { value: 'bodyweight', label: t('exercises.category.bodyweightWithRange') },
                 ]}
               />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="label">Мін. повторень</label>
+              <label className="label">{t('exercises.form.repRangeMin')}</label>
               <input
                 type="number"
                 className="input"
@@ -123,7 +126,7 @@ export default function ExercisesPage() {
               />
             </div>
             <div>
-              <label className="label">Макс. повторень</label>
+              <label className="label">{t('exercises.form.repRangeMax')}</label>
               <input
                 type="number"
                 className="input"
@@ -132,7 +135,7 @@ export default function ExercisesPage() {
               />
             </div>
             <div>
-              <label className="label">Крок ваги, кг</label>
+              <label className="label">{t('exercises.form.weightStep')}</label>
               <input
                 type="number"
                 step="0.25"
@@ -143,7 +146,7 @@ export default function ExercisesPage() {
             </div>
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <button type="submit" className="btn-primary">Зберегти вправу</button>
+          <button type="submit" className="btn-primary">{t('exercises.form.submit')}</button>
         </form>
       )}
 
@@ -154,17 +157,21 @@ export default function ExercisesPage() {
               <div>
                 <h3 className="text-lg text-slate-100">{ex.name}</h3>
                 <p className="text-xs text-slate-400">
-                  {ex.equipment === 'barbell' ? 'Штанга' : ex.equipment === 'dumbbell' ? 'Гантелі' : 'Вага тіла'} ·{' '}
-                  {ex.repRangeMin}-{ex.repRangeMax} повт. · крок {ex.weightStepKg} кг
+                  {t('exercises.cardSummary', {
+                    equipment: EQUIPMENT_LABEL[ex.equipment],
+                    min: ex.repRangeMin,
+                    max: ex.repRangeMax,
+                    step: ex.weightStepKg,
+                  })}
                 </p>
               </div>
               <Popconfirm
-                title="Прибрати вправу"
-                description="Вправу буде прибрано зі списку. Історія підходів у вже збережених тренуваннях не зникне."
-                confirmText="Так, прибрати"
+                title={t('exercises.archiveConfirmTitle')}
+                description={t('exercises.archiveConfirmDescription')}
+                confirmText={t('exercises.archiveConfirmText')}
                 onConfirm={() => handleArchive(ex.id)}
               >
-                <button className="btn-ghost text-red-400">Прибрати</button>
+                <button className="btn-ghost text-red-400">{t('exercises.archiveButton')}</button>
               </Popconfirm>
             </div>
           </div>
@@ -177,6 +184,7 @@ export default function ExercisesPage() {
 }
 
 function TrainingScheduleCard() {
+  const { t } = useTranslation();
   const settingsQuery = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
   const trainingDays = settingsQuery.data?.trainingDays ?? [];
@@ -192,12 +200,10 @@ function TrainingScheduleCard() {
 
   return (
     <div className="card">
-      <h2 className="text-lg text-slate-100">Розклад тренувань</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        Планові дні тренувань — використовується для календаря на журналі, щоб бачити пропущені дні.
-      </p>
+      <h2 className="text-lg text-slate-100">{t('exercises.schedule.title')}</h2>
+      <p className="mt-1 text-sm text-slate-400">{t('exercises.schedule.description')}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        {WEEKDAY_LABELS.map(({ day, label }) => {
+        {WEEKDAYS.map(({ day, key }) => {
           const active = trainingDays.includes(day);
           return (
             <button
@@ -211,7 +217,7 @@ function TrainingScheduleCard() {
                   : 'border-surface-border bg-surface-raised text-slate-400 hover:border-slate-600'
               }`}
             >
-              {label}
+              {t(`weekdays.${key}`)}
             </button>
           );
         })}

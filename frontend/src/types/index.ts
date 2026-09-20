@@ -90,7 +90,6 @@ export type ExerciseProgression = {
   daysSinceLastWorkout: number | null;
   daysSinceProgress: number | null;
   suggestion: ProgressionSuggestion;
-  message: string;
 };
 
 export type HistoryPoint = {

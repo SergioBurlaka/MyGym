@@ -1,13 +1,13 @@
 import { z } from 'zod';
 
 export const registerSchema = z.object({
-  email: z.string().email('Некоректна email-адреса').toLowerCase(),
-  password: z.string().min(8, 'Пароль має містити щонайменше 8 символів'),
+  email: z.string().email('invalid_email').toLowerCase(),
+  password: z.string().min(8, 'password_too_short'),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Некоректна email-адреса').toLowerCase(),
-  password: z.string().min(1, 'Введіть пароль'),
+  email: z.string().email('invalid_email').toLowerCase(),
+  password: z.string().min(1, 'password_required'),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

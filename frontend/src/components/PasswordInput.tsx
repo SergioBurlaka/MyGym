@@ -1,4 +1,5 @@
 import { useState, type InputHTMLAttributes } from 'react';
+import { useTranslation } from 'react-i18next';
 
 function EyeIcon() {
   return (
@@ -29,6 +30,7 @@ export default function PasswordInput({
   className = 'input',
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   return (
@@ -39,7 +41,7 @@ export default function PasswordInput({
         tabIndex={-1}
         onClick={() => setVisible((v) => !v)}
         className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
-        aria-label={visible ? 'Приховати пароль' : 'Показати пароль'}
+        aria-label={visible ? t('passwordInput.hide') : t('passwordInput.show')}
       >
         {visible ? <EyeOffIcon /> : <EyeIcon />}
       </button>

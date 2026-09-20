@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type SelectOption = { value: string; label: string };
 
@@ -6,7 +7,7 @@ export default function Select({
   value,
   onChange,
   options,
-  placeholder = 'Оберіть…',
+  placeholder,
   disabled,
   className = '',
 }: {
@@ -17,6 +18,8 @@ export default function Select({
   disabled?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
+  const effectivePlaceholder = placeholder ?? t('common.selectPlaceholder');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,7 +55,7 @@ export default function Select({
         className="input flex w-full items-center justify-between gap-2 text-left"
       >
         <span className={`truncate whitespace-nowrap ${selected ? 'text-slate-100' : 'text-slate-500'}`}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : effectivePlaceholder}
         </span>
         <svg
           viewBox="0 0 20 20"
@@ -76,7 +79,7 @@ export default function Select({
         <div className="min-h-0 overflow-hidden">
           <div className="max-h-64 overflow-auto p-1">
             {options.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-slate-500">Немає доступних варіантів</p>
+              <p className="px-3 py-2 text-sm text-slate-500">{t('common.noOptionsAvailable')}</p>
             ) : (
               options.map((o) => (
                 <button

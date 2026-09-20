@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 function pageWindow(current: number, total: number): (number | 'ellipsis')[] {
   const pages = new Set<number>([1, total, current, current - 1, current + 1]);
   const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
@@ -21,10 +23,11 @@ export default function Pagination({
   onPageChange: (page: number) => void;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   if (totalPages <= 1) return null;
 
   return (
-    <nav className="flex items-center justify-center gap-1" aria-label="Пагінація">
+    <nav className="flex items-center justify-center gap-1" aria-label={t('pagination.label')}>
       <button
         className="btn-secondary px-3 py-1.5 text-sm"
         onClick={() => onPageChange(page - 1)}

@@ -1,6 +1,6 @@
 import { eq, and, isNull } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { users, refreshTokens, exercises } from '../../db/schema.js';
+import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
 import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
 import {
@@ -19,12 +19,21 @@ export class AuthError extends Error {
 export async function registerUser(email: string, password: string) {
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
-    throw new AuthError('email_taken', 'Користувач з таким email вже зареєстрований');
+    throw new AuthError('email_taken', 'An account with this email already exists');
   }
 
   const passwordHash = await hashPassword(password);
 
   const [user] = await db.insert(users).values({ email, passwordHash }).returning();
+
+  // Seed one schedule-history row from day one, so the consistency calendar
+  // has something to judge past dates against even if the user never opens
+  // Settings to change the (default) schedule.
+  await db.insert(trainingScheduleHistory).values({
+    userId: user.id,
+    trainingDays: user.trainingDays,
+    effectiveFrom: user.createdAt.toISOString().slice(0, 10),
+  });
 
   // Seed the default exercise list for the new user so they have something
   // to log against right away.
@@ -46,11 +55,11 @@ export async function registerUser(email: string, password: string) {
 export async function validateCredentials(email: string, password: string) {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user) {
-    throw new AuthError('invalid_credentials', 'Невірний email або пароль');
+    throw new AuthError('invalid_credentials', 'Wrong email or password');
   }
   const valid = await verifyPassword(user.passwordHash, password);
   if (!valid) {
-    throw new AuthError('invalid_credentials', 'Невірний email або пароль');
+    throw new AuthError('invalid_credentials', 'Wrong email or password');
   }
   return user;
 }
@@ -78,12 +87,12 @@ export async function rotateRefreshToken(rawToken: string) {
   });
 
   if (!record || record.expiresAt.getTime() < Date.now()) {
-    throw new AuthError('invalid_refresh_token', 'Сесія недійсна, увійдіть повторно');
+    throw new AuthError('invalid_refresh_token', 'Session expired, please log in again');
   }
 
   const user = await db.query.users.findFirst({ where: eq(users.id, record.userId) });
   if (!user) {
-    throw new AuthError('invalid_refresh_token', 'Сесія недійсна, увійдіть повторно');
+    throw new AuthError('invalid_refresh_token', 'Session expired, please log in again');
   }
 
   // Rotate: revoke the old token, issue a brand new pair.

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import {
   useCreateProgramMutation,
@@ -9,19 +10,15 @@ import {
 import type { Program } from '../types/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
+import { translateApiError } from '../utils/apiError.js';
 
 type EditableExercise = {
   exerciseId: string;
   targetSets: string;
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  large: 'Велика група',
-  small: 'Мала група',
-  bodyweight: 'Без ваги',
-};
-
 export default function ProgramsPage() {
+  const { t } = useTranslation();
   const programsQuery = useProgramsQuery();
   const exercisesQuery = useExercisesQuery();
 
@@ -32,18 +29,18 @@ export default function ProgramsPage() {
   const [editingId, setEditingId] = useState<string | 'new' | null>(null);
 
   if (programsQuery.isPending || exercisesQuery.isPending) {
-    return <p className="text-slate-400">Завантаження…</p>;
+    return <p className="text-slate-400">{t('common.loading')}</p>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl text-slate-100">Програми</h1>
+        <h1 className="text-3xl text-slate-100">{t('programs.title')}</h1>
         <button
           className="btn-primary"
           onClick={() => setEditingId(editingId === 'new' ? null : 'new')}
         >
-          {editingId === 'new' ? 'Скасувати' : '+ Нова програма'}
+          {editingId === 'new' ? t('programs.cancel') : t('programs.newProgram')}
         </button>
       </div>
 
@@ -55,10 +52,7 @@ export default function ProgramsPage() {
       )}
 
       {programs.length === 0 && editingId !== 'new' && (
-        <p className="text-slate-400">
-          Ще немає жодної програми. Створи програму — і зможеш стартувати з неї тренування
-          одним кліком, навіть без попередньої історії.
-        </p>
+        <p className="text-slate-400">{t('programs.emptyState')}</p>
       )}
 
       <div className="space-y-4">
@@ -93,6 +87,7 @@ function ProgramCard({
   exerciseById: Map<string, { name: string }>;
   onEdit: () => void;
 }) {
+  const { t } = useTranslation();
   const deleteMutation = useDeleteProgramMutation(program.id);
 
   return (
@@ -108,14 +103,14 @@ function ProgramCard({
         </div>
         <div className="flex shrink-0 gap-2">
           <button className="btn-ghost" onClick={onEdit}>
-            Редагувати
+            {t('common.edit')}
           </button>
           <Popconfirm
-            title="Видалити програму"
-            description={`«${program.name}» буде видалено. Тренування, вже створені з неї, не постраждають.`}
+            title={t('programs.deleteConfirmTitle')}
+            description={t('programs.deleteConfirmDescription', { name: program.name })}
             onConfirm={() => deleteMutation.mutate()}
           >
-            <button className="btn-ghost text-red-400">Видалити</button>
+            <button className="btn-ghost text-red-400">{t('common.delete')}</button>
           </Popconfirm>
         </div>
       </div>
@@ -132,6 +127,12 @@ function ProgramForm({
   exercises: { id: string; name: string; category: string; repRangeMin: number; repRangeMax: number }[];
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
+  const CATEGORY_LABEL: Record<string, string> = {
+    large: t('exercises.category.large'),
+    small: t('exercises.category.small'),
+    bodyweight: t('exercises.category.bodyweight'),
+  };
   const createMutation = useCreateProgramMutation();
   const updateMutation = useUpdateProgramMutation(program?.id ?? '');
 
@@ -193,15 +194,15 @@ function ProgramForm({
     setError(null);
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Вкажи назву програми.');
+      setError(t('programs.form.errorNameRequired'));
       return;
     }
     if (blocks.length === 0) {
-      setError('Додай хоча б одну вправу.');
+      setError(t('programs.form.errorExerciseRequired'));
       return;
     }
     if (blocks.some((b) => !b.targetSets || Number(b.targetSets) < 1)) {
-      setError('Вкажи цільову кількість підходів (мінімум 1) для кожної вправи.');
+      setError(t('programs.form.errorTargetSets'));
       return;
     }
 
@@ -220,8 +221,8 @@ function ProgramForm({
         await createMutation.mutateAsync(body);
       }
       onDone();
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Не вдалося зберегти програму');
+    } catch (err) {
+      setError(translateApiError(err, t, 'programs.form.errorGeneric'));
     }
   }
 
@@ -230,10 +231,10 @@ function ProgramForm({
   return (
     <div className="card space-y-4 border-accent/40">
       <div>
-        <label className="label">Назва програми</label>
+        <label className="label">{t('programs.form.nameLabel')}</label>
         <input
           className="input"
-          placeholder="Наприклад, «Програма А»"
+          placeholder={t('programs.form.namePlaceholder')}
           maxLength={50}
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -252,7 +253,7 @@ function ProgramForm({
                   <div className="flex flex-col">
                     <button
                       className="text-slate-500 hover:text-slate-200 disabled:opacity-30"
-                      title="Підняти вище"
+                      title={t('programs.form.moveUp')}
                       disabled={index === 0}
                       onClick={() => moveBlock(block.exerciseId, -1)}
                     >
@@ -260,7 +261,7 @@ function ProgramForm({
                     </button>
                     <button
                       className="text-slate-500 hover:text-slate-200 disabled:opacity-30"
-                      title="Опустити нижче"
+                      title={t('programs.form.moveDown')}
                       disabled={index === blocks.length - 1}
                       onClick={() => moveBlock(block.exerciseId, 1)}
                     >
@@ -269,15 +270,15 @@ function ProgramForm({
                   </div>
                   <h4 className="text-slate-100">{exercise.name}</h4>
                   <span className="badge bg-surface-border text-slate-400">
-                    {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} повт.
+                    {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} {t('common.reps')}
                   </span>
                 </div>
                 <button className="btn-ghost text-red-400" onClick={() => removeExercise(block.exerciseId)}>
-                  Прибрати
+                  {t('programs.form.remove')}
                 </button>
               </div>
               <div>
-                <label className="label">Цільова кількість підходів</label>
+                <label className="label">{t('programs.form.targetSetsLabel')}</label>
                 <input
                   type="number"
                   step="1"
@@ -299,10 +300,10 @@ function ProgramForm({
           value={addExerciseId}
           onChange={setAddExerciseId}
           options={availableExercises.map((e) => ({ value: e.id, label: e.name }))}
-          placeholder="Оберіть вправу…"
+          placeholder={t('programs.form.addExercisePlaceholder')}
         />
         <button className="btn-secondary" onClick={addExercise} disabled={!addExerciseId}>
-          + Додати вправу
+          {t('programs.form.addExerciseButton')}
         </button>
       </div>
 
@@ -310,10 +311,10 @@ function ProgramForm({
 
       <div className="flex gap-2">
         <button className="btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Зберігаємо…' : 'Зберегти програму'}
+          {saving ? t('programs.form.saving') : t('programs.form.saveButton')}
         </button>
         <button className="btn-ghost" onClick={onDone}>
-          Скасувати
+          {t('common.cancel')}
         </button>
       </div>
     </div>

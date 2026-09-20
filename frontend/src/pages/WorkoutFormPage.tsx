@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import {
@@ -10,8 +11,9 @@ import {
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
 import { useCreateProgramMutation } from '../shared/api/programs/index.js';
-import { formatDateUk, formatDuration } from '../utils/weight.js';
+import { formatDate, formatDuration } from '../utils/weight.js';
 import { labelColor } from '../utils/labelColor.js';
+import { translateApiError } from '../utils/apiError.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
@@ -24,13 +26,13 @@ type EditableExercise = {
   sets: EditableSet[];
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  large: 'Велика група',
-  small: 'Мала група',
-  bodyweight: 'Без ваги',
-};
-
 export default function WorkoutFormPage() {
+  const { t } = useTranslation();
+  const CATEGORY_LABEL: Record<string, string> = {
+    large: t('exercises.category.large'),
+    small: t('exercises.category.small'),
+    bodyweight: t('exercises.category.bodyweight'),
+  };
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -164,14 +166,14 @@ export default function WorkoutFormPage() {
 
     const emptyBlock = payload.exercises.find((e) => e.sets.length === 0);
     if (emptyBlock) {
-      setError('У кожній доданій вправі має бути хоча б один підхід із заповненими повтореннями.');
+      setError(t('workout.emptySetError'));
       return;
     }
 
     try {
       await saveMutation.mutateAsync(payload);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Не вдалося зберегти');
+    } catch (err) {
+      setError(translateApiError(err, t, 'workout.genericSaveError'));
     }
   }
 
@@ -194,7 +196,7 @@ export default function WorkoutFormPage() {
   async function handleSaveAsProgram() {
     const trimmedName = newProgramName.trim();
     if (!trimmedName) {
-      setSaveAsProgramError('Вкажи назву програми.');
+      setSaveAsProgramError(t('workout.saveAsProgramErrorNameRequired'));
       return;
     }
     // targetSets = how many set rows this exercise currently has in the
@@ -205,20 +207,20 @@ export default function WorkoutFormPage() {
       .filter((b) => b.sets.length > 0)
       .map((b) => ({ exerciseId: b.exerciseId, targetSets: b.sets.length }));
     if (programExercises.length === 0) {
-      setSaveAsProgramError('У тренуванні немає жодної вправи для збереження.');
+      setSaveAsProgramError(t('workout.saveAsProgramErrorNoExercises'));
       return;
     }
 
     try {
       await createProgramMutation.mutateAsync({ name: trimmedName, exercises: programExercises });
       setSaveAsProgramOpen(false);
-    } catch (err: any) {
-      setSaveAsProgramError(err?.response?.data?.message ?? 'Не вдалося зберегти програму');
+    } catch (err) {
+      setSaveAsProgramError(translateApiError(err, t, 'workout.saveAsProgramErrorGeneric'));
     }
   }
 
   if (workoutQuery.isPending || exercisesQuery.isPending || progressionQuery.isPending || !workoutQuery.data) {
-    return <p className="text-slate-400">Завантаження…</p>;
+    return <p className="text-slate-400">{t('common.loading')}</p>;
   }
 
   const workout = workoutQuery.data;
@@ -230,7 +232,7 @@ export default function WorkoutFormPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl text-slate-100">{formatDateUk(workout.date)}</h1>
+            <h1 className="text-3xl text-slate-100">{formatDate(workout.date)}</h1>
             {workout.program && (
               <span
                 className={`badge ${labelColor(workout.program.name).badgeBg} ${labelColor(workout.program.name).badgeText}`}
@@ -240,16 +242,16 @@ export default function WorkoutFormPage() {
             )}
           </div>
           <p className="text-sm text-slate-400">
-            {workout.timeEnd ? `Завершено · тривалість ${duration ?? '—'}` : 'Тренування триває…'}
+            {workout.timeEnd ? t('workout.finishedDuration', { duration: duration ?? '—' }) : t('workout.inProgress')}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
-              Назва
+              {t('workout.nameLabel')}
             </label>
             <input
               id="programLabel"
               className="input w-48 py-1 text-sm"
-              placeholder="Програма А / Програма Б…"
+              placeholder={t('workout.namePlaceholder')}
               maxLength={20}
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
@@ -260,17 +262,17 @@ export default function WorkoutFormPage() {
         <div className="flex gap-2">
           <div className="relative inline-block" ref={saveAsProgramRef}>
             <button className="btn-secondary" onClick={openSaveAsProgram}>
-              Зберегти як програму
+              {t('workout.saveAsProgram')}
             </button>
             {saveAsProgramOpen && (
               <div className="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-surface-border bg-surface-raised p-3 shadow-xl">
                 <label className="label" htmlFor="newProgramName">
-                  Назва програми
+                  {t('workout.saveAsProgramNameLabel')}
                 </label>
                 <input
                   id="newProgramName"
                   className="input mt-1 w-full"
-                  placeholder="Наприклад, «Програма А»"
+                  placeholder={t('workout.saveAsProgramNamePlaceholder')}
                   maxLength={50}
                   value={newProgramName}
                   onChange={(e) => setNewProgramName(e.target.value)}
@@ -279,33 +281,33 @@ export default function WorkoutFormPage() {
                 {saveAsProgramError && <p className="mt-2 text-xs text-red-400">{saveAsProgramError}</p>}
                 <div className="mt-3 flex justify-end gap-2">
                   <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setSaveAsProgramOpen(false)}>
-                    Скасувати
+                    {t('common.cancel')}
                   </button>
                   <button
                     className="rounded-lg bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/20"
                     onClick={handleSaveAsProgram}
                     disabled={createProgramMutation.isPending}
                   >
-                    {createProgramMutation.isPending ? 'Зберігаємо…' : 'Зберегти'}
+                    {createProgramMutation.isPending ? t('common.saving') : t('common.save')}
                   </button>
                 </div>
               </div>
             )}
           </div>
           <Popconfirm
-            title="Видалити тренування"
-            description="Це незворотньо — усі вправи й підходи цього тренування буде втрачено назавжди."
+            title={t('workout.deleteConfirmTitle')}
+            description={t('workout.deleteConfirmDescription')}
             onConfirm={handleDelete}
           >
-            <button className="btn-secondary">Видалити</button>
+            <button className="btn-secondary">{t('common.delete')}</button>
           </Popconfirm>
           {!workout.timeEnd && (
             <button className="btn-secondary" onClick={handleFinish} disabled={saving}>
-              Завершити тренування
+              {t('workout.finish')}
             </button>
           )}
           <button className="btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Зберігаємо…' : 'Зберегти'}
+            {saving ? t('workout.saving') : t('workout.save')}
           </button>
         </div>
       </div>
@@ -325,52 +327,52 @@ export default function WorkoutFormPage() {
                 <div className="flex items-center gap-2">
                   <h3 className="text-xl text-slate-100">{exercise.name}</h3>
                   <span className="badge bg-surface-border text-slate-400">
-                    {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} повт.
+                    {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} {t('common.reps')}
                   </span>
-                  {prog && <ProgressionBadge suggestion={prog.suggestion} title={prog.message} />}
+                  {prog && <ProgressionBadge suggestion={prog.suggestion} title={t(`progression.message.${prog.suggestion}`, { repRangeMax: prog.repRangeMax, weightStep: prog.weightStepKg, days: prog.daysSinceProgress })} />}
                 </div>
                 <Popconfirm
-                  title="Прибрати вправу з тренування"
-                  description={`«${exercise.name}» разом з усіма введеними підходами буде прибрано з цього тренування.`}
-                  confirmText="Так, прибрати"
+                  title={t('workout.removeExerciseConfirmTitle')}
+                  description={t('workout.removeExerciseConfirmDescription', { name: exercise.name })}
+                  confirmText={t('workout.removeExerciseConfirmText')}
                   onConfirm={() => removeExercise(block.exerciseId)}
                 >
-                  <button className="btn-ghost text-red-400">Прибрати</button>
+                  <button className="btn-ghost text-red-400">{t('workout.removeExercise')}</button>
                 </Popconfirm>
               </div>
 
               <div className="mb-4 flex flex-wrap items-end gap-3">
                 <div>
                   <label className="label">
-                    {isBodyweight ? 'Додаткова вага (опційно)' : 'Вага за одиницю, кг'}
+                    {isBodyweight ? t('workout.extraWeightLabel') : t('workout.weightPerUnitLabel')}
                   </label>
                   <input
                     type="number"
                     step="0.25"
                     min="0"
                     className="input w-32"
-                    placeholder={isBodyweight ? 'без ваги' : '0'}
+                    placeholder={isBodyweight ? t('workout.weightPlaceholderNoWeight') : '0'}
                     value={block.weightPerUnitKg}
                     onChange={(e) => updateBlock(block.exerciseId, { weightPerUnitKg: e.target.value })}
                   />
                 </div>
                 {block.weightPerUnitKg !== '' && (
                   <div>
-                    <label className="label">Одиниць</label>
+                    <label className="label">{t('workout.unitsLabel')}</label>
                     <Select
                       className="w-56"
                       value={String(block.weightUnits)}
                       onChange={(v) => updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 })}
                       options={[
-                        { value: '2', label: '2 (обидві сторони)' },
-                        { value: '1', label: '1' },
+                        { value: '2', label: t('workout.unitsBothSides') },
+                        { value: '1', label: t('workout.unitsOne') },
                       ]}
                     />
                   </div>
                 )}
               </div>
 
-              <label className="label">Підходи (повторення)</label>
+              <label className="label">{t('workout.setsLabel')}</label>
               <div className="flex flex-wrap gap-2">
                 {block.sets.map((s, i) => (
                   <div key={i} className="flex items-center gap-1">
@@ -384,7 +386,7 @@ export default function WorkoutFormPage() {
                     />
                     <button
                       className="text-slate-500 hover:text-red-400"
-                      title="Прибрати підхід"
+                      title={t('workout.removeSetTitle')}
                       onClick={() => removeSet(block.exerciseId, i)}
                     >
                       ×
@@ -392,7 +394,7 @@ export default function WorkoutFormPage() {
                   </div>
                 ))}
                 <button className="btn-ghost text-accent" onClick={() => addSet(block.exerciseId)}>
-                  + підхід
+                  {t('workout.addSet')}
                 </button>
               </div>
             </div>
@@ -406,10 +408,10 @@ export default function WorkoutFormPage() {
           value={addExerciseId}
           onChange={setAddExerciseId}
           options={availableExercises.map((e) => ({ value: e.id, label: e.name }))}
-          placeholder="Оберіть вправу…"
+          placeholder={t('workout.addExercisePlaceholder')}
         />
         <button className="btn-secondary" onClick={addExercise} disabled={!addExerciseId}>
-          + Додати вправу
+          {t('workout.addExerciseButton')}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // Keep in sync with the `pop-out` duration in tailwind.config.js — this is
 // how long we keep the panel mounted so its exit animation can play out.
@@ -7,8 +8,8 @@ const CLOSE_ANIMATION_MS = 120;
 export default function Popconfirm({
   title,
   description,
-  confirmText = 'Так, видалити',
-  cancelText = 'Скасувати',
+  confirmText,
+  cancelText,
   onConfirm,
   children,
 }: {
@@ -19,6 +20,9 @@ export default function Popconfirm({
   onConfirm: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
+  const resolvedConfirmText = confirmText ?? t('common.confirmDelete');
+  const resolvedCancelText = cancelText ?? t('common.cancel');
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -75,7 +79,7 @@ export default function Popconfirm({
           {description && <p className="mt-1 text-xs text-slate-400">{description}</p>}
           <div className="mt-3 flex justify-end gap-2">
             <button className="btn-ghost px-2 py-1 text-xs" onClick={close}>
-              {cancelText}
+              {resolvedCancelText}
             </button>
             <button
               className="rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20"
@@ -84,7 +88,7 @@ export default function Popconfirm({
                 onConfirm();
               }}
             >
-              {confirmText}
+              {resolvedConfirmText}
             </button>
           </div>
         </div>

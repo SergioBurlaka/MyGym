@@ -6,8 +6,8 @@ const programExerciseInputSchema = z.object({
 });
 
 export const saveProgramSchema = z.object({
-  name: z.string().trim().min(1, "Назва обов'язкова").max(50),
-  exercises: z.array(programExerciseInputSchema).min(1, 'Додайте хоча б одну вправу'),
+  name: z.string().trim().min(1, 'name_required').max(50),
+  exercises: z.array(programExerciseInputSchema).min(1, 'exercises_required'),
 });
 
 export type SaveProgramInput = z.infer<typeof saveProgramSchema>;

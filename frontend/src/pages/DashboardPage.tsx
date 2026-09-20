@@ -1,8 +1,10 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useWorkoutsQuery, useStartWorkoutMutation, useWorkoutTemplatesQuery } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { useProgramsQuery } from '../shared/api/programs/index.js';
-import { formatDateUk, formatDuration, formatTotalWeight } from '../utils/weight.js';
+import { formatDate, formatDuration, formatTotalWeight } from '../utils/weight.js';
+import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Pagination from '../components/Pagination.js';
 import NewWorkoutButton from '../components/NewWorkoutButton.js';
@@ -12,6 +14,7 @@ import { labelColor } from '../utils/labelColor.js';
 const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // Page lives in the URL (not local state) so it survives navigating into
@@ -46,13 +49,13 @@ export default function DashboardPage() {
   );
 
   if (workoutsQuery.isPending || progressionQuery.isPending) {
-    return <p className="text-slate-400">Завантаження…</p>;
+    return <p className="text-slate-400">{t('common.loading')}</p>;
   }
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl text-slate-100">Журнал тренувань</h1>
+        <h1 className="text-3xl text-slate-100">{t('dashboard.title')}</h1>
         <NewWorkoutButton
           programs={programs}
           templates={templates}
@@ -63,13 +66,13 @@ export default function DashboardPage() {
 
       {needsAttention.length > 0 && (
         <div className="card border-accent/40">
-          <h2 className="mb-3 text-lg text-slate-100">Нагадування про прогресію</h2>
+          <h2 className="mb-3 text-lg text-slate-100">{t('dashboard.reminders')}</h2>
           <ul className="space-y-2">
             {needsAttention.map((p) => (
               <li key={p.exerciseId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span className="font-medium text-slate-200">{p.name}</span>
                 <span className="flex items-center gap-2 text-slate-400">
-                  {p.message}
+                  {progressionMessage(p, t)}
                   <ProgressionBadge suggestion={p.suggestion} />
                 </span>
               </li>
@@ -79,14 +82,12 @@ export default function DashboardPage() {
       )}
 
       <div className="card">
-        <h2 className="mb-3 text-lg text-slate-100">Календар консистентності</h2>
+        <h2 className="mb-3 text-lg text-slate-100">{t('dashboard.calendarTitle')}</h2>
         <ConsistencyCalendar />
       </div>
 
       <div className="space-y-3">
-        {workouts.length === 0 && (
-          <p className="text-slate-400">Ще немає жодного тренування. Натисніть «Нове тренування», щоб почати.</p>
-        )}
+        {workouts.length === 0 && <p className="text-slate-400">{t('dashboard.emptyJournal')}</p>}
         {workouts.map((w) => {
           const duration = formatDuration(w.timeStart, w.timeEnd);
           const colors = w.programLabel ? labelColor(w.programLabel) : null;
@@ -100,22 +101,26 @@ export default function DashboardPage() {
             >
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-100">{formatDateUk(w.date)}</span>
+                  <span className="font-semibold text-slate-100">{formatDate(w.date)}</span>
                   {w.programLabel && colors && (
                     <span className={`badge ${colors.badgeBg} ${colors.badgeText}`}>{w.programLabel}</span>
                   )}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {duration ?? (w.timeEnd ? '' : 'триває…')}
+                  {duration ?? (w.timeEnd ? '' : t('dashboard.inProgress'))}
                 </span>
               </div>
               {w.workoutExercises.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">Порожньо — додайте вправи</p>
+                <p className="mt-2 text-sm text-slate-500">{t('dashboard.emptyWorkout')}</p>
               ) : (
                 <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
                   {w.workoutExercises.map((we) => (
                     <li key={we.id}>
-                      {we.exercise.name}: {we.sets.length} підх. × {formatTotalWeight(we.weightPerUnitKg, we.weightUnits)}
+                      {we.exercise.name}:{' '}
+                      {t('dashboard.setsSummary', {
+                        count: we.sets.length,
+                        weight: formatTotalWeight(we.weightPerUnitKg, we.weightUnits),
+                      })}
                     </li>
                   ))}
                 </ul>

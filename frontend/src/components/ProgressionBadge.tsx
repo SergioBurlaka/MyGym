@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ProgressionSuggestion } from '../types/index.js';
 
 const STYLES: Record<ProgressionSuggestion, string> = {
@@ -8,14 +9,6 @@ const STYLES: Record<ProgressionSuggestion, string> = {
   start_adding_weight: 'bg-accent/15 text-accent',
 };
 
-const LABELS: Record<ProgressionSuggestion, string> = {
-  no_data: 'Немає даних',
-  ok: 'Прогрес у нормі',
-  try_more: 'Спробуй більше',
-  increase_weight: 'Час додати вагу',
-  start_adding_weight: 'Час додати вагу',
-};
-
 export default function ProgressionBadge({
   suggestion,
   title,
@@ -23,9 +16,10 @@ export default function ProgressionBadge({
   suggestion: ProgressionSuggestion;
   title?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <span className={`badge ${STYLES[suggestion]}`} title={title}>
-      {LABELS[suggestion]}
+      {t(`progression.badge.${suggestion}`)}
     </span>
   );
 }

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Program, WorkoutTemplate } from '../types/index.js';
-import { formatDateUk } from '../utils/weight.js';
+import { formatDate } from '../utils/weight.js';
 
 const CLOSE_ANIMATION_MS = 120;
 
 type MenuEntry =
   | { kind: 'program'; label: string; programId: string; exerciseNames: string[] }
   | { kind: 'template'; label: string; workoutId: string; date: string; exerciseNames: string[] };
+
+type StartOpts = { programLabel?: string; copyFromWorkoutId?: string; programId?: string };
 
 export default function NewWorkoutButton({
   programs,
@@ -17,8 +20,9 @@ export default function NewWorkoutButton({
   programs: Program[];
   templates: WorkoutTemplate[];
   busy?: boolean;
-  onStart: (opts: { programLabel?: string; copyFromWorkoutId?: string; programId?: string }) => void;
+  onStart: (opts: StartOpts) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -27,7 +31,8 @@ export default function NewWorkoutButton({
   // Programs are the authoritative, explicitly-authored version of a named
   // routine. Historical "last workout tagged X" templates only fill in for
   // labels that don't have a saved Program yet (old data from before
-  // Programs existed).
+  // Programs existed). No program is pre-selected or highlighted here - the
+  // person picks whichever one they actually want to do next.
   const programNames = new Set(programs.map((p) => p.name));
   const entries: MenuEntry[] = [
     ...programs.map((p): MenuEntry => ({
@@ -82,7 +87,7 @@ export default function NewWorkoutButton({
 
   useEffect(() => () => clearTimeout(closeTimeout.current), []);
 
-  function pick(opts: { programLabel?: string; copyFromWorkoutId?: string; programId?: string }) {
+  function pick(opts: StartOpts) {
     close();
     onStart(opts);
   }
@@ -90,7 +95,7 @@ export default function NewWorkoutButton({
   return (
     <div className="relative inline-block" ref={ref}>
       <button className="btn-primary" onClick={toggle} disabled={busy}>
-        {busy ? 'Створюємо…' : '+ Нове тренування'}
+        {busy ? t('dashboard.creating') : t('dashboard.newWorkout')}
       </button>
 
       {open && (
@@ -103,7 +108,7 @@ export default function NewWorkoutButton({
             className="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 hover:bg-surface-border"
             onClick={() => pick({})}
           >
-            Порожнє тренування
+            {t('dashboard.emptyMenuItem')}
           </button>
           {entries.map((entry) => (
             <button
@@ -119,9 +124,11 @@ export default function NewWorkoutButton({
             >
               <span>
                 <span className="font-medium text-accent">
-                  {entry.kind === 'program' ? `Програма «${entry.label}»` : `З «${entry.label}»`}
+                  {entry.kind === 'program'
+                    ? t('newWorkoutButton.programLabel', { name: entry.label })
+                    : t('dashboard.startFromTemplate', { label: entry.label })}
                 </span>{' '}
-                {entry.kind === 'template' && <span className="text-slate-500">({formatDateUk(entry.date)})</span>}
+                {entry.kind === 'template' && <span className="text-slate-500">({formatDate(entry.date)})</span>}
               </span>
               <div className="mt-0.5 truncate text-xs text-slate-400">{entry.exerciseNames.join(', ')}</div>
             </button>

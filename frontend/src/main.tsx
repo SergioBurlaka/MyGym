@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import App from './App.js';
 import { AuthProvider } from './context/AuthContext.js';
 import { reactQueryClient } from './shared/lib/reactQueryClient.js';
+import './i18n/index.js';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

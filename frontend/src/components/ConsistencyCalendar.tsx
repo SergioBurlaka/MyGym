@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useScheduleHistoryQuery } from '../shared/api/settings/index.js';
 import { useWorkoutDatesQuery } from '../shared/api/workouts/index.js';
+import { formatDate } from '../utils/weight.js';
 
 const WEEKS = 16;
-const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 type DayState = 'trained_planned' | 'trained_extra' | 'missed_planned' | 'rest';
 
@@ -38,6 +40,7 @@ function isoWeekday(dateStr: string): number {
 }
 
 export default function ConsistencyCalendar() {
+  const { t } = useTranslation();
   const historyQuery = useScheduleHistoryQuery();
   // Oldest-first list of {trainingDays, effectiveFrom} - the schedule
   // effective on a given date is the last entry whose effectiveFrom is not
@@ -69,7 +72,7 @@ export default function ConsistencyCalendar() {
   }, [gridStart]);
 
   if (historyQuery.isPending || datesQuery.isPending) {
-    return <p className="text-slate-400">Завантаження календаря…</p>;
+    return <p className="text-slate-400">{t('common.loadingCalendar')}</p>;
   }
 
   function scheduleOn(dateStr: string): number[] | null {
@@ -96,9 +99,9 @@ export default function ConsistencyCalendar() {
     <div>
       <div className="flex gap-[3px] pb-2">
         <div className="flex flex-col gap-[3px] pr-1">
-          {WEEKDAY_LABELS.map((label) => (
-            <div key={label} className="h-3.5 text-[10px] leading-3.5 text-slate-500">
-              {label}
+          {WEEKDAY_KEYS.map((key) => (
+            <div key={key} className="h-3.5 text-[10px] leading-3.5 text-slate-500">
+              {t(`weekdays.${key}`)}
             </div>
           ))}
         </div>
@@ -112,20 +115,16 @@ export default function ConsistencyCalendar() {
                   <div className={`h-3.5 w-3.5 rounded-sm ${STATE_COLOR[state]}`} />
                   <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 hidden w-52 -translate-x-1/2 rounded-lg border border-surface-border bg-surface-raised p-2 text-xs shadow-xl group-hover:block">
                     <p className="text-slate-300">
-                      {new Date(`${dateStr}T00:00:00`).toLocaleDateString('uk-UA', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
+                      {formatDate(dateStr, { day: '2-digit', month: 'long', year: 'numeric' })}
                     </p>
                     {info ? (
                       <p className="mt-1 text-slate-400">
                         {info.programLabel && <span className="text-accent">«{info.programLabel}» — </span>}
-                        {info.exerciseNames.join(', ') || 'без вправ'}
+                        {info.exerciseNames.join(', ') || t('calendar.tooltip.noExercises')}
                       </p>
                     ) : (
                       <p className="mt-1 text-slate-500">
-                        {state === 'missed_planned' ? 'Пропущений плановий день' : 'Без тренування'}
+                        {state === 'missed_planned' ? t('calendar.tooltip.missedPlannedDay') : t('calendar.tooltip.noWorkout')}
                       </p>
                     )}
                   </div>
@@ -137,16 +136,16 @@ export default function ConsistencyCalendar() {
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-good" /> План виконано
+          <span className="h-3 w-3 rounded-sm bg-good" /> {t('calendar.legend.trainedPlanned')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-sky-500" /> Бонусне тренування
+          <span className="h-3 w-3 rounded-sm bg-sky-500" /> {t('calendar.legend.trainedExtra')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-red-500" /> Пропущено
+          <span className="h-3 w-3 rounded-sm bg-red-500" /> {t('calendar.legend.missedPlanned')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-surface-border" /> Вихідний
+          <span className="h-3 w-3 rounded-sm bg-surface-border" /> {t('calendar.legend.rest')}
         </span>
       </div>
     </div>

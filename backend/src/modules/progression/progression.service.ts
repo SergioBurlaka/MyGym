@@ -24,7 +24,6 @@ export type ExerciseProgression = {
   daysSinceLastWorkout: number | null;
   daysSinceProgress: number | null;
   suggestion: ProgressionSuggestion;
-  message: string;
 };
 
 type HistoryPoint = {
@@ -180,7 +179,6 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
         daysSinceLastWorkout: null,
         daysSinceProgress: null,
         suggestion: 'no_data',
-        message: 'Ще немає жодного запису для цієї вправи.',
       });
       continue;
     }
@@ -197,20 +195,15 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;
 
     let suggestion: ProgressionSuggestion;
-    let message: string;
 
     if (atTopOfRange && ex.category === 'bodyweight' && !hasWeight) {
       suggestion = 'start_adding_weight';
-      message = `Досягнуто ${ex.repRangeMax} повторень без ваги — час почати додавати обтяження.`;
     } else if (atTopOfRange) {
       suggestion = 'increase_weight';
-      message = `Досягнуто верхньої межі (${ex.repRangeMax} повт.) — додайте +${weightStepKg} кг з кожного боку.`;
     } else if (daysSinceProgress != null && daysSinceProgress >= PROGRESS_REMINDER_DAYS) {
       suggestion = 'try_more';
-      message = `Без прогресу вже ${daysSinceProgress} дн. — спробуйте більше повторень або вагу.`;
     } else {
       suggestion = 'ok';
-      message = 'Прогрес у нормі.';
     }
 
     results.push({
@@ -226,7 +219,6 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       daysSinceLastWorkout,
       daysSinceProgress,
       suggestion,
-      message,
     });
   }
 

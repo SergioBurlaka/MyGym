@@ -61,7 +61,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/refresh', async (request, reply) => {
     const rawToken = request.cookies?.[REFRESH_COOKIE];
     if (!rawToken) {
-      return reply.code(401).send({ error: 'missing_refresh_token', message: 'Немає активної сесії' });
+      return reply.code(401).send({ error: 'missing_refresh_token', message: 'No active session' });
     }
 
     try {

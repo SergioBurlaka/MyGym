@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
+import LanguageSwitcher from './LanguageSwitcher.js';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -12,19 +14,20 @@ const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-accent text-white' : 'text-slate-300 hover:text-white hover:bg-surface-raised'
   }`;
 
-const NAV_ITEMS = [
-  { to: '/', end: true, label: 'Журнал' },
-  { to: '/programs', end: false, label: 'Програми' },
-  { to: '/progress', end: false, label: 'Прогрес' },
-  { to: '/exercises', end: false, label: 'Вправи' },
-  { to: '/import', end: false, label: 'Імпорт' },
-];
-
 export default function Navbar() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+
+  const NAV_ITEMS = [
+    { to: '/', end: true, label: t('nav.journal') },
+    { to: '/programs', end: false, label: t('nav.programs') },
+    { to: '/progress', end: false, label: t('nav.progress') },
+    { to: '/exercises', end: false, label: t('nav.exercises') },
+    { to: '/import', end: false, label: t('nav.import') },
+  ];
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -65,9 +68,10 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 sm:flex">
+          <LanguageSwitcher />
           <span className="text-sm text-slate-400">{user.email}</span>
           <button className="btn-ghost" onClick={handleLogout}>
-            Вийти
+            {t('nav.logout')}
           </button>
         </div>
 
@@ -75,7 +79,7 @@ export default function Navbar() {
           type="button"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-200 hover:bg-surface-raised sm:hidden"
           onClick={() => setMobileOpen((v) => !v)}
-          aria-label={mobileOpen ? 'Закрити меню' : 'Відкрити меню'}
+          aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
           aria-expanded={mobileOpen}
         >
           <span className="relative block h-4 w-6">
@@ -114,8 +118,11 @@ export default function Navbar() {
           <div className="mt-2 flex items-center justify-between border-t border-surface-border pt-3">
             <span className="text-sm text-slate-400">{user.email}</span>
             <button className="btn-ghost" onClick={handleLogout}>
-              Вийти
+              {t('nav.logout')}
             </button>
+          </div>
+          <div className="border-t border-surface-border pt-3">
+            <LanguageSwitcher />
           </div>
         </nav>
       )}

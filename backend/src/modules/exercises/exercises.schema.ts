@@ -5,7 +5,7 @@ export const categoryValues = ['large', 'small', 'bodyweight'] as const;
 
 export const createExerciseSchema = z
   .object({
-    name: z.string().trim().min(1, "Вкажіть назву вправи").max(120),
+    name: z.string().trim().min(1, 'name_required').max(120),
     equipment: z.enum(equipmentValues),
     category: z.enum(categoryValues),
     repRangeMin: z.coerce.number().int().min(1).max(100),
@@ -13,7 +13,7 @@ export const createExerciseSchema = z
     weightStepKg: z.coerce.number().min(0).max(50).default(0.5),
   })
   .refine((data) => data.repRangeMax >= data.repRangeMin, {
-    message: 'Максимум повторень має бути не меншим за мінімум',
+    message: 'rep_range_invalid',
     path: ['repRangeMax'],
   });
 
@@ -31,7 +31,7 @@ export const updateExerciseSchema = z
       data.repRangeMin === undefined ||
       data.repRangeMax === undefined ||
       data.repRangeMax >= data.repRangeMin,
-    { message: 'Максимум повторень має бути не меншим за мінімум', path: ['repRangeMax'] },
+    { message: 'rep_range_invalid', path: ['repRangeMax'] },
   );
 
 export type CreateExerciseInput = z.infer<typeof createExerciseSchema>;

@@ -5,7 +5,7 @@ const programLabelSchema = z.string().trim().min(1).max(20).nullable();
 export const startWorkoutSchema = z.object({
   // Defaults to today (server time) when omitted - lets the CSV importer
   // and "log a past workout" flow set an explicit date.
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Формат дати: YYYY-MM-DD').optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_date_format').optional(),
   // Free-text template label ("А"/"Б"/...) to tag this workout with, chosen
   // when starting "from" a previous workout with the same label.
   programLabel: programLabelSchema.optional(),
@@ -31,7 +31,7 @@ const workoutExerciseInputSchema = z.object({
   weightPerUnitKg: z.coerce.number().min(0).max(500).nullable().optional(),
   weightUnits: z.coerce.number().int().min(1).max(2).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
-  sets: z.array(setInputSchema).min(1, 'Додайте хоча б один підхід'),
+  sets: z.array(setInputSchema).min(1, 'sets_required'),
 });
 
 export const saveWorkoutExercisesSchema = z.object({

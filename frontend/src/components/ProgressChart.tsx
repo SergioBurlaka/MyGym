@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   CartesianGrid,
   Line,
@@ -7,12 +8,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { formatDate } from '../utils/weight.js';
 
 type Point = { date: string; value: number | null; isPR?: boolean };
-
-function formatDateUk(v: string, opts: Intl.DateTimeFormatOptions) {
-  return new Date(`${v}T00:00:00`).toLocaleDateString('uk-UA', opts);
-}
 
 function PrDot(color: string) {
   return ({ cx, cy, payload, index }: any) => {
@@ -26,6 +24,7 @@ function PrDot(color: string) {
 }
 
 function ChartTooltip({ active, payload, unit }: any) {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
   const point = payload[0].payload as Point;
   return (
@@ -33,11 +32,11 @@ function ChartTooltip({ active, payload, unit }: any) {
       style={{ background: '#1c2028', border: '1px solid #2a2f3a', borderRadius: 8 }}
       className="px-3 py-2 text-xs"
     >
-      <p className="text-slate-400">{formatDateUk(point.date, { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+      <p className="text-slate-400">{formatDate(point.date, { day: '2-digit', month: 'long', year: 'numeric' })}</p>
       <p className="mt-0.5 font-medium text-slate-100">
         {point.value} {unit}
       </p>
-      {point.isPR && <p className="mt-0.5 text-accent">🏆 Особистий рекорд</p>}
+      {point.isPR && <p className="mt-0.5 text-accent">{t('progress.charts.prBadge')}</p>}
     </div>
   );
 }
@@ -65,7 +64,7 @@ export default function ProgressChart({
         <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
         <XAxis
           dataKey="date"
-          tickFormatter={(v) => formatDateUk(v, { day: '2-digit', month: '2-digit' })}
+          tickFormatter={(v) => formatDate(v, { day: '2-digit', month: '2-digit' })}
           stroke="#898781"
           tick={{ fontSize: 11 }}
         />
