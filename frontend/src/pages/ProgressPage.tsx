@@ -110,19 +110,38 @@ export default function ProgressPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="card">
-                <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Робоча вага, кг</h3>
+                <h3 className="text-sm uppercase tracking-wide text-slate-400">Робоча вага, кг</h3>
+                <p className="mb-2 mt-1 text-xs text-slate-500">
+                  Вага, з якою виконувалась вправа в цьому тренуванні — фіксована на всю вправу й
+                  не змінюється між підходами. Більша точка з обвідкою — особистий рекорд ваги.
+                </p>
                 <ProgressChart data={weightData} color="#ff5a36" unit="кг" emptyLabel="Ця вправа виконується без ваги" />
               </div>
               <div className="card">
-                <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Максимум повторень за тренування</h3>
+                <h3 className="text-sm uppercase tracking-wide text-slate-400">Максимум повторень за тренування</h3>
+                <p className="mb-2 mt-1 text-xs text-slate-500">
+                  Найбільша кількість повторень серед усіх підходів цього тренування (не сума й не
+                  середнє). Більша точка з обвідкою — особистий рекорд повторень.
+                </p>
                 <ProgressChart data={repsData} color="#3ddc97" unit="повт." emptyLabel="Немає даних" />
               </div>
               <div className="card">
-                <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Розрахунковий 1ПМ, кг</h3>
+                <h3 className="text-sm uppercase tracking-wide text-slate-400">Розрахунковий 1ПМ, кг</h3>
+                <p className="mb-2 mt-1 text-xs text-slate-500">
+                  Одноповторний максимум — скільки ти теоретично міг(-ла) би підняти на 1 повторення,
+                  за формулою Еплі: вага × (1 + повторення / 30). Об'єднує вагу й повторення в одну
+                  метрику сили, тому росте, навіть коли вагу знизили заради більшої кількості
+                  повторень. Орієнтовний показник — на 15+ повтореннях формула стає ненадійною.
+                </p>
                 <ProgressChart data={oneRepMaxData} color="#eda100" unit="кг" emptyLabel="Ця вправа без ваги" />
               </div>
               <div className="card">
-                <h3 className="mb-2 text-sm uppercase tracking-wide text-slate-400">Обсяг тренування</h3>
+                <h3 className="text-sm uppercase tracking-wide text-slate-400">Обсяг тренування</h3>
+                <p className="mb-2 mt-1 text-xs text-slate-500">
+                  {hasWeightedVolume
+                    ? "Сумарна робота за сесію: вага × сума повторень усіх підходів. Росте навіть коли вага й максимум повторень не змінюються — за рахунок більшої кількості підходів."
+                    : 'Для вправ без ваги — просто сума повторень усіх підходів за сесію.'}
+                </p>
                 <ProgressChart data={volumeData} color="#7dd3fc" unit={volumeUnit} emptyLabel="Немає даних" />
               </div>
             </div>

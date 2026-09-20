@@ -258,7 +258,7 @@ export default function WorkoutFormPage() {
                   <div>
                     <label className="label">Одиниць</label>
                     <Select
-                      className="w-28"
+                      className="w-56"
                       value={String(block.weightUnits)}
                       onChange={(v) => updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 })}
                       options={[
