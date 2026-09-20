@@ -9,6 +9,9 @@ export const ProgramsApi = {
   async getById(id: string) {
     return api.get<Program>(`/programs/${id}`);
   },
+  async suggestion() {
+    return api.get<Program | null>('/programs/suggestion');
+  },
   async create(body: SaveProgramBody) {
     return api.post<Program>('/programs', body);
   },

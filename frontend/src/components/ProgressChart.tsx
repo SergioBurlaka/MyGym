@@ -15,12 +15,13 @@ function formatDateUk(v: string, opts: Intl.DateTimeFormatOptions) {
 }
 
 function PrDot(color: string) {
-  return ({ cx, cy, payload }: any) => {
-    if (cx == null || cy == null) return <g />;
+  return ({ cx, cy, payload, index }: any) => {
+    const key = `dot-${index}`;
+    if (cx == null || cy == null) return <g key={key} />;
     if (payload.isPR) {
-      return <circle cx={cx} cy={cy} r={6} fill={color} stroke="#f5f5f4" strokeWidth={2} />;
+      return <circle key={key} cx={cx} cy={cy} r={6} fill={color} stroke="#f5f5f4" strokeWidth={2} />;
     }
-    return <circle cx={cx} cy={cy} r={3} fill={color} />;
+    return <circle key={key} cx={cx} cy={cy} r={3} fill={color} />;
   };
 }
 

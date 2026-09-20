@@ -1,4 +1,4 @@
-import { and, eq, desc, count, isNotNull, gte, lte } from 'drizzle-orm';
+import { and, eq, desc, count, isNotNull, gte, lte, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
@@ -9,13 +9,43 @@ function todayIso(): string {
 
 type SourceExercise = { exerciseId: string; weightPerUnitKg: string | null; weightUnits: number | null; orderIndex: number };
 
+// The most recent time this exercise was performed in ANY of the user's
+// past workouts (not just ones from the same program) - used to prefill a
+// new program-started workout with a realistic weight/reps starting point
+// instead of blanks or a stale "starting weight" set once in the program.
+async function findLatestWorkoutExercise(userId: string, exerciseId: string) {
+  const rows = await db
+    .select({
+      id: workoutExercises.id,
+      weightPerUnitKg: workoutExercises.weightPerUnitKg,
+      weightUnits: workoutExercises.weightUnits,
+    })
+    .from(workoutExercises)
+    .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+    .where(and(eq(workouts.userId, userId), eq(workoutExercises.exerciseId, exerciseId)))
+    .orderBy(desc(workouts.date), desc(workouts.createdAt))
+    .limit(1);
+
+  const latest = rows[0];
+  if (!latest) return null;
+
+  const lastSets = await db.query.sets.findMany({
+    where: eq(sets.workoutExerciseId, latest.id),
+    orderBy: [asc(sets.setNumber)],
+  });
+
+  return { weightPerUnitKg: latest.weightPerUnitKg, weightUnits: latest.weightUnits, sets: lastSets };
+}
+
 export async function startWorkout(
   userId: string,
   opts: { date?: string; programLabel?: string | null; copyFromWorkoutId?: string; programId?: string } = {},
 ) {
   return db.transaction(async (tx) => {
     let programLabel = opts.programLabel ?? null;
+    let programId: string | null = null;
     let toCopy: SourceExercise[] = [];
+    let toPrefill: { exerciseId: string; targetSets: number; orderIndex: number }[] = [];
 
     if (opts.programId) {
       // Explicitly authored Program - takes precedence, and its name becomes
@@ -26,7 +56,8 @@ export async function startWorkout(
       });
       if (program) {
         programLabel = program.name;
-        toCopy = program.programExercises;
+        programId = program.id;
+        toPrefill = program.programExercises;
       }
     } else if (opts.copyFromWorkoutId) {
       // Only copy from a workout that actually belongs to this user; a
@@ -46,6 +77,7 @@ export async function startWorkout(
         date: opts.date ?? todayIso(),
         timeStart: new Date(),
         programLabel,
+        programId,
       })
       .returning();
 
@@ -59,6 +91,41 @@ export async function startWorkout(
           weightPerUnitKg: ex.weightPerUnitKg,
           weightUnits: ex.weightUnits,
           orderIndex: ex.orderIndex,
+        })),
+      );
+    }
+
+    // Prefill from a Program: weight + reps come from the last time each
+    // exercise was actually done (not stored on the program), one row of
+    // sets per exercise sized to its targetSets. Read history via `db`
+    // (not `tx`) - it's already-committed past data, not the row we're
+    // inserting in this same transaction.
+    for (const pe of toPrefill) {
+      const lastEntry = await findLatestWorkoutExercise(userId, pe.exerciseId);
+      const weightPerUnitKg = lastEntry?.weightPerUnitKg ?? null;
+      const weightUnits = lastEntry?.weightUnits ?? null;
+      const lastReps = lastEntry?.sets.map((s) => s.reps) ?? [];
+
+      const [we] = await tx
+        .insert(workoutExercises)
+        .values({
+          workoutId: workout.id,
+          exerciseId: pe.exerciseId,
+          weightPerUnitKg,
+          weightUnits,
+          orderIndex: pe.orderIndex,
+        })
+        .returning();
+
+      // targetSets rows, reps taken from last time by position - if the
+      // program now calls for more sets than last time, the last known rep
+      // count repeats as a starting hint (not zero/blank); the user edits
+      // by hand regardless.
+      await tx.insert(sets).values(
+        Array.from({ length: pe.targetSets }, (_, i) => ({
+          workoutExerciseId: we.id,
+          setNumber: i + 1,
+          reps: lastReps[i] ?? lastReps[lastReps.length - 1] ?? 0,
         })),
       );
     }
@@ -194,6 +261,10 @@ export async function getWorkout(userId: string, workoutId: string) {
         orderBy: (we, { asc }) => [asc(we.orderIndex)],
         with: { exercise: true, sets: { orderBy: (s, { asc }) => [asc(s.setNumber)] } },
       },
+      // Only present while the Program still exists - deleting a Program
+      // sets workouts.programId to null, so this naturally disappears
+      // without needing to touch the workout's own programLabel text.
+      program: true,
     },
   });
 }

@@ -12,8 +12,9 @@ export const useUpdateSettingsMutation = (): UseMutationResult<UserSettings, Err
       const { data } = await SettingsApi.update(trainingDays);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.setQueryData(settingsKeys.detail.queryKey, data);
+      await queryClient.invalidateQueries({ queryKey: settingsKeys.history.queryKey });
     },
   });
 };

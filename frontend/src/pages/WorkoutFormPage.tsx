@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
@@ -9,7 +9,9 @@ import {
   useUpdateWorkoutLabelMutation,
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
+import { useCreateProgramMutation } from '../shared/api/programs/index.js';
 import { formatDateUk, formatDuration } from '../utils/weight.js';
+import { labelColor } from '../utils/labelColor.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
@@ -40,6 +42,7 @@ export default function WorkoutFormPage() {
   const finishMutation = useFinishWorkoutMutation(id ?? '');
   const deleteMutation = useDeleteWorkoutMutation(id ?? '');
   const updateLabelMutation = useUpdateWorkoutLabelMutation(id ?? '');
+  const createProgramMutation = useCreateProgramMutation();
 
   const exercises = exercisesQuery.data ?? [];
   const progression = progressionQuery.data ?? [];
@@ -48,6 +51,28 @@ export default function WorkoutFormPage() {
   const [addExerciseId, setAddExerciseId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
+  const [saveAsProgramOpen, setSaveAsProgramOpen] = useState(false);
+  const [newProgramName, setNewProgramName] = useState('');
+  const [saveAsProgramError, setSaveAsProgramError] = useState<string | null>(null);
+  const saveAsProgramRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!saveAsProgramOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (saveAsProgramRef.current && !saveAsProgramRef.current.contains(e.target as Node)) {
+        setSaveAsProgramOpen(false);
+      }
+    }
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSaveAsProgramOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [saveAsProgramOpen]);
 
   useEffect(() => {
     if (!workoutQuery.data) return;
@@ -160,6 +185,38 @@ export default function WorkoutFormPage() {
     navigate('/');
   }
 
+  function openSaveAsProgram() {
+    setNewProgramName(labelDraft.trim() || workoutQuery.data?.program?.name || '');
+    setSaveAsProgramError(null);
+    setSaveAsProgramOpen(true);
+  }
+
+  async function handleSaveAsProgram() {
+    const trimmedName = newProgramName.trim();
+    if (!trimmedName) {
+      setSaveAsProgramError('Вкажи назву програми.');
+      return;
+    }
+    // targetSets = how many set rows this exercise currently has in the
+    // form - a new workout started from this program will prefill that
+    // many sets (with reps/weight pulled from history at that time, not
+    // copied from here).
+    const programExercises = blocks
+      .filter((b) => b.sets.length > 0)
+      .map((b) => ({ exerciseId: b.exerciseId, targetSets: b.sets.length }));
+    if (programExercises.length === 0) {
+      setSaveAsProgramError('У тренуванні немає жодної вправи для збереження.');
+      return;
+    }
+
+    try {
+      await createProgramMutation.mutateAsync({ name: trimmedName, exercises: programExercises });
+      setSaveAsProgramOpen(false);
+    } catch (err: any) {
+      setSaveAsProgramError(err?.response?.data?.message ?? 'Не вдалося зберегти програму');
+    }
+  }
+
   if (workoutQuery.isPending || exercisesQuery.isPending || progressionQuery.isPending || !workoutQuery.data) {
     return <p className="text-slate-400">Завантаження…</p>;
   }
@@ -172,18 +229,27 @@ export default function WorkoutFormPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl text-slate-100">{formatDateUk(workout.date)}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl text-slate-100">{formatDateUk(workout.date)}</h1>
+            {workout.program && (
+              <span
+                className={`badge ${labelColor(workout.program.name).badgeBg} ${labelColor(workout.program.name).badgeText}`}
+              >
+                {workout.program.name}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-400">
             {workout.timeEnd ? `Завершено · тривалість ${duration ?? '—'}` : 'Тренування триває…'}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
-              Мітка
+              Назва
             </label>
             <input
               id="programLabel"
-              className="input w-24 py-1 text-sm"
-              placeholder="А / Б…"
+              className="input w-48 py-1 text-sm"
+              placeholder="Програма А / Програма Б…"
               maxLength={20}
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
@@ -192,6 +258,40 @@ export default function WorkoutFormPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <div className="relative inline-block" ref={saveAsProgramRef}>
+            <button className="btn-secondary" onClick={openSaveAsProgram}>
+              Зберегти як програму
+            </button>
+            {saveAsProgramOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-surface-border bg-surface-raised p-3 shadow-xl">
+                <label className="label" htmlFor="newProgramName">
+                  Назва програми
+                </label>
+                <input
+                  id="newProgramName"
+                  className="input mt-1 w-full"
+                  placeholder="Наприклад, «Програма А»"
+                  maxLength={50}
+                  value={newProgramName}
+                  onChange={(e) => setNewProgramName(e.target.value)}
+                  autoFocus
+                />
+                {saveAsProgramError && <p className="mt-2 text-xs text-red-400">{saveAsProgramError}</p>}
+                <div className="mt-3 flex justify-end gap-2">
+                  <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setSaveAsProgramOpen(false)}>
+                    Скасувати
+                  </button>
+                  <button
+                    className="rounded-lg bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/20"
+                    onClick={handleSaveAsProgram}
+                    disabled={createProgramMutation.isPending}
+                  >
+                    {createProgramMutation.isPending ? 'Зберігаємо…' : 'Зберегти'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <Popconfirm
             title="Видалити тренування"
             description="Це незворотньо — усі вправи й підходи цього тренування буде втрачено назавжди."

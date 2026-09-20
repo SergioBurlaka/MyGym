@@ -1,7 +1,6 @@
 export type SaveProgramExerciseBody = {
   exerciseId: string;
-  weightPerUnitKg: number | null;
-  weightUnits: number | null;
+  targetSets: number;
 };
 
 export type SaveProgramBody = {

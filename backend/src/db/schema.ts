@@ -47,6 +47,28 @@ export const refreshTokens = pgTable('refresh_tokens', {
   userIdx: index('refresh_tokens_user_idx').on(table.userId),
 }));
 
+// One row per day the training schedule actually changed - lets the
+// consistency calendar judge each past date against the schedule that was
+// really in effect THEN, instead of retroactively re-judging history every
+// time the user edits users.trainingDays (the current/"today" value).
+// `effectiveFrom` is inclusive; the schedule effective on a given date is
+// the row with the latest effectiveFrom <= that date. Unique per
+// (userId, effectiveFrom) - multiple edits on the same day overwrite that
+// day's row rather than stacking.
+export const trainingScheduleHistory = pgTable('training_schedule_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  trainingDays: jsonb('training_days').$type<number[]>().notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdx: index('training_schedule_history_user_idx').on(table.userId),
+  userEffectiveFromIdx: uniqueIndex('training_schedule_history_user_effective_from_idx').on(
+    table.userId,
+    table.effectiveFrom,
+  ),
+}));
+
 // ---------- exercises ----------
 // Each user has their own exercise list (seeded with 13 defaults on registration,
 // and extendable through the UI).
@@ -78,6 +100,9 @@ export const programs = pgTable('programs', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
+  // Rotation order between a user's programs (A, Б, ...) - assigned in
+  // creation order, drives getSuggestedProgram()'s "next in the cycle" pick.
+  orderIndex: smallint('order_index').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('programs_user_idx').on(table.userId),
@@ -87,8 +112,12 @@ export const programExercises = pgTable('program_exercises', {
   id: uuid('id').primaryKey().defaultRandom(),
   programId: uuid('program_id').notNull().references(() => programs.id, { onDelete: 'cascade' }),
   exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'restrict' }),
-  weightPerUnitKg: numeric('weight_per_unit_kg', { precision: 6, scale: 2 }),
-  weightUnits: smallint('weight_units').default(2),
+  // Target number of sets for this exercise within the program - lets the
+  // user see the planned volume at a glance. Weight is intentionally NOT
+  // stored here: a new workout started from a program pulls the working
+  // weight (and rep counts) from the most recent time each exercise was
+  // actually performed, not a stale "starting weight" set once up front.
+  targetSets: smallint('target_sets').notNull().default(3),
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({
   programIdx: index('program_exercises_program_idx').on(table.programId),
@@ -106,6 +135,11 @@ export const workouts = pgTable('workouts', {
   // alternating split) so a future workout can be started "from" the latest
   // one with the same label, instead of re-adding every exercise by hand.
   programLabel: text('program_label'),
+  // Set when this workout was started from an authored Program (see below);
+  // null for "Довільне тренування" and for legacy copyFromWorkoutId starts.
+  // set null on delete - deleting a Program never touches the workouts
+  // already logged under it, it just drops the association.
+  programId: uuid('program_id').references(() => programs.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userDateIdx: index('workouts_user_date_idx').on(table.userId, table.date),
@@ -151,6 +185,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   workouts: many(workouts),
   refreshTokens: many(refreshTokens),
   programs: many(programs),
+  trainingScheduleHistory: many(trainingScheduleHistory),
 }));
 
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({
@@ -172,6 +207,7 @@ export const programExercisesRelations = relations(programExercises, ({ one }) =
 export const workoutsRelations = relations(workouts, ({ one, many }) => ({
   user: one(users, { fields: [workouts.userId], references: [users.id] }),
   workoutExercises: many(workoutExercises),
+  program: one(programs, { fields: [workouts.programId], references: [programs.id] }),
 }));
 
 export const workoutExercisesRelations = relations(workoutExercises, ({ one, many }) => ({

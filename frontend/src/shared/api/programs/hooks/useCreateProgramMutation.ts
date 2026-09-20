@@ -15,6 +15,7 @@ export const useCreateProgramMutation = (): UseMutationResult<Program, Error, Sa
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: programsKeys.list.queryKey });
+      await queryClient.invalidateQueries({ queryKey: programsKeys.suggestion.queryKey });
     },
   });
 };

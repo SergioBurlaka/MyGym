@@ -1,6 +1,6 @@
-import { and, eq, asc } from 'drizzle-orm';
+import { and, eq, asc, desc, isNotNull, count, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { programs, programExercises, exercises } from '../../db/schema.js';
+import { programs, programExercises, exercises, workouts } from '../../db/schema.js';
 import type { SaveProgramInput } from './programs.schema.js';
 
 const withExercises = {
@@ -13,9 +13,32 @@ const withExercises = {
 export async function listPrograms(userId: string) {
   return db.query.programs.findMany({
     where: eq(programs.userId, userId),
-    orderBy: [asc(programs.createdAt)],
+    // orderIndex drives rotation order (A, Б, ...); createdAt breaks ties
+    // for rows that share the same orderIndex (e.g. pre-rotation backfill).
+    orderBy: [asc(programs.orderIndex), asc(programs.createdAt)],
     with: withExercises,
   });
+}
+
+// Which program to suggest for the NEXT workout: the one after the last
+// actually-used program in the rotation, in a strict cycle. This is only a
+// suggestion, not a rule - the user can always pick any other active
+// program instead (including the same one twice in a row), and doing so
+// does not change how this function computes the following suggestion.
+export async function getSuggestedProgram(userId: string) {
+  const allPrograms = await listPrograms(userId);
+  if (allPrograms.length === 0) return null;
+
+  const lastProgramWorkout = await db.query.workouts.findFirst({
+    where: and(eq(workouts.userId, userId), isNotNull(workouts.programId)),
+    orderBy: [desc(workouts.date), desc(workouts.createdAt)],
+  });
+
+  if (!lastProgramWorkout) return allPrograms[0];
+
+  const lastIndex = allPrograms.findIndex((p) => p.id === lastProgramWorkout.programId);
+  if (lastIndex === -1) return allPrograms[0];
+  return allPrograms[(lastIndex + 1) % allPrograms.length];
 }
 
 export async function getProgram(userId: string, programId: string) {
@@ -35,14 +58,22 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
       throw new Error(`Unknown exercise id(s): ${missing.join(', ')}`);
     }
 
-    const [program] = await tx.insert(programs).values({ userId, name: input.name }).returning();
+    // New program goes to the back of the rotation queue.
+    const [{ nextOrderIndex }] = await tx
+      .select({ nextOrderIndex: sql<number>`coalesce(max(${programs.orderIndex}), -1) + 1` })
+      .from(programs)
+      .where(eq(programs.userId, userId));
+
+    const [program] = await tx
+      .insert(programs)
+      .values({ userId, name: input.name, orderIndex: nextOrderIndex })
+      .returning();
 
     await tx.insert(programExercises).values(
       input.exercises.map((ex, i) => ({
         programId: program.id,
         exerciseId: ex.exerciseId,
-        weightPerUnitKg: ex.weightPerUnitKg != null ? String(ex.weightPerUnitKg) : null,
-        weightUnits: ex.weightPerUnitKg != null ? (ex.weightUnits ?? 2) : null,
+        targetSets: ex.targetSets,
         orderIndex: i,
       })),
     );
@@ -79,8 +110,7 @@ export async function updateProgram(userId: string, programId: string, input: Sa
       input.exercises.map((ex, i) => ({
         programId,
         exerciseId: ex.exerciseId,
-        weightPerUnitKg: ex.weightPerUnitKg != null ? String(ex.weightPerUnitKg) : null,
-        weightUnits: ex.weightPerUnitKg != null ? (ex.weightUnits ?? 2) : null,
+        targetSets: ex.targetSets,
         orderIndex: i,
       })),
     );

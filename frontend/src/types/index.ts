@@ -38,6 +38,9 @@ export type Workout = {
   timeStart: string | null;
   timeEnd: string | null;
   programLabel: string | null;
+  programId: string | null;
+  // Only present (non-null) while the linked Program still exists.
+  program?: { id: string; name: string } | null;
   createdAt: string;
   workoutExercises: WorkoutExercise[];
 };
@@ -58,8 +61,7 @@ export type WorkoutDateSummary = {
 export type ProgramExercise = {
   id: string;
   exerciseId: string;
-  weightPerUnitKg: string | null;
-  weightUnits: number | null;
+  targetSets: number;
   orderIndex: number;
   exercise: Exercise;
 };
@@ -68,6 +70,7 @@ export type Program = {
   id: string;
   userId: string;
   name: string;
+  orderIndex: number;
   createdAt: string;
   programExercises: ProgramExercise[];
 };

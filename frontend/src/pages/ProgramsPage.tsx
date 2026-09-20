@@ -12,8 +12,7 @@ import Select from '../components/Select.js';
 
 type EditableExercise = {
   exerciseId: string;
-  weightPerUnitKg: string; // '' = bodyweight / no external load
-  weightUnits: 1 | 2;
+  targetSets: string;
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -102,7 +101,9 @@ function ProgramCard({
         <div>
           <h3 className="text-xl text-slate-100">{program.name}</h3>
           <p className="mt-1 text-sm text-slate-400">
-            {program.programExercises.map((pe) => exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name).join(', ')}
+            {program.programExercises
+              .map((pe) => `${exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name} (${pe.targetSets})`)
+              .join(', ')}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -139,8 +140,7 @@ function ProgramForm({
     program
       ? program.programExercises.map((pe) => ({
           exerciseId: pe.exerciseId,
-          weightPerUnitKg: pe.weightPerUnitKg ?? '',
-          weightUnits: (pe.weightUnits as 1 | 2) ?? 2,
+          targetSets: String(pe.targetSets),
         }))
       : [],
   );
@@ -153,8 +153,7 @@ function ProgramForm({
       program
         ? program.programExercises.map((pe) => ({
             exerciseId: pe.exerciseId,
-            weightPerUnitKg: pe.weightPerUnitKg ?? '',
-            weightUnits: (pe.weightUnits as 1 | 2) ?? 2,
+            targetSets: String(pe.targetSets),
           }))
         : [],
     );
@@ -167,7 +166,7 @@ function ProgramForm({
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2 }]);
+    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3' }]);
     setAddExerciseId('');
   }
 
@@ -177,6 +176,17 @@ function ProgramForm({
 
   function updateBlock(exerciseId: string, patch: Partial<EditableExercise>) {
     setBlocks((prev) => prev.map((b) => (b.exerciseId === exerciseId ? { ...b, ...patch } : b)));
+  }
+
+  function moveBlock(exerciseId: string, direction: -1 | 1) {
+    setBlocks((prev) => {
+      const index = prev.findIndex((b) => b.exerciseId === exerciseId);
+      const target = index + direction;
+      if (index === -1 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   async function handleSave() {
@@ -190,13 +200,16 @@ function ProgramForm({
       setError('Додай хоча б одну вправу.');
       return;
     }
+    if (blocks.some((b) => !b.targetSets || Number(b.targetSets) < 1)) {
+      setError('Вкажи цільову кількість підходів (мінімум 1) для кожної вправи.');
+      return;
+    }
 
     const body = {
       name: trimmedName,
       exercises: blocks.map((b) => ({
         exerciseId: b.exerciseId,
-        weightPerUnitKg: b.weightPerUnitKg === '' ? null : Number(b.weightPerUnitKg),
-        weightUnits: b.weightPerUnitKg === '' ? null : b.weightUnits,
+        targetSets: Number(b.targetSets),
       })),
     };
 
@@ -228,15 +241,32 @@ function ProgramForm({
       </div>
 
       <div className="space-y-3">
-        {blocks.map((block) => {
+        {blocks.map((block, index) => {
           const exercise = exerciseById.get(block.exerciseId);
           if (!exercise) return null;
-          const isBodyweight = exercise.category === 'bodyweight';
 
           return (
             <div key={block.exerciseId} className="rounded-lg border border-surface-border p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
+                  <div className="flex flex-col">
+                    <button
+                      className="text-slate-500 hover:text-slate-200 disabled:opacity-30"
+                      title="Підняти вище"
+                      disabled={index === 0}
+                      onClick={() => moveBlock(block.exerciseId, -1)}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className="text-slate-500 hover:text-slate-200 disabled:opacity-30"
+                      title="Опустити нижче"
+                      disabled={index === blocks.length - 1}
+                      onClick={() => moveBlock(block.exerciseId, 1)}
+                    >
+                      ▼
+                    </button>
+                  </div>
                   <h4 className="text-slate-100">{exercise.name}</h4>
                   <span className="badge bg-surface-border text-slate-400">
                     {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} повт.
@@ -246,35 +276,17 @@ function ProgramForm({
                   Прибрати
                 </button>
               </div>
-              <div className="flex flex-wrap items-end gap-3">
-                <div>
-                  <label className="label">
-                    {isBodyweight ? 'Додаткова вага (опційно)' : 'Вага за одиницю, кг'}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.25"
-                    min="0"
-                    className="input w-32"
-                    placeholder={isBodyweight ? 'без ваги' : '0'}
-                    value={block.weightPerUnitKg}
-                    onChange={(e) => updateBlock(block.exerciseId, { weightPerUnitKg: e.target.value })}
-                  />
-                </div>
-                {block.weightPerUnitKg !== '' && (
-                  <div>
-                    <label className="label">Одиниць</label>
-                    <Select
-                      className="w-56"
-                      value={String(block.weightUnits)}
-                      onChange={(v) => updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 })}
-                      options={[
-                        { value: '2', label: '2 (обидві сторони)' },
-                        { value: '1', label: '1' },
-                      ]}
-                    />
-                  </div>
-                )}
+              <div>
+                <label className="label">Цільова кількість підходів</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  max="20"
+                  className="input w-32"
+                  value={block.targetSets}
+                  onChange={(e) => updateBlock(block.exerciseId, { targetSets: e.target.value })}
+                />
               </div>
             </div>
           );

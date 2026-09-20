@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useSettingsQuery } from '../shared/api/settings/index.js';
+import { useScheduleHistoryQuery } from '../shared/api/settings/index.js';
 import { useWorkoutDatesQuery } from '../shared/api/workouts/index.js';
 
 const WEEKS = 16;
@@ -38,8 +38,12 @@ function isoWeekday(dateStr: string): number {
 }
 
 export default function ConsistencyCalendar() {
-  const settingsQuery = useSettingsQuery();
-  const trainingDays = settingsQuery.data?.trainingDays ?? [1, 3, 5];
+  const historyQuery = useScheduleHistoryQuery();
+  // Oldest-first list of {trainingDays, effectiveFrom} - the schedule
+  // effective on a given date is the last entry whose effectiveFrom is not
+  // after that date, so each past date is judged by the schedule that was
+  // actually in effect then, not by whatever the schedule is today.
+  const history = historyQuery.data ?? [];
 
   const { gridStart, gridEnd, todayStr } = useMemo(() => {
     const today = toIso(new Date());
@@ -64,14 +68,24 @@ export default function ConsistencyCalendar() {
     );
   }, [gridStart]);
 
-  if (settingsQuery.isPending || datesQuery.isPending) {
+  if (historyQuery.isPending || datesQuery.isPending) {
     return <p className="text-slate-400">Завантаження календаря…</p>;
+  }
+
+  function scheduleOn(dateStr: string): number[] | null {
+    let applicable: number[] | null = null;
+    for (const entry of history) {
+      if (entry.effectiveFrom > dateStr) break;
+      applicable = entry.trainingDays;
+    }
+    return applicable;
   }
 
   function stateOf(dateStr: string): DayState {
     if (dateStr > todayStr) return 'rest';
     const trained = trainedByDate.has(dateStr);
-    const planned = trainingDays.includes(isoWeekday(dateStr));
+    const schedule = scheduleOn(dateStr);
+    const planned = schedule != null && schedule.includes(isoWeekday(dateStr));
     if (trained && planned) return 'trained_planned';
     if (trained && !planned) return 'trained_extra';
     if (!trained && planned && dateStr < todayStr) return 'missed_planned';

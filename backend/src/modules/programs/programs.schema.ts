@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 const programExerciseInputSchema = z.object({
   exerciseId: z.string().uuid(),
-  weightPerUnitKg: z.coerce.number().min(0).max(500).nullable().optional(),
-  weightUnits: z.coerce.number().int().min(1).max(2).nullable().optional(),
+  targetSets: z.coerce.number().int().min(1).max(20),
 });
 
 export const saveProgramSchema = z.object({

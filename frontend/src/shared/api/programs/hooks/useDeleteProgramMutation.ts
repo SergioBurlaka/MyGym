@@ -12,6 +12,7 @@ export const useDeleteProgramMutation = (id: string): UseMutationResult<unknown,
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: programsKeys.list.queryKey });
+      await queryClient.invalidateQueries({ queryKey: programsKeys.suggestion.queryKey });
     },
   });
 };

@@ -29,6 +29,34 @@
       "when": 1789859073482,
       "tag": "0003_true_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789915167336,
+      "tag": "0004_flashy_doctor_doom",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789915182467,
+      "tag": "0005_gray_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789920676965,
+      "tag": "0006_rare_sleeper",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789920912863,
+      "tag": "0007_fix_schedule_history_backfill_earliest_workout",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,25 @@
 import type { FastifyInstance } from 'fastify';
 import { saveProgramSchema } from './programs.schema.js';
-import { listPrograms, getProgram, createProgram, updateProgram, deleteProgram } from './programs.service.js';
+import {
+  listPrograms,
+  getProgram,
+  createProgram,
+  updateProgram,
+  deleteProgram,
+  getSuggestedProgram,
+} from './programs.service.js';
 
 export default async function programsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', fastify.authenticate);
 
   fastify.get('/', async (request) => {
     return listPrograms(request.userId);
+  });
+
+  // Registered before the /:id param route so "suggestion" is never
+  // swallowed as an :id value.
+  fastify.get('/suggestion', async (request) => {
+    return getSuggestedProgram(request.userId);
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
