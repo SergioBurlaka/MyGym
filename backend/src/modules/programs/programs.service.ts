@@ -66,7 +66,12 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
 
     const [program] = await tx
       .insert(programs)
-      .values({ userId, name: input.name, orderIndex: nextOrderIndex })
+      .values({
+        userId,
+        name: input.name,
+        orderIndex: nextOrderIndex,
+        tryMoreAfterWorkouts: input.tryMoreAfterWorkouts ?? null,
+      })
       .returning();
 
     await tx.insert(programExercises).values(
@@ -103,7 +108,10 @@ export async function updateProgram(userId: string, programId: string, input: Sa
       throw new Error(`Unknown exercise id(s): ${missing.join(', ')}`);
     }
 
-    await tx.update(programs).set({ name: input.name }).where(eq(programs.id, programId));
+    await tx
+      .update(programs)
+      .set({ name: input.name, tryMoreAfterWorkouts: input.tryMoreAfterWorkouts ?? null })
+      .where(eq(programs.id, programId));
     await tx.delete(programExercises).where(eq(programExercises.programId, programId));
 
     await tx.insert(programExercises).values(

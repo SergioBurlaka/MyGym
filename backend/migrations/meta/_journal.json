@@ -57,6 +57,13 @@
       "when": 1789920912863,
       "tag": "0007_fix_schedule_history_backfill_earliest_workout",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790452943537,
+      "tag": "0008_absurd_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

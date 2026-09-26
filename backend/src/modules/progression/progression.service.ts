@@ -1,6 +1,6 @@
 import { and, eq, gte, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { exercises, workoutExercises, workouts, sets } from '../../db/schema.js';
+import { exercises, workoutExercises, workouts, sets, programs, programExercises } from '../../db/schema.js';
 
 const PROGRESS_REMINDER_DAYS = 14;
 
@@ -23,6 +23,15 @@ export type ExerciseProgression = {
   lastMaxReps: number | null;
   daysSinceLastWorkout: number | null;
   daysSinceProgress: number | null;
+  // Number of workouts (sessions with this exercise logged) since the last
+  // one that showed progress - unlike daysSinceProgress, skipped/missed
+  // schedule days simply don't add to this count (see tryMoreAfterWorkouts).
+  sessionsSinceProgress: number | null;
+  // Set (from the owning Program, the smallest value across programs if the
+  // exercise is in more than one) when this exercise uses the workout-count
+  // rule instead of the default 14-calendar-day one for the `try_more`
+  // suggestion. Null means the day-based rule applies.
+  tryMoreAfterWorkouts: number | null;
   suggestion: ProgressionSuggestion;
 };
 
@@ -59,12 +68,13 @@ function totalWeight(weightPerUnitKg: string | null, weightUnits: number | null)
 
 // Walks a chronological history and returns the date of the most recent
 // entry where either the working weight or the max reps for that session
-// improved on the one before it. Falls back to the earliest entry's date
-// when no improvement has ever been recorded (nothing to compare against
-// yet, but also nothing "stalled").
-function findLastProgressDate(history: HistoryPoint[]): string | null {
+// improved on the one before it, plus how many sessions have happened since
+// (0 if the progress was the latest session). Falls back to the earliest
+// entry when no improvement has ever been recorded (nothing to compare
+// against yet, but also nothing "stalled").
+function findLastProgress(history: HistoryPoint[]): { date: string; sessionsSince: number } | null {
   if (history.length === 0) return null;
-  let lastProgressDate = history[0].date;
+  let lastProgressIndex = 0;
   for (let i = 1; i < history.length; i++) {
     const prev = history[i - 1];
     const cur = history[i];
@@ -72,10 +82,31 @@ function findLastProgressDate(history: HistoryPoint[]): string | null {
       cur.totalWeightKg != null && prev.totalWeightKg != null && cur.totalWeightKg > prev.totalWeightKg;
     const repsImproved = cur.maxReps > prev.maxReps;
     if (weightImproved || repsImproved) {
-      lastProgressDate = cur.date;
+      lastProgressIndex = i;
     }
   }
-  return lastProgressDate;
+  return { date: history[lastProgressIndex].date, sessionsSince: history.length - 1 - lastProgressIndex };
+}
+
+// Smallest tryMoreAfterWorkouts across all of the user's programs that
+// include a given exercise (null if none set it, or the exercise isn't in
+// any program) - see programs.tryMoreAfterWorkouts.
+async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ exerciseId: programExercises.exerciseId, tryMoreAfterWorkouts: programs.tryMoreAfterWorkouts })
+    .from(programExercises)
+    .innerJoin(programs, eq(programExercises.programId, programs.id))
+    .where(and(eq(programs.userId, userId), gte(programs.tryMoreAfterWorkouts, 1)));
+
+  const byExercise = new Map<string, number>();
+  for (const row of rows) {
+    if (row.tryMoreAfterWorkouts == null) continue;
+    const current = byExercise.get(row.exerciseId);
+    if (current == null || row.tryMoreAfterWorkouts < current) {
+      byExercise.set(row.exerciseId, row.tryMoreAfterWorkouts);
+    }
+  }
+  return byExercise;
 }
 
 async function buildHistory(exerciseId: string): Promise<HistoryPoint[]> {
@@ -158,12 +189,15 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     orderBy: (ex, { asc: ascOrder }) => [ascOrder(ex.name)],
   });
 
+  const tryMoreAfterWorkoutsByExercise = await getTryMoreAfterWorkoutsByExercise(userId);
+
   const now = new Date();
   const results: ExerciseProgression[] = [];
 
   for (const ex of userExercises) {
     const history = await buildHistory(ex.id);
     const weightStepKg = Number(ex.weightStepKg);
+    const tryMoreAfterWorkouts = tryMoreAfterWorkoutsByExercise.get(ex.id) ?? null;
 
     if (history.length === 0) {
       results.push({
@@ -178,6 +212,8 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
         lastMaxReps: null,
         daysSinceLastWorkout: null,
         daysSinceProgress: null,
+        sessionsSinceProgress: null,
+        tryMoreAfterWorkouts,
         suggestion: 'no_data',
       });
       continue;
@@ -186,13 +222,19 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     const last = history[history.length - 1];
     const lastDate = new Date(`${last.date}T00:00:00Z`);
     const daysSinceLastWorkout = daysBetween(lastDate, now);
-    const lastProgressDateStr = findLastProgressDate(history);
-    const daysSinceProgress = lastProgressDateStr
-      ? daysBetween(new Date(`${lastProgressDateStr}T00:00:00Z`), now)
+    const lastProgress = findLastProgress(history);
+    const daysSinceProgress = lastProgress
+      ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
       : null;
+    const sessionsSinceProgress = lastProgress?.sessionsSince ?? null;
 
     const atTopOfRange = last.maxReps >= ex.repRangeMax;
     const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;
+
+    const stalled =
+      tryMoreAfterWorkouts != null
+        ? sessionsSinceProgress != null && sessionsSinceProgress >= tryMoreAfterWorkouts
+        : daysSinceProgress != null && daysSinceProgress >= PROGRESS_REMINDER_DAYS;
 
     let suggestion: ProgressionSuggestion;
 
@@ -200,7 +242,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       suggestion = 'start_adding_weight';
     } else if (atTopOfRange) {
       suggestion = 'increase_weight';
-    } else if (daysSinceProgress != null && daysSinceProgress >= PROGRESS_REMINDER_DAYS) {
+    } else if (stalled) {
       suggestion = 'try_more';
     } else {
       suggestion = 'ok';
@@ -218,6 +260,8 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       lastMaxReps: last.maxReps,
       daysSinceLastWorkout,
       daysSinceProgress,
+      sessionsSinceProgress,
+      tryMoreAfterWorkouts,
       suggestion,
     });
   }

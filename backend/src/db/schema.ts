@@ -103,6 +103,12 @@ export const programs = pgTable('programs', {
   // Rotation order between a user's programs (A, Б, ...) - assigned in
   // creation order, drives getSuggestedProgram()'s "next in the cycle" pick.
   orderIndex: smallint('order_index').notNull().default(0),
+  // Overrides the global 14-calendar-day "try_more" reminder for every
+  // exercise in this program: instead of days, count actual workouts of the
+  // exercise since its last progress (skipped/missed schedule days just
+  // don't add to the count - they don't reset it either). Null keeps the
+  // default day-based rule.
+  tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('programs_user_idx').on(table.userId),

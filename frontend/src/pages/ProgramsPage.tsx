@@ -100,6 +100,11 @@ function ProgramCard({
               .map((pe) => `${exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name} (${pe.targetSets})`)
               .join(', ')}
           </p>
+          {program.tryMoreAfterWorkouts != null && (
+            <p className="mt-1 text-xs text-slate-500">
+              {t('programs.tryMoreAfterWorkoutsBadge', { count: program.tryMoreAfterWorkouts })}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <button className="btn-ghost" onClick={onEdit}>
@@ -137,6 +142,9 @@ function ProgramForm({
   const updateMutation = useUpdateProgramMutation(program?.id ?? '');
 
   const [name, setName] = useState(program?.name ?? '');
+  const [tryMoreAfterWorkouts, setTryMoreAfterWorkouts] = useState(
+    program?.tryMoreAfterWorkouts != null ? String(program.tryMoreAfterWorkouts) : '',
+  );
   const [blocks, setBlocks] = useState<EditableExercise[]>(
     program
       ? program.programExercises.map((pe) => ({
@@ -150,6 +158,7 @@ function ProgramForm({
 
   useEffect(() => {
     setName(program?.name ?? '');
+    setTryMoreAfterWorkouts(program?.tryMoreAfterWorkouts != null ? String(program.tryMoreAfterWorkouts) : '');
     setBlocks(
       program
         ? program.programExercises.map((pe) => ({
@@ -205,6 +214,11 @@ function ProgramForm({
       setError(t('programs.form.errorTargetSets'));
       return;
     }
+    const trimmedTryMore = tryMoreAfterWorkouts.trim();
+    if (trimmedTryMore !== '' && Number(trimmedTryMore) < 1) {
+      setError(t('programs.form.errorTryMoreAfterWorkouts'));
+      return;
+    }
 
     const body = {
       name: trimmedName,
@@ -212,6 +226,7 @@ function ProgramForm({
         exerciseId: b.exerciseId,
         targetSets: Number(b.targetSets),
       })),
+      tryMoreAfterWorkouts: trimmedTryMore === '' ? null : Number(trimmedTryMore),
     };
 
     try {
@@ -305,6 +320,21 @@ function ProgramForm({
         <button className="btn-secondary" onClick={addExercise} disabled={!addExerciseId}>
           {t('programs.form.addExerciseButton')}
         </button>
+      </div>
+
+      <div>
+        <label className="label">{t('programs.form.tryMoreAfterWorkoutsLabel')}</label>
+        <input
+          type="number"
+          step="1"
+          min="1"
+          max="60"
+          className="input w-32"
+          placeholder={t('programs.form.tryMoreAfterWorkoutsPlaceholder')}
+          value={tryMoreAfterWorkouts}
+          onChange={(e) => setTryMoreAfterWorkouts(e.target.value)}
+        />
+        <p className="mt-1 text-xs text-slate-500">{t('programs.form.tryMoreAfterWorkoutsHint')}</p>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

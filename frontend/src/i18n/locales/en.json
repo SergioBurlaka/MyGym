@@ -75,6 +75,7 @@
     "emptyState": "No programs yet. Create one and you can start a workout from it in one click, even without prior history.",
     "deleteConfirmTitle": "Delete program",
     "deleteConfirmDescription": "«{{name}}» will be deleted. Workouts already created from it are unaffected.",
+    "tryMoreAfterWorkoutsBadge": "\"Try more\" after {{count}} workouts without progress",
     "form": {
       "nameLabel": "Program name",
       "namePlaceholder": "E.g. \"Program A\"",
@@ -84,11 +85,15 @@
       "remove": "Remove",
       "addExercisePlaceholder": "Choose an exercise…",
       "addExerciseButton": "+ Add exercise",
+      "tryMoreAfterWorkoutsLabel": "\"Try more\" after N workouts without progress",
+      "tryMoreAfterWorkoutsPlaceholder": "e.g. 6",
+      "tryMoreAfterWorkoutsHint": "Only actually-logged workouts with this exercise count - skipped days don't add to the count, but don't reset it either. Leave blank to keep the default rule (14 calendar days without progress).",
       "saveButton": "Save program",
       "saving": "Saving…",
       "errorNameRequired": "Enter a program name.",
       "errorExerciseRequired": "Add at least one exercise.",
       "errorTargetSets": "Set the target number of sets (at least 1) for every exercise.",
+      "errorTryMoreAfterWorkouts": "The workout count must be at least 1 (or leave it blank).",
       "errorGeneric": "Couldn't save the program"
     }
   },
@@ -231,6 +236,7 @@
       "start_adding_weight": "Reached {{repRangeMax}} reps with no weight — time to start adding some.",
       "increase_weight": "Reached the top of the range ({{repRangeMax}} reps) — add +{{weightStep}} kg per side.",
       "try_more": "No progress for {{days}} days — try more reps or weight.",
+      "try_more_sessions": "No progress for {{sessions}} workouts — try more reps or weight.",
       "ok": "On track."
     }
   },

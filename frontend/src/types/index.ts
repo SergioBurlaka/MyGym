@@ -71,6 +71,9 @@ export type Program = {
   userId: string;
   name: string;
   orderIndex: number;
+  // Overrides the default 14-day "try_more" rule for this program's
+  // exercises with a workout-count-based one; null keeps the default.
+  tryMoreAfterWorkouts: number | null;
   createdAt: string;
   programExercises: ProgramExercise[];
 };
@@ -89,6 +92,8 @@ export type ExerciseProgression = {
   lastMaxReps: number | null;
   daysSinceLastWorkout: number | null;
   daysSinceProgress: number | null;
+  sessionsSinceProgress: number | null;
+  tryMoreAfterWorkouts: number | null;
   suggestion: ProgressionSuggestion;
 };
 

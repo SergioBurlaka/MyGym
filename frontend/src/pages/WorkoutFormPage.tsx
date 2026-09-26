@@ -14,6 +14,7 @@ import { useCreateProgramMutation } from '../shared/api/programs/index.js';
 import { formatDuration } from '../utils/weight.js';
 import { labelColor } from '../utils/labelColor.js';
 import { translateApiError } from '../utils/apiError.js';
+import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
@@ -350,7 +351,7 @@ export default function WorkoutFormPage() {
                   <span className="badge bg-surface-border text-slate-400">
                     {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} {t('common.reps')}
                   </span>
-                  {prog && <ProgressionBadge suggestion={prog.suggestion} title={t(`progression.message.${prog.suggestion}`, { repRangeMax: prog.repRangeMax, weightStep: prog.weightStepKg, days: prog.daysSinceProgress })} />}
+                  {prog && <ProgressionBadge suggestion={prog.suggestion} title={progressionMessage(prog, t)} />}
                 </div>
                 <Popconfirm
                   title={t('workout.removeExerciseConfirmTitle')}
