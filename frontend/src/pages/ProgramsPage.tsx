@@ -361,10 +361,8 @@ function ProgramForm({
               <div>
                 <label className="label">{t('programs.form.targetSetsLabel')}</label>
                 <input
-                  type="number"
-                  step="1"
-                  min="1"
-                  max="20"
+                  type="text"
+                  inputMode="numeric"
                   className="input w-32"
                   value={block.targetSets}
                   onChange={(e) => updateBlock(block.exerciseId, { targetSets: e.target.value })}
@@ -391,10 +389,8 @@ function ProgramForm({
       <div>
         <label className="label">{t('programs.form.tryMoreAfterWorkoutsLabel')}</label>
         <input
-          type="number"
-          step="1"
-          min="1"
-          max="60"
+          type="text"
+          inputMode="numeric"
           className="input w-32"
           placeholder={t('programs.form.tryMoreAfterWorkoutsPlaceholder')}
           value={tryMoreAfterWorkouts}

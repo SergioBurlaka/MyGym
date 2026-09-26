@@ -369,9 +369,8 @@ export default function WorkoutFormPage() {
                     {isBodyweight ? t('workout.extraWeightLabel') : t('workout.weightPerUnitLabel')}
                   </label>
                   <input
-                    type="number"
-                    step="0.25"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     className="input w-32"
                     placeholder={isBodyweight ? t('workout.weightPlaceholderNoWeight') : '0'}
                     value={block.weightPerUnitKg}
@@ -400,8 +399,8 @@ export default function WorkoutFormPage() {
                   <div key={i} className="flex items-center gap-1">
                     <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       className="input w-16 text-center"
                       value={s.reps}
                       onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}

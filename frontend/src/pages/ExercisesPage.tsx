@@ -119,7 +119,8 @@ export default function ExercisesPage() {
             <div>
               <label className="label">{t('exercises.form.repRangeMin')}</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 className="input"
                 value={form.repRangeMin}
                 onChange={(e) => setForm((f) => ({ ...f, repRangeMin: Number(e.target.value) }))}
@@ -128,7 +129,8 @@ export default function ExercisesPage() {
             <div>
               <label className="label">{t('exercises.form.repRangeMax')}</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 className="input"
                 value={form.repRangeMax}
                 onChange={(e) => setForm((f) => ({ ...f, repRangeMax: Number(e.target.value) }))}
@@ -137,8 +139,8 @@ export default function ExercisesPage() {
             <div>
               <label className="label">{t('exercises.form.weightStep')}</label>
               <input
-                type="number"
-                step="0.25"
+                type="text"
+                inputMode="decimal"
                 className="input"
                 value={form.weightStepKg}
                 onChange={(e) => setForm((f) => ({ ...f, weightStepKg: Number(e.target.value) }))}
