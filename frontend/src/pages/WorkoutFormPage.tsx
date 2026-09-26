@@ -281,13 +281,13 @@ export default function WorkoutFormPage() {
             />
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <div className="relative inline-block" ref={saveAsProgramRef}>
             <button className="btn-secondary" onClick={openSaveAsProgram}>
               {t('workout.saveAsProgram')}
             </button>
             {saveAsProgramOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-surface-border bg-surface-raised p-3 shadow-xl">
+              <div className="absolute left-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] sm:left-auto sm:right-0 rounded-lg border border-surface-border bg-surface-raised p-3 shadow-xl">
                 <label className="label" htmlFor="newProgramName">
                   {t('workout.saveAsProgramNameLabel')}
                 </label>
@@ -346,7 +346,7 @@ export default function WorkoutFormPage() {
           return (
             <div key={block.exerciseId} className="card">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-xl text-slate-100">{exercise.name}</h3>
                   <span className="badge bg-surface-border text-slate-400">
                     {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} {t('common.reps')}
