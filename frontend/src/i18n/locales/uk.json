@@ -31,7 +31,8 @@
     "import": "Імпорт",
     "logout": "Вийти",
     "openMenu": "Відкрити меню",
-    "closeMenu": "Закрити меню"
+    "closeMenu": "Закрити меню",
+    "profileMenu": "Меню профілю"
   },
   "auth": {
     "login": {

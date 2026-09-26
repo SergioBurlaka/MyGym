@@ -31,7 +31,8 @@
     "import": "Import",
     "logout": "Log out",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "profileMenu": "Profile menu"
   },
   "auth": {
     "login": {
