@@ -67,7 +67,12 @@
     "emptyJournal": "No workouts yet. Click \"New workout\" to start.",
     "inProgress": "in progress…",
     "emptyWorkout": "Empty — add exercises",
-    "setsSummary": "{{count}} sets × {{weight}}"
+    "setsSummary": "{{count}} sets × {{weight}}",
+    "setsOnly": "{{count}} sets",
+    "reminderDays": "{{count}}d",
+    "reminderSessions": "{{count}} wo",
+    "showAllReminders": "Show all {{count}}",
+    "workoutMenuLabel": "Actions for {{date}}"
   },
   "programs": {
     "title": "Programs",

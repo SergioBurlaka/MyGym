@@ -67,7 +67,12 @@
     "emptyJournal": "Ще немає жодного тренування. Натисніть «Нове тренування», щоб почати.",
     "inProgress": "триває…",
     "emptyWorkout": "Порожньо — додайте вправи",
-    "setsSummary": "{{count}} підх. × {{weight}}"
+    "setsSummary": "{{count}} підх. × {{weight}}",
+    "setsOnly": "{{count}} підх.",
+    "reminderDays": "{{count}} дн.",
+    "reminderSessions": "{{count}} трен.",
+    "showAllReminders": "Показати всі {{count}}",
+    "workoutMenuLabel": "Дії з тренуванням {{date}}"
   },
   "programs": {
     "title": "Програми",
