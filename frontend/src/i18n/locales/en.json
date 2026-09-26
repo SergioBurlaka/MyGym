@@ -77,6 +77,9 @@
     "deleteConfirmTitle": "Delete program",
     "deleteConfirmDescription": "«{{name}}» will be deleted. Workouts already created from it are unaffected.",
     "tryMoreAfterWorkoutsBadge": "\"Try more\" after {{count}} workouts without progress",
+    "exerciseCount_one": "{{count}} exercise",
+    "exerciseCount_other": "{{count}} exercises",
+    "cardMenuLabel": "Actions for {{name}}",
     "form": {
       "nameLabel": "Program name",
       "namePlaceholder": "E.g. \"Program A\"",

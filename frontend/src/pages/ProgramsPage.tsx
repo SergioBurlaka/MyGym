@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import {
@@ -89,36 +89,102 @@ function ProgramCard({
 }) {
   const { t } = useTranslation();
   const deleteMutation = useDeleteProgramMutation(program.id);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [menuOpen]);
 
   return (
-    <div className="card">
+    <div className="card space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-xl text-slate-100">{program.name}</h3>
-          <p className="mt-1 text-sm text-slate-400">
-            {program.programExercises
-              .map((pe) => `${exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name} (${pe.targetSets})`)
-              .join(', ')}
+          <h3 className="text-xl font-semibold text-slate-100">{program.name}</h3>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {t('programs.exerciseCount', { count: program.programExercises.length })}
           </p>
-          {program.tryMoreAfterWorkouts != null && (
-            <p className="mt-1 text-xs text-slate-500">
-              {t('programs.tryMoreAfterWorkoutsBadge', { count: program.tryMoreAfterWorkouts })}
-            </p>
+        </div>
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            aria-label={t('programs.cardMenuLabel', { name: program.name })}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-white"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.8" />
+              <circle cx="12" cy="12" r="1.8" />
+              <circle cx="12" cy="19" r="1.8" />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 z-20 mt-1 w-44 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-1.5 shadow-xl">
+              <button
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 hover:bg-surface-border"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onEdit();
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 20h4L19 9l-4-4L4 16z" />
+                </svg>
+                {t('common.edit')}
+              </button>
+              <Popconfirm
+                title={t('programs.deleteConfirmTitle')}
+                description={t('programs.deleteConfirmDescription', { name: program.name })}
+                onConfirm={() => {
+                  setMenuOpen(false);
+                  deleteMutation.mutate();
+                }}
+              >
+                <button className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-red-400 hover:bg-surface-border">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+                  </svg>
+                  {t('common.delete')}
+                </button>
+              </Popconfirm>
+            </div>
           )}
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button className="btn-ghost" onClick={onEdit}>
-            {t('common.edit')}
-          </button>
-          <Popconfirm
-            title={t('programs.deleteConfirmTitle')}
-            description={t('programs.deleteConfirmDescription', { name: program.name })}
-            onConfirm={() => deleteMutation.mutate()}
-          >
-            <button className="btn-ghost text-red-400">{t('common.delete')}</button>
-          </Popconfirm>
-        </div>
       </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {program.programExercises.map((pe) => (
+          <span key={pe.id} className="rounded-lg bg-surface-border px-2.5 py-1.5 text-sm text-slate-200">
+            {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
+            <span className="text-slate-400">×{pe.targetSets}</span>
+          </span>
+        ))}
+      </div>
+
+      {program.tryMoreAfterWorkouts != null && (
+        <div className="flex items-center gap-2 border-t border-surface-border pt-2.5 text-xs text-slate-400">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f5a524" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 17l6-6 4 4 8-8" />
+            <path d="M15 7h6v6" />
+          </svg>
+          <span>{t('programs.tryMoreAfterWorkoutsBadge', { count: program.tryMoreAfterWorkouts })}</span>
+        </div>
+      )}
     </div>
   );
 }

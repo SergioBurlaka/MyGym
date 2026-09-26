@@ -77,6 +77,11 @@
     "deleteConfirmTitle": "Видалити програму",
     "deleteConfirmDescription": "«{{name}}» буде видалено. Тренування, вже створені з неї, не постраждають.",
     "tryMoreAfterWorkoutsBadge": "«Спробуй більше» після {{count}} тренувань без прогресу",
+    "exerciseCount_one": "{{count}} вправа",
+    "exerciseCount_few": "{{count}} вправи",
+    "exerciseCount_many": "{{count}} вправ",
+    "exerciseCount_other": "{{count}} вправи",
+    "cardMenuLabel": "Дії з програмою {{name}}",
     "form": {
       "nameLabel": "Назва програми",
       "namePlaceholder": "Наприклад, «Програма А»",
