@@ -171,7 +171,7 @@
   },
   "exercises": {
     "title": "Exercises",
-    "addButton": "+ Add exercise",
+    "addButton": "Add",
     "cancelButton": "Cancel",
     "form": {
       "name": "Name",
@@ -181,7 +181,8 @@
       "repRangeMax": "Max. reps",
       "weightStep": "Weight step, kg",
       "submit": "Save exercise",
-      "errorGeneric": "Couldn't add the exercise"
+      "errorGeneric": "Couldn't add the exercise",
+      "errorGenericUpdate": "Couldn't save the exercise"
     },
     "equipment": {
       "barbell": "Barbell",
@@ -196,14 +197,22 @@
       "smallWithRange": "Small group (6-20, +0.5 kg step)",
       "bodyweightWithRange": "No weight (6-30)"
     },
-    "cardSummary": "{{equipment}} · {{min}}-{{max}} reps · step {{step}} kg",
+    "filterLabel": "Filter by equipment",
+    "filterAll": "All",
+    "filterEmpty": "No exercises with this equipment.",
+    "cardMenuLabel": "Actions for {{name}}",
+    "repsChip": "{{min}}–{{max}} reps",
+    "stepLabel": "step",
+    "stepChip": "{{step}} kg",
     "archiveConfirmTitle": "Remove exercise",
     "archiveConfirmDescription": "The exercise will be removed from the list. Set history in already-saved workouts stays intact.",
     "archiveConfirmText": "Yes, remove",
     "archiveButton": "Remove",
     "schedule": {
       "title": "Training schedule",
-      "description": "Planned training days — used by the journal's calendar to spot missed days."
+      "description": "The Journal calendar uses these days to mark missed workouts.",
+      "daysPerWeek_one": "{{count}} day / week",
+      "daysPerWeek_other": "{{count}} days / week"
     }
   },
   "import": {

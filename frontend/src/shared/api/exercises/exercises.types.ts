@@ -8,3 +8,5 @@ export type CreateExerciseBody = {
   repRangeMax: number;
   weightStepKg: number;
 };
+
+export type UpdateExerciseBody = Partial<CreateExerciseBody>;

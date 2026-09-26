@@ -173,7 +173,7 @@
   },
   "exercises": {
     "title": "Вправи",
-    "addButton": "+ Додати вправу",
+    "addButton": "Додати",
     "cancelButton": "Скасувати",
     "form": {
       "name": "Назва",
@@ -183,7 +183,8 @@
       "repRangeMax": "Макс. повторень",
       "weightStep": "Крок ваги, кг",
       "submit": "Зберегти вправу",
-      "errorGeneric": "Не вдалося додати вправу"
+      "errorGeneric": "Не вдалося додати вправу",
+      "errorGenericUpdate": "Не вдалося зберегти вправу"
     },
     "equipment": {
       "barbell": "Штанга",
@@ -198,14 +199,24 @@
       "smallWithRange": "Мала група (6-20, крок 0.5 кг)",
       "bodyweightWithRange": "Без ваги (6-30)"
     },
-    "cardSummary": "{{equipment}} · {{min}}-{{max}} повт. · крок {{step}} кг",
+    "filterLabel": "Фільтр за обладнанням",
+    "filterAll": "Усі",
+    "filterEmpty": "Немає вправ з таким обладнанням.",
+    "cardMenuLabel": "Дії з вправою {{name}}",
+    "repsChip": "{{min}}–{{max}} повт.",
+    "stepLabel": "крок",
+    "stepChip": "{{step}} кг",
     "archiveConfirmTitle": "Прибрати вправу",
     "archiveConfirmDescription": "Вправу буде прибрано зі списку. Історія підходів у вже збережених тренуваннях не зникне.",
     "archiveConfirmText": "Так, прибрати",
     "archiveButton": "Прибрати",
     "schedule": {
       "title": "Розклад тренувань",
-      "description": "Планові дні тренувань — використовується для календаря на журналі, щоб бачити пропущені дні."
+      "description": "За цими днями календар у Журналі позначає пропущені тренування.",
+      "daysPerWeek_one": "{{count}} день / тиждень",
+      "daysPerWeek_few": "{{count}} дні / тиждень",
+      "daysPerWeek_many": "{{count}} днів / тиждень",
+      "daysPerWeek_other": "{{count}} дня / тиждень"
     }
   },
   "import": {
