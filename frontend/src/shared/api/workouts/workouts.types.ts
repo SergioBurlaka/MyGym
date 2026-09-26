@@ -17,6 +17,11 @@ export type StartWorkoutBody = {
   programId?: string;
 };
 
+export type UpdateWorkoutBody = {
+  programLabel?: string | null;
+  date?: string;
+};
+
 export type SaveWorkoutExercisesBody = {
   exercises: {
     exerciseId: string;

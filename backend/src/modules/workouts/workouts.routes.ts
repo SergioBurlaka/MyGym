@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { startWorkoutSchema, saveWorkoutExercisesSchema, updateWorkoutLabelSchema } from './workouts.schema.js';
+import { startWorkoutSchema, saveWorkoutExercisesSchema, updateWorkoutSchema } from './workouts.schema.js';
 import {
   startWorkout,
   finishWorkout,
@@ -8,7 +8,7 @@ import {
   getWorkout,
   deleteWorkout,
   saveWorkoutExercises,
-  updateWorkoutLabel,
+  updateWorkout,
   listWorkoutTemplates,
 } from './workouts.service.js';
 
@@ -46,11 +46,11 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
   });
 
   fastify.patch<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    const parsed = updateWorkoutLabelSchema.safeParse(request.body);
+    const parsed = updateWorkoutSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: 'validation_error', issues: parsed.error.issues });
     }
-    const workout = await updateWorkoutLabel(request.userId, request.params.id, parsed.data.programLabel);
+    const workout = await updateWorkout(request.userId, request.params.id, parsed.data);
     if (!workout) return reply.code(404).send({ error: 'not_found' });
     return workout;
   });

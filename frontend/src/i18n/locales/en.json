@@ -93,6 +93,7 @@
     }
   },
   "workout": {
+    "dateLabel": "Workout date",
     "finishedDuration": "Finished · {{duration}}",
     "inProgress": "Workout in progress…",
     "nameLabel": "Name",

@@ -10,5 +10,5 @@ export const workoutsKeys = createQueryKeys('workouts', {
   saveExercises: null,
   finish: null,
   remove: null,
-  updateLabel: null,
+  update: null,
 });

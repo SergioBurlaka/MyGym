@@ -145,15 +145,23 @@ export async function startWorkout(
   });
 }
 
-export async function updateWorkoutLabel(userId: string, workoutId: string, programLabel: string | null) {
+export async function updateWorkout(
+  userId: string,
+  workoutId: string,
+  patch: { programLabel?: string | null; date?: string },
+) {
   const existing = await db.query.workouts.findFirst({
     where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
   });
   if (!existing) return null;
 
+  const updates: Partial<typeof workouts.$inferInsert> = {};
+  if (patch.programLabel !== undefined) updates.programLabel = patch.programLabel;
+  if (patch.date !== undefined) updates.date = patch.date;
+
   const [row] = await db
     .update(workouts)
-    .set({ programLabel })
+    .set(updates)
     .where(eq(workouts.id, workoutId))
     .returning();
   return row;
@@ -330,6 +338,18 @@ export async function saveWorkoutExercises(
       );
     }
 
-    return getWorkout(userId, workoutId);
+    // Read back via tx (not the module-level `db`/getWorkout) - the writes
+    // above aren't committed yet, so a query on a separate connection would
+    // see the pre-save state (same gotcha as startWorkout above).
+    return tx.query.workouts.findFirst({
+      where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
+      with: {
+        workoutExercises: {
+          orderBy: (we, { asc }) => [asc(we.orderIndex)],
+          with: { exercise: true, sets: { orderBy: (s, { asc }) => [asc(s.setNumber)] } },
+        },
+        program: true,
+      },
+    });
   });
 }

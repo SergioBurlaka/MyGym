@@ -2,16 +2,17 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import type { Workout } from '../../../../types/index.js';
 import { WorkoutsApi } from '../workouts.api.js';
 import { workoutsKeys } from '../workouts.keys.js';
+import type { UpdateWorkoutBody } from '../workouts.types.js';
 
-export const useUpdateWorkoutLabelMutation = (
+export const useUpdateWorkoutMutation = (
   id: string,
-): UseMutationResult<Workout, Error, string | null> => {
+): UseMutationResult<Workout, Error, UpdateWorkoutBody> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationKey: workoutsKeys.updateLabel.queryKey,
-    mutationFn: async (programLabel) => {
-      const { data } = await WorkoutsApi.updateLabel(id, programLabel);
+    mutationKey: workoutsKeys.update.queryKey,
+    mutationFn: async (patch) => {
+      const { data } = await WorkoutsApi.update(id, patch);
       return data;
     },
     onSuccess: async (data) => {
@@ -19,6 +20,7 @@ export const useUpdateWorkoutLabelMutation = (
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.templates.queryKey }),
+        queryClient.invalidateQueries({ queryKey: workoutsKeys.dates._def }),
       ]);
     },
   });

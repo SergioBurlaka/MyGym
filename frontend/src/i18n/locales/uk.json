@@ -93,6 +93,7 @@
     }
   },
   "workout": {
+    "dateLabel": "Дата тренування",
     "finishedDuration": "Завершено · тривалість {{duration}}",
     "inProgress": "Тренування триває…",
     "nameLabel": "Назва",

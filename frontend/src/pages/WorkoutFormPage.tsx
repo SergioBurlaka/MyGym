@@ -7,16 +7,18 @@ import {
   useDeleteWorkoutMutation,
   useFinishWorkoutMutation,
   useSaveWorkoutExercisesMutation,
-  useUpdateWorkoutLabelMutation,
+  useUpdateWorkoutMutation,
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
 import { useCreateProgramMutation } from '../shared/api/programs/index.js';
-import { formatDate, formatDuration } from '../utils/weight.js';
+import { formatDuration } from '../utils/weight.js';
 import { labelColor } from '../utils/labelColor.js';
 import { translateApiError } from '../utils/apiError.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
+
+const todayIso = new Date().toISOString().slice(0, 10);
 
 type EditableSet = { reps: string };
 type EditableExercise = {
@@ -43,16 +45,18 @@ export default function WorkoutFormPage() {
   const saveMutation = useSaveWorkoutExercisesMutation(id ?? '');
   const finishMutation = useFinishWorkoutMutation(id ?? '');
   const deleteMutation = useDeleteWorkoutMutation(id ?? '');
-  const updateLabelMutation = useUpdateWorkoutLabelMutation(id ?? '');
+  const updateMutation = useUpdateWorkoutMutation(id ?? '');
   const createProgramMutation = useCreateProgramMutation();
 
   const exercises = exercisesQuery.data ?? [];
   const progression = progressionQuery.data ?? [];
 
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
+  const [savedBlocks, setSavedBlocks] = useState<EditableExercise[]>([]);
   const [addExerciseId, setAddExerciseId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
+  const [dateDraft, setDateDraft] = useState('');
   const [saveAsProgramOpen, setSaveAsProgramOpen] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [saveAsProgramError, setSaveAsProgramError] = useState<string | null>(null);
@@ -78,17 +82,18 @@ export default function WorkoutFormPage() {
 
   useEffect(() => {
     if (!workoutQuery.data) return;
-    setBlocks(
-      workoutQuery.data.workoutExercises.map((we) => ({
-        exerciseId: we.exerciseId,
-        weightPerUnitKg: we.weightPerUnitKg ?? '',
-        weightUnits: (we.weightUnits as 1 | 2) ?? 2,
-        sets: we.sets
-          .sort((a, b) => a.setNumber - b.setNumber)
-          .map((s) => ({ reps: String(s.reps) })),
-      })),
-    );
+    const initial = workoutQuery.data.workoutExercises.map((we) => ({
+      exerciseId: we.exerciseId,
+      weightPerUnitKg: we.weightPerUnitKg ?? '',
+      weightUnits: (we.weightUnits as 1 | 2) ?? 2,
+      sets: we.sets
+        .sort((a, b) => a.setNumber - b.setNumber)
+        .map((s) => ({ reps: String(s.reps) })),
+    }));
+    setBlocks(initial);
+    setSavedBlocks(initial);
     setLabelDraft(workoutQuery.data.programLabel ?? '');
+    setDateDraft(workoutQuery.data.date);
     // Only re-seed local edit state when we land on a (new) workout — not on
     // every cache update a save/finish mutation triggers for this same id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,8 +102,16 @@ export default function WorkoutFormPage() {
   function commitLabel() {
     const trimmed = labelDraft.trim();
     if (trimmed === (workoutQuery.data?.programLabel ?? '')) return;
-    updateLabelMutation.mutate(trimmed === '' ? null : trimmed);
+    updateMutation.mutate({ programLabel: trimmed === '' ? null : trimmed });
   }
+
+  function commitDate(value: string) {
+    setDateDraft(value);
+    if (!value || value === workoutQuery.data?.date) return;
+    updateMutation.mutate({ date: value });
+  }
+
+  const dirty = useMemo(() => JSON.stringify(blocks) !== JSON.stringify(savedBlocks), [blocks, savedBlocks]);
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const progressionByExerciseId = useMemo(
@@ -172,6 +185,7 @@ export default function WorkoutFormPage() {
 
     try {
       await saveMutation.mutateAsync(payload);
+      setSavedBlocks(blocks);
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
     }
@@ -232,7 +246,14 @@ export default function WorkoutFormPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl text-slate-100">{formatDate(workout.date)}</h1>
+            <input
+              type="date"
+              aria-label={t('workout.dateLabel')}
+              className="input w-40 text-lg text-slate-100"
+              value={dateDraft}
+              max={todayIso}
+              onChange={(e) => commitDate(e.target.value)}
+            />
             {workout.program && (
               <span
                 className={`badge ${labelColor(workout.program.name).badgeBg} ${labelColor(workout.program.name).badgeText}`}
@@ -306,7 +327,7 @@ export default function WorkoutFormPage() {
               {t('workout.finish')}
             </button>
           )}
-          <button className="btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="btn-primary" onClick={handleSave} disabled={saving || !dirty}>
             {saving ? t('workout.saving') : t('workout.save')}
           </button>
         </div>

@@ -17,8 +17,9 @@ export const startWorkoutSchema = z.object({
   programId: z.string().uuid().optional(),
 });
 
-export const updateWorkoutLabelSchema = z.object({
-  programLabel: programLabelSchema,
+export const updateWorkoutSchema = z.object({
+  programLabel: programLabelSchema.optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_date_format').optional(),
 });
 
 const setInputSchema = z.object({
@@ -39,4 +40,5 @@ export const saveWorkoutExercisesSchema = z.object({
 });
 
 export type StartWorkoutInput = z.infer<typeof startWorkoutSchema>;
+export type UpdateWorkoutInput = z.infer<typeof updateWorkoutSchema>;
 export type SaveWorkoutExercisesInput = z.infer<typeof saveWorkoutExercisesSchema>;

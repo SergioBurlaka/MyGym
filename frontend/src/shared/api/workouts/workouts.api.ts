@@ -1,6 +1,12 @@
 import { api } from '../../../api/client.js';
 import type { Workout, WorkoutDateSummary, WorkoutTemplate } from '../../../types/index.js';
-import type { SaveWorkoutExercisesBody, StartWorkoutBody, WorkoutsListParams, WorkoutsPage } from './workouts.types.js';
+import type {
+  SaveWorkoutExercisesBody,
+  StartWorkoutBody,
+  UpdateWorkoutBody,
+  WorkoutsListParams,
+  WorkoutsPage,
+} from './workouts.types.js';
 
 export const WorkoutsApi = {
   async list(params: WorkoutsListParams) {
@@ -18,8 +24,8 @@ export const WorkoutsApi = {
   async dates(from: string, to: string) {
     return api.get<WorkoutDateSummary[]>('/workouts/dates', { params: { from, to } });
   },
-  async updateLabel(id: string, programLabel: string | null) {
-    return api.patch<Workout>(`/workouts/${id}`, { programLabel });
+  async update(id: string, body: UpdateWorkoutBody) {
+    return api.patch<Workout>(`/workouts/${id}`, body);
   },
   async saveExercises(id: string, body: SaveWorkoutExercisesBody) {
     return api.put<Workout>(`/workouts/${id}/exercises`, body);
