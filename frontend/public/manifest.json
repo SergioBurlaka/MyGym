@@ -1,0 +1,14 @@
+{
+  "name": "MyGym",
+  "short_name": "MyGym",
+  "description": "Особистий щоденник тренувань",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#121418",
+  "theme_color": "#ff5a36",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
