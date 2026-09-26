@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="224" ry="224" fill="#ff5a36"/>
+  <text x="150" y="460" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="300" font-weight="700" letter-spacing="-6" fill="#ffffff">My</text>
+  <text x="150" y="700" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="300" font-weight="900" letter-spacing="-6" fill="#16181d">Gym</text>
+</svg>

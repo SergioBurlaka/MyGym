@@ -57,7 +57,10 @@ export default function Navbar() {
     <header ref={headerRef} className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="font-display text-2xl tracking-wider text-accent">MyGym</span>
+          <span className="flex items-center gap-2">
+            <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg" />
+            <span className="font-display text-2xl tracking-wider text-accent">MyGym</span>
+          </span>
           <nav className="hidden gap-1 sm:flex">
             {NAV_ITEMS.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
