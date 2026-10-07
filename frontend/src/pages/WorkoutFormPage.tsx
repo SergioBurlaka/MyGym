@@ -126,10 +126,12 @@ export default function WorkoutFormPage() {
     if (!addExerciseId) return;
     setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, sets: [{ reps: '' }] }]);
     setAddExerciseId('');
+    requestSave();
   }
 
   function removeExercise(exerciseId: string) {
     setBlocks((prev) => prev.filter((b) => b.exerciseId !== exerciseId));
+    requestSave();
   }
 
   function updateBlock(exerciseId: string, patch: Partial<EditableExercise>) {
@@ -140,6 +142,7 @@ export default function WorkoutFormPage() {
     setBlocks((prev) =>
       prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, { reps: '' }] } : b)),
     );
+    requestSave();
   }
 
   function updateSetReps(exerciseId: string, index: number, reps: string) {
@@ -158,11 +161,12 @@ export default function WorkoutFormPage() {
         b.exerciseId === exerciseId ? { ...b, sets: b.sets.filter((_, i) => i !== index) } : b,
       ),
     );
+    requestSave();
   }
 
-  function buildPayload() {
+  function buildPayload(source: EditableExercise[]) {
     return {
-      exercises: blocks.map((b) => ({
+      exercises: source.map((b) => ({
         exerciseId: b.exerciseId,
         weightPerUnitKg: b.weightPerUnitKg === '' ? null : Number(b.weightPerUnitKg),
         weightUnits: b.weightPerUnitKg === '' ? null : b.weightUnits,
@@ -174,26 +178,86 @@ export default function WorkoutFormPage() {
     };
   }
 
-  async function handleSave() {
-    setError(null);
-    const payload = buildPayload();
+  // Autosave: blur on a reps/weight input, or any structural change (add/remove
+  // set or exercise, units), requests a save. Saves run strictly one after
+  // another - the backend replaces all of a workout's exercises in one
+  // delete+insert transaction, so two in flight at once could interleave.
+  // A request made while a save is running just marks `pending`; the running
+  // loop then saves again with the latest blocks.
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
+  const savedRef = useRef(savedBlocks);
+  savedRef.current = savedBlocks;
+  const saveLoopRef = useRef<Promise<void> | null>(null);
+  const pendingSaveRef = useRef(false);
+  const [saveTick, setSaveTick] = useState(0);
 
-    const emptyBlock = payload.exercises.find((e) => e.sets.length === 0);
-    if (emptyBlock) {
-      setError(t('workout.emptySetError'));
+  function requestSave() {
+    setSaveTick((n) => n + 1);
+  }
+
+  // Runs after the render that applied the triggering edit, so blocksRef
+  // already holds it (a structural change calls setBlocks + requestSave).
+  useEffect(() => {
+    if (saveTick > 0) void flushSave({ silentIfIncomplete: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveTick]);
+
+  // Leaving the page (navbar link, back) with an unsaved edit still saves it.
+  // Only refs are read, so the mount-time closure is fine; the mutation keeps
+  // running after unmount.
+  useEffect(
+    () => () => {
+      void flushSave({ silentIfIncomplete: true });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  function flushSave({ silentIfIncomplete }: { silentIfIncomplete: boolean }): Promise<void> {
+    pendingSaveRef.current = true;
+    if (!saveLoopRef.current) {
+      saveLoopRef.current = (async () => {
+        while (pendingSaveRef.current) {
+          pendingSaveRef.current = false;
+          await saveOnce(silentIfIncomplete);
+        }
+      })().finally(() => {
+        saveLoopRef.current = null;
+      });
+    }
+    return saveLoopRef.current;
+  }
+
+  async function saveOnce(silentIfIncomplete: boolean) {
+    const snapshot = blocksRef.current;
+    if (JSON.stringify(snapshot) === JSON.stringify(savedRef.current)) return;
+
+    const payload = buildPayload(snapshot);
+    // An exercise just added has no reps yet - autosave waits until it does
+    // instead of nagging mid-entry; only the explicit Save button complains.
+    if (payload.exercises.some((e) => e.sets.length === 0)) {
+      if (!silentIfIncomplete) setError(t('workout.emptySetError'));
       return;
     }
 
     try {
       await saveMutation.mutateAsync(payload);
-      setSavedBlocks(blocks);
+      savedRef.current = snapshot;
+      setSavedBlocks(snapshot);
+      setError(null);
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
     }
   }
 
+  function handleSave() {
+    setError(null);
+    void flushSave({ silentIfIncomplete: false });
+  }
+
   async function handleFinish() {
-    await handleSave();
+    await flushSave({ silentIfIncomplete: false });
     await finishMutation.mutateAsync();
   }
 
@@ -328,7 +392,18 @@ export default function WorkoutFormPage() {
               {t('workout.finish')}
             </button>
           )}
-          <button className="btn-primary" onClick={handleSave} disabled={saving || !dirty}>
+          <button
+            className="btn-primary inline-flex items-center gap-2"
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            aria-busy={saving}
+          >
+            {saving && (
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            )}
             {saving ? t('workout.saving') : t('workout.save')}
           </button>
         </div>
@@ -375,6 +450,7 @@ export default function WorkoutFormPage() {
                     placeholder={isBodyweight ? t('workout.weightPlaceholderNoWeight') : '0'}
                     value={block.weightPerUnitKg}
                     onChange={(e) => updateBlock(block.exerciseId, { weightPerUnitKg: e.target.value })}
+                    onBlur={requestSave}
                   />
                 </div>
                 {block.weightPerUnitKg !== '' && (
@@ -383,7 +459,10 @@ export default function WorkoutFormPage() {
                     <Select
                       className="w-56"
                       value={String(block.weightUnits)}
-                      onChange={(v) => updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 })}
+                      onChange={(v) => {
+                        updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 });
+                        requestSave();
+                      }}
                       options={[
                         { value: '2', label: t('workout.unitsBothSides') },
                         { value: '1', label: t('workout.unitsOne') },
@@ -404,6 +483,7 @@ export default function WorkoutFormPage() {
                       className="input w-16 text-center"
                       value={s.reps}
                       onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}
+                      onBlur={requestSave}
                     />
                     <button
                       className="text-slate-500 hover:text-red-400"
