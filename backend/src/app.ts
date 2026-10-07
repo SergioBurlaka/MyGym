@@ -14,6 +14,9 @@ import settingsRoutes from './modules/settings/settings.routes.js';
 
 export function buildApp() {
   const app = Fastify({
+    // Behind nginx: trust X-Forwarded-Proto so request.protocol reflects the
+    // client's real scheme (used for the refresh cookie's Secure flag).
+    trustProxy: true,
     logger: {
       level: env.NODE_ENV === 'production' ? 'info' : 'debug',
       transport: env.NODE_ENV === 'production' ? undefined : { target: 'pino-pretty' },

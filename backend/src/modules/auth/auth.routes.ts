@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { registerSchema, loginSchema } from './auth.schema.js';
 import {
   registerUser,
@@ -8,16 +8,23 @@ import {
   revokeRefreshToken,
   AuthError,
 } from './auth.service.js';
-import { env } from '../../config/env.js';
+import { refreshTtlToDate } from '../../utils/tokens.js';
 
 const REFRESH_COOKIE = 'mygym_refresh';
 
-const cookieOptions = {
-  path: '/api/auth',
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: env.NODE_ENV === 'production',
-};
+// Persistent (maxAge) rather than a session cookie: mobile browsers drop
+// session cookies when they kill a backgrounded tab mid-workout. `secure`
+// follows the actual scheme - prod nginx is still plain HTTP, and browsers
+// silently discard Secure cookies set over HTTP, which broke refresh entirely.
+function cookieOptions(request: FastifyRequest) {
+  return {
+    path: '/api/auth',
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: request.protocol === 'https',
+    maxAge: Math.floor((refreshTtlToDate().getTime() - Date.now()) / 1000),
+  };
+}
 
 export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/register', async (request, reply) => {
@@ -29,7 +36,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     try {
       const user = await registerUser(parsed.data.email, parsed.data.password);
       const { accessToken, refreshToken } = await issueTokenPair(user);
-      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions);
+      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
       return reply.code(201).send({ accessToken, user: { id: user.id, email: user.email } });
     } catch (err) {
       if (err instanceof AuthError) {
@@ -48,7 +55,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     try {
       const user = await validateCredentials(parsed.data.email, parsed.data.password);
       const { accessToken, refreshToken } = await issueTokenPair(user);
-      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions);
+      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
       return reply.send({ accessToken, user: { id: user.id, email: user.email } });
     } catch (err) {
       if (err instanceof AuthError) {
@@ -66,7 +73,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     try {
       const { accessToken, refreshToken } = await rotateRefreshToken(rawToken);
-      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions);
+      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
       return reply.send({ accessToken });
     } catch (err) {
       if (err instanceof AuthError) {

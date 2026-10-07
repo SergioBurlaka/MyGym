@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { setAccessToken } from '../api/client.js';
-import { useLoginMutation, useLogoutMutation, useRefreshMutation, useRegisterMutation } from '../shared/api/auth/index.js';
+import { refreshAccessToken, setAccessToken, setOnSessionLost } from '../api/client.js';
+import { useLoginMutation, useLogoutMutation, useRegisterMutation } from '../shared/api/auth/index.js';
 
 type User = { id: string; email: string };
 
@@ -18,27 +18,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshMutation = useRefreshMutation();
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
   const logoutMutation = useLogoutMutation();
 
   // On first load, try to silently refresh using the httpOnly cookie so a
   // page reload doesn't force a fresh login.
+  // Goes through the shared single-flight refresh, so StrictMode's double
+  // effect run can't send the same rotating refresh token twice.
   useEffect(() => {
+    setOnSessionLost(() => setUser(null));
     (async () => {
-      try {
-        const { accessToken } = await refreshMutation.mutateAsync();
-        setAccessToken(accessToken);
+      const accessToken = await refreshAccessToken();
+      if (accessToken) {
         const payload = JSON.parse(atob(accessToken.split('.')[1]));
         setUser({ id: payload.sub, email: payload.email });
-      } catch {
-        setAccessToken(null);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => setOnSessionLost(null);
   }, []);
 
   const login = useCallback(

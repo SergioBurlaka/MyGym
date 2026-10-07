@@ -5,4 +5,3 @@ export type AuthResponse = {
   user: { id: string; email: string };
 };
 
-export type RefreshResponse = { accessToken: string };

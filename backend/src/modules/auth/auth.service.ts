@@ -1,4 +1,4 @@
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
 import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
@@ -79,14 +79,23 @@ export async function issueTokenPair(user: { id: string; email: string }) {
   return { accessToken, refreshToken };
 }
 
+const ROTATION_GRACE_MS = 60_000;
+
 export async function rotateRefreshToken(rawToken: string) {
   const tokenHash = hashRefreshToken(rawToken);
 
   const record = await db.query.refreshTokens.findFirst({
-    where: and(eq(refreshTokens.tokenHash, tokenHash), isNull(refreshTokens.revokedAt)),
+    where: eq(refreshTokens.tokenHash, tokenHash),
   });
 
-  if (!record || record.expiresAt.getTime() < Date.now()) {
+  // Grace window for an already-rotated token: on a flaky mobile connection
+  // the server can rotate while the response (with the new cookie) never
+  // reaches the phone, leaving it holding the old token. Without this the
+  // session would be dead after one lost response.
+  const revokedTooLongAgo =
+    record?.revokedAt != null && Date.now() - record.revokedAt.getTime() > ROTATION_GRACE_MS;
+
+  if (!record || revokedTooLongAgo || record.expiresAt.getTime() < Date.now()) {
     throw new AuthError('invalid_refresh_token', 'Session expired, please log in again');
   }
 
@@ -96,15 +105,16 @@ export async function rotateRefreshToken(rawToken: string) {
   }
 
   // Rotate: revoke the old token, issue a brand new pair.
-  await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.id, record.id));
+  if (!record.revokedAt) {
+    await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.id, record.id));
+  }
 
   return issueTokenPair(user);
 }
 
+// Logout deletes the row instead of setting revokedAt, so the rotation grace
+// window above can never revive a token the user explicitly logged out of.
 export async function revokeRefreshToken(rawToken: string) {
   const tokenHash = hashRefreshToken(rawToken);
-  await db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(and(eq(refreshTokens.tokenHash, tokenHash), isNull(refreshTokens.revokedAt)));
+  await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, tokenHash));
 }

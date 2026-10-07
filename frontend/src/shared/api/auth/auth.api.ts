@@ -1,5 +1,5 @@
 import { api } from '../../../api/client.js';
-import type { AuthCredentials, AuthResponse, RefreshResponse } from './auth.types.js';
+import type { AuthCredentials, AuthResponse } from './auth.types.js';
 
 export const AuthApi = {
   async login(payload: AuthCredentials) {
@@ -7,9 +7,6 @@ export const AuthApi = {
   },
   async register(payload: AuthCredentials) {
     return api.post<AuthResponse>('/auth/register', payload);
-  },
-  async refresh() {
-    return api.post<RefreshResponse>('/auth/refresh');
   },
   async logout() {
     return api.post('/auth/logout');
