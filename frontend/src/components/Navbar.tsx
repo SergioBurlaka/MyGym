@@ -67,12 +67,9 @@ export default function Navbar() {
     <header ref={headerRef} className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="" className="h-9 w-9 rounded-lg" />
-            <span className="font-sans text-xl font-bold tracking-tight text-slate-100">
-              My<span className="font-extrabold text-accent">Gym</span>
-            </span>
-          </span>
+          {/* Icon + wordmark lockup from the design, text outlined as paths
+              (an <img> SVG can't load the Barlow Condensed webfont). */}
+          <img src="/logo.svg" alt="MyGym" className="h-9 w-auto" />
           <nav className="hidden gap-6 sm:flex">
             {NAV_ITEMS.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
