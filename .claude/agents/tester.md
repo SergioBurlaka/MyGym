@@ -11,10 +11,13 @@ model: inherit
 ## Проєкт
 
 MyGym — Docker dev-стек: `docker compose -f docker-compose.dev.yml up -d`
-(postgres:5433, backend:4000, frontend:5173). Формального автотест-сьюту поки
-немає (backend перевірявся вручну проти реального PostgreSQL) — якщо просять
-"прогнати тести", а їх немає, перевіряй реальну поведінку через контейнери
-(curl до backend, docker compose logs) і чесно скажи, що automated suite відсутній.
+(postgres:5433, backend:4000, frontend:5173). Backend має автотести: `cd backend && npm test` (Vitest, інтеграційні
+через `fastify.inject()` проти справжнього PostgreSQL + юніт-тести прогресії,
+`backend/test/`). Потрібна окрема БД з `test` у назві, напр.
+`TEST_DATABASE_URL=postgres://<user>:<pass>@localhost:5433/mygym_test` (створити
+один раз: `docker compose -f docker-compose.dev.yml exec postgres createdb -U <user> mygym_test`).
+Нова логіка на бекенді → новий тест у `backend/test/`. Фронтенд автотестів
+не має — його перевіряй через `npm run build` і реальну поведінку в dev-стеку.
 
 ## Як працювати
 

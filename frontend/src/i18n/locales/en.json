@@ -268,7 +268,11 @@
     "missing_refresh_token": "No active session",
     "invalid_exercises": "One of the exercises isn't in your list anymore",
     "no_file": "Attach a CSV file",
-    "import_failed": "Import failed: {{detail}}"
+    "import_failed": "Import failed: {{detail}}",
+    "invalid_id": "Invalid link - this record doesn't exist",
+    "too_many_requests": "Too many attempts. Wait a minute and try again",
+    "bad_request": "The request couldn't be processed",
+    "internal_error": "Server error, please try again later"
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",

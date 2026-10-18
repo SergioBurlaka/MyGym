@@ -35,7 +35,7 @@ export type ExerciseProgression = {
   suggestion: ProgressionSuggestion;
 };
 
-type HistoryPoint = {
+export type HistoryPoint = {
   date: string;
   totalWeightKg: number | null;
   maxReps: number;
@@ -72,7 +72,7 @@ function totalWeight(weightPerUnitKg: string | null, weightUnits: number | null)
 // (0 if the progress was the latest session). Falls back to the earliest
 // entry when no improvement has ever been recorded (nothing to compare
 // against yet, but also nothing "stalled").
-function findLastProgress(history: HistoryPoint[]): { date: string; sessionsSince: number } | null {
+export function findLastProgress(history: HistoryPoint[]): { date: string; sessionsSince: number } | null {
   if (history.length === 0) return null;
   let lastProgressIndex = 0;
   for (let i = 1; i < history.length; i++) {
@@ -123,6 +123,19 @@ async function buildHistory(exerciseId: string): Promise<HistoryPoint[]> {
     .where(eq(workoutExercises.exerciseId, exerciseId))
     .orderBy(asc(workouts.date));
 
+  return buildHistoryPoints(rows);
+}
+
+export type HistoryRow = {
+  date: string;
+  weightPerUnitKg: string | null;
+  weightUnits: number | null;
+  reps: number;
+};
+
+// Pure part of buildHistory: one row per logged set in, one point per
+// workout date out (chronological). Kept DB-free so it can be unit-tested.
+export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
   const byDate = new Map<string, { weightPerUnitKg: string | null; weightUnits: number | null; reps: number[] }>();
   for (const row of rows) {
     const key = row.date;
@@ -220,33 +233,13 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     }
 
     const last = history[history.length - 1];
-    const lastDate = new Date(`${last.date}T00:00:00Z`);
-    const daysSinceLastWorkout = daysBetween(lastDate, now);
-    const lastProgress = findLastProgress(history);
-    const daysSinceProgress = lastProgress
-      ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
-      : null;
-    const sessionsSinceProgress = lastProgress?.sessionsSince ?? null;
-
-    const atTopOfRange = last.maxReps >= ex.repRangeMax;
-    const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;
-
-    const stalled =
-      tryMoreAfterWorkouts != null
-        ? sessionsSinceProgress != null && sessionsSinceProgress >= tryMoreAfterWorkouts
-        : daysSinceProgress != null && daysSinceProgress >= PROGRESS_REMINDER_DAYS;
-
-    let suggestion: ProgressionSuggestion;
-
-    if (atTopOfRange && ex.category === 'bodyweight' && !hasWeight) {
-      suggestion = 'start_adding_weight';
-    } else if (atTopOfRange) {
-      suggestion = 'increase_weight';
-    } else if (stalled) {
-      suggestion = 'try_more';
-    } else {
-      suggestion = 'ok';
-    }
+    const { daysSinceLastWorkout, daysSinceProgress, sessionsSinceProgress, suggestion } = suggestProgression({
+      history,
+      category: ex.category,
+      repRangeMax: ex.repRangeMax,
+      tryMoreAfterWorkouts,
+      now,
+    });
 
     results.push({
       exerciseId: ex.id,
@@ -267,6 +260,54 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
   }
 
   return results;
+}
+
+export type SuggestProgressionInput = {
+  history: HistoryPoint[]; // non-empty, chronological
+  category: ExerciseProgression['category'];
+  repRangeMax: number;
+  tryMoreAfterWorkouts: number | null;
+  now: Date;
+};
+
+// The progression rules (see README "Progression logic"), DB-free:
+// 1. top of the rep range reached -> add weight (or, for a bodyweight
+//    exercise done without weight, start adding some);
+// 2. otherwise no progress for 14+ days - or for N workouts when the owning
+//    program sets tryMoreAfterWorkouts - -> a soft "try more" nudge;
+// 3. otherwise ok.
+export function suggestProgression(input: SuggestProgressionInput) {
+  const { history, category, repRangeMax, tryMoreAfterWorkouts, now } = input;
+  const last = history[history.length - 1];
+  const lastDate = new Date(`${last.date}T00:00:00Z`);
+  const daysSinceLastWorkout = daysBetween(lastDate, now);
+  const lastProgress = findLastProgress(history);
+  const daysSinceProgress = lastProgress
+    ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
+    : null;
+  const sessionsSinceProgress = lastProgress?.sessionsSince ?? null;
+
+  const atTopOfRange = last.maxReps >= repRangeMax;
+  const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;
+
+  const stalled =
+    tryMoreAfterWorkouts != null
+      ? sessionsSinceProgress != null && sessionsSinceProgress >= tryMoreAfterWorkouts
+      : daysSinceProgress != null && daysSinceProgress >= PROGRESS_REMINDER_DAYS;
+
+  let suggestion: ProgressionSuggestion;
+
+  if (atTopOfRange && category === 'bodyweight' && !hasWeight) {
+    suggestion = 'start_adding_weight';
+  } else if (atTopOfRange) {
+    suggestion = 'increase_weight';
+  } else if (stalled) {
+    suggestion = 'try_more';
+  } else {
+    suggestion = 'ok';
+  }
+
+  return { daysSinceLastWorkout, daysSinceProgress, sessionsSinceProgress, suggestion };
 }
 
 export type WeeklyCategoryVolume = {
