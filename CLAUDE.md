@@ -56,6 +56,37 @@ Access-токен живе 15 хв (`JWT_ACCESS_TTL`), refresh — 30 днів (
   **видаляє** рядок `refresh_tokens`, а не ставить `revokedAt` — інакше grace
   дав би хвилину на повторне використання токена після виходу.
 
+## Захист API та тести
+
+- **Rate limit** (`@fastify/rate-limit`, `global: false`): лише `/api/auth/login`
+  (10/хв) і `/api/auth/register` (5/15 хв) на IP — константи `LOGIN_RATE_LIMIT`/
+  `REGISTER_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
+  смикає кожна відкрита вкладка (таймер, `visibilitychange`).
+- **`trustProxy` = рівно один хоп** (`(addr, hop) => hop === 0` в `app.ts`), а не
+  `true`: з `true` Fastify брав би крайню ліву, клієнтську адресу з
+  `X-Forwarded-For`, і rate limit обходився б підробленим заголовком. Протокол
+  (`X-Forwarded-Proto` для `Secure`-cookie) працює як раніше. Якщо колись
+  з'явиться ще один проксі перед nginx (Cloudflare тощо) — збільшити кількість хопів.
+- **UUID у path-параметрах** (`plugins/idParams.ts`): глобальний `preValidation`
+  хук — будь-який параметр `id`/`*Id` має бути UUID, інакше 400 `invalid_id`
+  (раніше невалідний id доходив до Postgres і давав 500).
+- **Єдиний error handler** (`plugins/errorHandler.ts`): 429 → `too_many_requests`,
+  інші 4xx від Fastify (битий JSON тощо) → `bad_request`, 5xx → `internal_error`
+  без деталей SQL/драйвера (стек — лише в лог). Коди перекладені в
+  `errors.*` у `en/uk.json`.
+- **Реєстрація транзакційна** (`registerUser`): user + рядок історії розкладу +
+  13 вправ в одній транзакції; гонка двох реєстрацій з одним email ловиться
+  через unique violation (`23505`) → `email_taken`, а не 500.
+- **Тести** — `backend/test/`, `npm test` (Vitest). Інтеграційні через
+  `app.inject()` проти справжнього Postgres (міграції застосовуються в
+  `test/globalSetup.ts`; між тестами `TRUNCATE users CASCADE`, тому назва БД
+  мусить містити `test` — інакше запуск падає). Правила прогресії винесені в
+  чисті функції `suggestProgression`/`buildHistoryPoints` саме заради юніт-тестів.
+  Свіжий `buildApp()` на кожен тест = свіже in-memory сховище rate limit.
+- **CI** (`.github/workflows/deploy.yml`): `backend-test` (typecheck + тести з
+  postgres-сервісом) і `frontend-build` на кожен push/PR; `deploy` — тільки
+  push у `main` і тільки після обох зелених джобів.
+
 ## Логіка прогресії (backend/src/modules/progression/progression.service.ts)
 
 Категорії вправ і їх правила (задані користувачем на основі реального досвіду
@@ -165,8 +196,8 @@ en/uk, автовизначення мови з браузера (див. "Ст�
 
 Повністю робочий MVP: auth, CRUD вправ/тренувань, форма запису з гнучкою
 кількістю підходів на вправу, графіки прогресу (Recharts), CSV-імпорт,
-Docker-стек (dev + prod), nginx reverse-proxy. Backend протестований
-end-to-end проти реального PostgreSQL. Frontend компілюється і збирається
+Docker-стек (dev + prod), nginx reverse-proxy. Backend покритий автотестами (`backend/test/`, див.
+"Захист API та тести"). Frontend компілюється і збирається
 (vite build) без помилок.
 
 Перевірено реальний підйом dev-стека (`docker compose -f docker-compose.dev.yml

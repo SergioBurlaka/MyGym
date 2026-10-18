@@ -12,6 +12,13 @@ import { refreshTtlToDate } from '../../utils/tokens.js';
 
 const REFRESH_COOKIE = 'mygym_refresh';
 
+// Per-IP throttling for the two endpoints that verify a password (argon2 is
+// deliberately slow, so these are also the cheapest way to load the CPU).
+// 10 logins/min is far above what a human mistyping needs, far below what
+// a password-guessing script wants.
+export const LOGIN_RATE_LIMIT = { max: 10, timeWindow: '1 minute' };
+export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: '15 minutes' };
+
 // Persistent (maxAge) rather than a session cookie: mobile browsers drop
 // session cookies when they kill a backgrounded tab mid-workout. `secure`
 // follows the actual scheme - prod nginx is still plain HTTP, and browsers
@@ -27,7 +34,7 @@ function cookieOptions(request: FastifyRequest) {
 }
 
 export default async function authRoutes(fastify: FastifyInstance) {
-  fastify.post('/register', async (request, reply) => {
+  fastify.post('/register', { config: { rateLimit: REGISTER_RATE_LIMIT } }, async (request, reply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: 'validation_error', issues: parsed.error.issues });
@@ -46,7 +53,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post('/login', async (request, reply) => {
+  fastify.post('/login', { config: { rateLimit: LOGIN_RATE_LIMIT } }, async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: 'validation_error', issues: parsed.error.issues });

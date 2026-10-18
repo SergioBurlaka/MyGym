@@ -16,6 +16,15 @@ export class AuthError extends Error {
   }
 }
 
+// Postgres unique_violation - see isUniqueViolation below.
+const PG_UNIQUE_VIOLATION = '23505';
+
+function isUniqueViolation(err: unknown): boolean {
+  // drizzle wraps driver errors, so the pg error may sit on `cause`.
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e?.code === PG_UNIQUE_VIOLATION || e?.cause?.code === PG_UNIQUE_VIOLATION;
+}
+
 export async function registerUser(email: string, password: string) {
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
@@ -24,32 +33,46 @@ export async function registerUser(email: string, password: string) {
 
   const passwordHash = await hashPassword(password);
 
-  const [user] = await db.insert(users).values({ email, passwordHash }).returning();
+  try {
+    // One transaction: if seeding the schedule/exercises fails, the user row
+    // is rolled back too - otherwise we'd leave a half-created account that
+    // can log in but has no exercises and blocks re-registration.
+    return await db.transaction(async (tx) => {
+      const [user] = await tx.insert(users).values({ email, passwordHash }).returning();
 
-  // Seed one schedule-history row from day one, so the consistency calendar
-  // has something to judge past dates against even if the user never opens
-  // Settings to change the (default) schedule.
-  await db.insert(trainingScheduleHistory).values({
-    userId: user.id,
-    trainingDays: user.trainingDays,
-    effectiveFrom: user.createdAt.toISOString().slice(0, 10),
-  });
+      // Seed one schedule-history row from day one, so the consistency calendar
+      // has something to judge past dates against even if the user never opens
+      // Settings to change the (default) schedule.
+      await tx.insert(trainingScheduleHistory).values({
+        userId: user.id,
+        trainingDays: user.trainingDays,
+        effectiveFrom: user.createdAt.toISOString().slice(0, 10),
+      });
 
-  // Seed the default exercise list for the new user so they have something
-  // to log against right away.
-  await db.insert(exercises).values(
-    DEFAULT_EXERCISES.map((ex) => ({
-      userId: user.id,
-      name: ex.name,
-      equipment: ex.equipment,
-      category: ex.category,
-      repRangeMin: ex.repRangeMin,
-      repRangeMax: ex.repRangeMax,
-      weightStepKg: ex.weightStepKg,
-    })),
-  );
+      // Seed the default exercise list for the new user so they have something
+      // to log against right away.
+      await tx.insert(exercises).values(
+        DEFAULT_EXERCISES.map((ex) => ({
+          userId: user.id,
+          name: ex.name,
+          equipment: ex.equipment,
+          category: ex.category,
+          repRangeMin: ex.repRangeMin,
+          repRangeMax: ex.repRangeMax,
+          weightStepKg: ex.weightStepKg,
+        })),
+      );
 
-  return user;
+      return user;
+    });
+  } catch (err) {
+    // Two concurrent sign-ups with the same email both pass the findFirst
+    // check above; the unique index on lower(email) stops the second one.
+    if (isUniqueViolation(err)) {
+      throw new AuthError('email_taken', 'An account with this email already exists');
+    }
+    throw err;
+  }
 }
 
 export async function validateCredentials(email: string, password: string) {

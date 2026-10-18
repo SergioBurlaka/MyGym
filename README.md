@@ -1,127 +1,143 @@
 # MyGym
 
-Особистий щоденник тренувань (гантелі, штанга, лавка, стійки): записуєте підходи,
-дивитесь графіки прогресу по кожній вправі і отримуєте нагадування, коли пора
-додати вагу чи повторення.
+**English** · [Українська](README.uk.md)
 
-## Стек
+A full-stack workout journal for free-weight training. Log your sets, see a
+progress chart for every exercise, and get a nudge when it's time to add
+weight or reps. Built and used daily by me for my own training, multi-user
+from day one.
 
-- **Backend:** Node.js + TypeScript, [Fastify](https://fastify.dev) + [Zod](https://zod.dev) (валідація), [Drizzle ORM](https://orm.drizzle.team) + drizzle-kit (міграції), PostgreSQL
-- **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для можливості відкликання)
-- **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts
-- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy на HTTP
+**Live:** http://91.232.30.91
 
-## Логіка прогресії
+## Features
 
-Кожна вправа належить до однієї з категорій:
+- **Workout logging** with any number of sets per exercise, autosave on
+  blur/structural change (strictly sequential saves, so no duplicated sets on
+  a flaky gym connection).
+- **Progression engine** that suggests *increase weight*, *start adding
+  weight* or *try more* based on your history (rules below).
+- **Progress analytics:** per-exercise charts with estimated 1RM (Epley),
+  volume, personal-record markers; weekly volume by muscle group; a
+  GitHub-style consistency calendar that judges past days against the
+  schedule that was active *then*.
+- **Programs** (A/B rotation) that pre-fill a workout with the exercises and
+  last-used weights.
+- **CSV import** from the Google Sheet I used before this app (idempotent).
+- **i18n** (English / Ukrainian), installable as a PWA on Android.
 
-| Категорія | Приклади | Повторення | Крок ваги |
+## Tech stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, TanStack Query (query-key factory, one hook per operation), Tailwind CSS, Recharts, react-i18next |
+| Backend | Node.js, TypeScript, Fastify 5, Zod validation, Drizzle ORM + drizzle-kit migrations |
+| Database | PostgreSQL 16 |
+| Auth | argon2id password hashing, short-lived JWT access token + rotating refresh token in an httpOnly cookie |
+| Infra | Docker Compose (postgres, api, static SPA, nginx reverse proxy), GitHub Actions CI/CD to a VPS |
+| Testing | Vitest integration tests against a real PostgreSQL |
+
+## Architecture
+
+```
+          ┌──────────────── VPS (docker compose) ─────────────────┐
+browser ──┤ nginx ──/api/*──▶ Fastify API ──▶ PostgreSQL           │
+          │   └────/*───────▶ nginx (static React build)           │
+          └─────────────────────────────────────────────────────────┘
+```
+
+Backend modules (`backend/src/modules/<domain>/`) each have
+`*.routes.ts` (HTTP + Zod validation) → `*.service.ts` (business logic,
+Drizzle queries) → `*.schema.ts`. Every query is scoped by the
+authenticated `userId`; integration tests check that one user can't read,
+change or delete another user's data.
+
+### Auth design
+
+- Access token: JWT, 15 min, sent as `Authorization: Bearer`.
+- Refresh token: 48 random bytes in an httpOnly cookie (path `/api/auth`);
+  only its SHA-256 hash is stored, so a DB dump can't be replayed.
+- Every refresh **rotates** the token. A just-rotated token is still accepted
+  for 60 s: on a bad mobile connection the response carrying the new cookie
+  can get lost, and without this grace window the session would die.
+  Logout deletes the row, so the grace window can't revive a logged-out session.
+- `/login` and `/register` are rate-limited per client IP. Fastify trusts
+  exactly one proxy hop, so a client can't dodge the limit by sending a fake
+  `X-Forwarded-For`.
+
+## Progression logic
+
+| Category | Examples | Rep range | Weight step |
 |---|---|---|---|
-| Велика група | присідання, станова, жим лежачи, тяга в нахилі, випади | 6-15 | +1.25 кг з кожного боку |
-| Мала група | біцепс, французький жим, розведення, жим стоячи | 6-20 | +0.5 кг з кожного боку |
-| Без ваги | віджимання, підняття ніг/корпусу | 6-30 | підказка почати додавати вагу |
+| Large muscle group | squat, deadlift, bench press, bent-over row, lunges | 6–15 | +1.25 kg per side |
+| Small muscle group | biceps curl, French press, lateral raise, overhead press | 6–20 | +0.5 kg per side |
+| Bodyweight | push-ups, leg/torso raises | 6–30 | suggests starting to add weight |
 
-Правила нагадування:
-- Якщо на всіх підходах досягнуто верхньої межі діапазону повторень — підказка додати вагу.
-- Якщо 14+ днів без прогресу (без зростання ваги чи максимальних повторень) — м'яке нагадування спробувати більше.
-- Ручне додавання повторень/ваги завжди дозволене поза розкладом.
+- Top of the rep range reached → **increase weight** (or **start adding
+  weight** for a bodyweight exercise done without weight).
+- No progress (neither weight nor max reps went up) for 14+ days → a soft
+  **try more** reminder. A program can switch this to "N workouts without
+  progress" instead of calendar days.
+- The rules live in pure functions (`suggestProgression`,
+  `buildHistoryPoints`) with unit tests.
 
-## Швидкий старт (dev, з hot-reload)
+## Running locally
 
 ```bash
-cp .env.example .env
-# відредагуйте .env за потреби (для dev значення за замовчуванням підходять)
-
+cp .env.example .env        # dev defaults are fine
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-- Frontend (Vite, hot-reload): http://localhost:5173
-- Backend API: http://localhost:4000
-- PostgreSQL: localhost:5432 (для підключення DBeaver/psql тощо)
+- Frontend (Vite, hot reload): http://localhost:5173
+- API: http://localhost:4000
+- PostgreSQL: `localhost:${POSTGRES_PORT:-5432}`
 
-Backend-контейнер сам застосовує міграції при старті (`npm run db:migrate`).
+The backend container applies pending migrations on start.
 
-## Продакшн (на вашому сервері)
+## Tests
+
+```bash
+# once: a separate test database in the dev postgres container
+docker compose -f docker-compose.dev.yml exec postgres createdb -U <POSTGRES_USER> mygym_test
+
+cd backend
+TEST_DATABASE_URL=postgres://<user>:<password>@localhost:<POSTGRES_PORT>/mygym_test npm test
+```
+
+The suite covers the auth flow (register, login, refresh rotation and grace
+window, expiry, logout, rate limiting, transactional sign-up), per-user data
+isolation, input validation and the progression rules. It truncates all
+tables between tests, so it refuses to run against a database whose name
+doesn't contain `test`.
+
+CI (`.github/workflows/deploy.yml`) runs backend typecheck + tests and the
+frontend build on every push and pull request; the deploy job runs only for
+`main` and only after both are green.
+
+## Production
 
 ```bash
 cp .env.example .env
-# ОБОВ'ЯЗКОВО згенеруйте реальні секрети:
 openssl rand -base64 48   # -> JWT_ACCESS_SECRET
 openssl rand -base64 48   # -> JWT_REFRESH_SECRET
-# і надійний POSTGRES_PASSWORD
-
+# + a strong POSTGRES_PASSWORD
 docker compose up --build -d
 ```
 
-Застосунок буде доступний на порту `${NGINX_PORT:-80}` вашого сервера. nginx
-проксує `/api/*` на backend і все інше — на статичний білд фронтенду.
+nginx serves on `${NGINX_PORT:-80}`, proxying `/api/*` to the backend and
+everything else to the static frontend build.
 
-SSL зараз не налаштований (reverse-proxy працює на HTTP). Коли буде готовий
-домен, додайте certbot/Let's Encrypt і HTTPS server-блок у `nginx/nginx.conf`.
-
-### Оновлення на сервері
-
-```bash
-git pull
-docker compose up --build -d
-```
-
-Нові Drizzle-міграції застосовуються автоматично при старті backend-контейнера.
-
-## Імпорт історії з Google Таблиць
-
-На сторінці **Імпорт** можна завантажити CSV-експорт вашої таблиці тренувань
-(Файл → Завантажити → Значення, розділені комами (.csv)). Парсер розрахований
-саме на структуру оригінальної таблиці:
-
-- дата вказана тільки в рядку першого підходу; наступні підходи того ж дня йдуть без дати
-- кожна вправа має пару колонок «повторення» + «вага» (крім вправ без ваги)
-- вага у форматі `2*20` = по 20 кг на кожну сторону/гантель
-
-Тренування, для яких дата вже існує в базі, пропускаються (повторний імпорт
-того самого файлу безпечний).
-
-## Структура репозиторію
+## Repository layout
 
 ```
-backend/    Fastify API, Drizzle-схема, міграції, логіка прогресії й CSV-імпорту
-frontend/   React SPA (журнал, форма тренування, графіки, керування вправами)
-nginx/      Конфіг reverse-proxy для продакшна
-docker-compose.yml       Продакшн-стек
-docker-compose.dev.yml   Dev-стек з hot-reload
-.env.example             Шаблон змінних середовища
+backend/    Fastify API, Drizzle schema & migrations, progression logic, CSV import, tests
+frontend/   React SPA
+nginx/      Reverse-proxy config
+.github/    CI/CD workflow
 ```
 
-## Робота з Claude Code
+## AI-assisted development
 
-У `.claude/` — мінімальний набір під соло-розробку (адаптовано з командного
-оркестратора, без Asana/GitLab/Gate-процесів — тут вони зайві):
-
-- **Субагенти** (`.claude/agents/`) — `researcher` (дослідження коду/бібліотек,
-  без правок), `reviewer` (незалежна друга думка на дифф, BLOCKER/MAJOR/MINOR),
-  `tester` (валідація через реальний dev-стек — автотестів у проєкті поки немає).
-  Викликаються через `Task(subagent_type=researcher|reviewer|tester, ...)`.
-- **`/orchestrate <ціль>`** — повний цикл на нетривіальну задачу (3+ кроки):
-  план → делегування дослідження/рев'ю/тестів субагентам → реалізація →
-  звіт. Для одноразової правки не потрібен.
-- **`/update-context [since:<ref>]`** — точково оновлює лише ті секції кореневого
-  `CLAUDE.md` (модель даних, прогресія, CSV-імпорт, Windows-нюанси), яких
-  торкнулися зміни в `git diff`. Не перегенеровує файл цілком.
-  **Не запускається автоматично** — викликається вручну після відчутних змін,
-  перед комітом.
-
-## Розробка без Docker (опційно)
-
-```bash
-# backend
-cd backend
-npm install
-cp ../.env.example .env   # відредагуйте DATABASE_URL на свій локальний Postgres
-npm run db:migrate
-npm run dev
-
-# frontend (в іншому терміналі)
-cd frontend
-npm install
-npm run dev
-```
+I build this project with Claude Code as a pair programmer. `.claude/`
+holds the project's agent setup (researcher / reviewer / tester subagents
+and an `/orchestrate` workflow), and `CLAUDE.md` documents the
+architecture decisions and gotchas.
