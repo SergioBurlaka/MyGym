@@ -1,0 +1,289 @@
+# Архітектура бази даних MyGym
+
+PostgreSQL 16. Схему описує `backend/src/db/schema.ts` (Drizzle ORM), міграції
+лежать у `backend/migrations/` (drizzle-kit). Поруч є `schema.sql`: це
+`pg_dump --schema-only` реальної dev-БД, тобто те, що фактично створено в
+Postgres, без абстракцій Drizzle.
+
+## Загальна картина
+
+```mermaid
+erDiagram
+    users ||--o{ refresh_tokens : "сесії"
+    users ||--o{ training_schedule_history : "історія розкладу"
+    users ||--o{ exercises : "свій список вправ"
+    users ||--o{ programs : "програми А/Б"
+    users ||--o{ workouts : "тренування"
+
+    programs ||--o{ program_exercises : "склад програми"
+    exercises ||--o{ program_exercises : "RESTRICT"
+    programs |o--o{ workouts : "SET NULL"
+
+    workouts ||--o{ workout_exercises : "вправи тренування"
+    exercises ||--o{ workout_exercises : "RESTRICT"
+    workout_exercises ||--o{ sets : "підходи"
+
+    users {
+        uuid id PK
+        text email "unique lower(email)"
+        text password_hash "argon2"
+        jsonb training_days "[1,3,5]"
+        timestamptz created_at
+    }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        text token_hash
+        timestamptz expires_at
+        timestamptz revoked_at "null = активний"
+    }
+    training_schedule_history {
+        uuid id PK
+        uuid user_id FK
+        jsonb training_days
+        date effective_from "unique (user_id, effective_from)"
+    }
+    exercises {
+        uuid id PK
+        uuid user_id FK
+        text name
+        enum equipment "barbell|dumbbell|bodyweight"
+        enum category "large|small|bodyweight"
+        smallint rep_range_min
+        smallint rep_range_max
+        numeric weight_step_kg
+        timestamptz archived_at
+    }
+    programs {
+        uuid id PK
+        uuid user_id FK
+        text name
+        smallint order_index "черга ротації"
+        smallint try_more_after_workouts "nullable"
+    }
+    program_exercises {
+        uuid id PK
+        uuid program_id FK
+        uuid exercise_id FK
+        smallint target_sets
+        smallint order_index
+    }
+    workouts {
+        uuid id PK
+        uuid user_id FK
+        date date
+        timestamptz time_start
+        timestamptz time_end
+        text program_label "вільний текст"
+        uuid program_id FK "nullable"
+    }
+    workout_exercises {
+        uuid id PK
+        uuid workout_id FK
+        uuid exercise_id FK
+        numeric weight_per_unit_kg "null = без ваги"
+        smallint weight_units "зазвичай 2"
+        smallint order_index
+        text notes
+    }
+    sets {
+        uuid id PK
+        uuid workout_exercise_id FK
+        smallint set_number "unique у межах вправи"
+        smallint reps
+    }
+```
+
+Схема має три шари:
+
+1. **Користувач і доступ:** `users`, `refresh_tokens`, `training_schedule_history`.
+2. **Довідники користувача:** `exercises` (що він уміє робити) і `programs` +
+   `program_exercises` (заплановані набори вправ).
+3. **Факти тренувань:** `workouts` → `workout_exercises` → `sets`. Це ієрархія
+   «тренування → вправа в ньому → підходи».
+
+Майже кожна таблиця тягнеться до `users.id`, прямо або ланцюжком. Це
+**multi-tenant в одній схемі**: дані різних користувачів розділяє `user_id`,
+а не окремі схеми чи БД. Тому кожен запит бекенду фільтрує за `user_id`.
+Таблиці нижче за ієрархією (`sets`, `workout_exercises`, `program_exercises`)
+власного `user_id` не мають, і належність перевіряється через JOIN на батька.
+
+## Таблиці
+
+### `users`
+| Колонка | Тип | Примітка |
+|---|---|---|
+| `id` | uuid PK | `gen_random_uuid()` |
+| `email` | text | унікальний **без урахування регістру**: індекс на `lower(email)`, а не на саму колонку |
+| `password_hash` | text | argon2, пароль у відкритому вигляді ніде не зберігається |
+| `training_days` | jsonb | масив ISO-днів (1=Пн…7=Нд), за замовчуванням `[1,3,5]`. Це **поточний** розклад |
+| `created_at` | timestamptz | |
+
+Чому `training_days` у jsonb, а не в окремій таблиці: це маленький масив, який
+завжди читається й пишеться цілком. Окрема таблиця `user_training_days` дала б
+лише зайві JOIN. Обмін: Postgres не перевіряє, що там справді числа 1–7, і
+валідацію бере на себе Zod у бекенді.
+
+### `refresh_tokens`
+Зберігається **хеш** refresh-токена, а не сам токен: витік БД не дає готових
+токенів. `revoked_at` ставиться при ротації. Протягом 60 с grace-вікна
+щойно відкликаний токен ще приймається. Logout рядок **видаляє**, щоб grace
+не працював після виходу (деталі в `CLAUDE.md`, розділ «Auth»).
+
+### `training_schedule_history`
+Знімок розкладу на кожен день, коли він змінювався. Для дати D діє розклад із
+рядка з найбільшим `effective_from <= D`. Це патерн **slowly changing
+dimension (type 2)**: замість перезапису історії додаємо нову версію з датою
+початку дії. Унікальність `(user_id, effective_from)` означає, що кілька змін
+за один день перезаписують один рядок (upsert).
+
+`users.training_days` і остання версія з цієї таблиці дублюють одне одне.
+Свідома денормалізація: поточний розклад читається часто й без пошуку «останнього
+рядка».
+
+### `exercises`
+Особистий список вправ (при реєстрації сідиться 13 стандартних). Тут живуть
+правила прогресії для вправи:
+
+- `category` (`large`/`small`/`bodyweight`) визначає логіку підказок;
+- `rep_range_min`/`rep_range_max` задають діапазон повторень (6–15 / 6–20 / 6–30);
+- `weight_step_kg` — крок ваги **на одну сторону/гантель** (1.25 / 0.5).
+
+`equipment` описує інвентар (`barbell`/`dumbbell`/`bodyweight`) і від категорії
+не залежить. Приклад: «Жим стоячи» — штанга, але категорія `small` через травму плеча.
+
+`archived_at` реалізує soft-delete: вправу, на яку вже посилаються тренування,
+не можна видалити фізично (див. RESTRICT нижче), тому її ховають.
+
+### `programs` і `program_exercises`
+Програма — іменований шаблон («Програма А»), який створюють заздалегідь.
+
+- `programs.order_index` задає чергу ротації A→Б→A…
+- `programs.try_more_after_workouts` (nullable) перевизначає правило «14 днів
+  без прогресу» на «N тренувань цієї вправи без прогресу». `null` залишає
+  правило за днями.
+- `program_exercises` зберігає лише **яку** вправу, **скільки** підходів
+  (`target_sets`) і **в якому порядку**. Ваги тут свідомо немає: при старті
+  тренування вона береться з останнього фактичного виконання вправи, а не зі
+  «стартового» значення, яке швидко застаріває.
+
+### `workouts`
+Одне тренування. `time_start`/`time_end` бекенд ставить сам.
+
+Є два способи позначити, «що це було за тренування»:
+
+| Поле | Що це | Навіщо |
+|---|---|---|
+| `program_label` | вільний текст («А», «Б») | старий механізм шаблонів: «повтори вправи з останнього тренування з тією самою міткою» |
+| `program_id` | FK на `programs`, nullable | новий механізм: з якої саме програми стартувало тренування, для ротації |
+
+Обидва поля співіснують заради сумісності зі старими даними, бо `program_label`
+з'явився раніше за програми. Під час старту з програми її назва
+записується і в `program_label`.
+
+### `workout_exercises`
+Вправа в межах конкретного тренування. Головне рішення моделі: **вага
+зберігається тут, а не в підході**, бо в межах вправи вона не змінюється
+(підтверджено). Це прибирає дублювання ваги в кожному підході й робить
+неможливим стан «різна вага в підходах».
+
+- `weight_per_unit_kg` — вага **однієї** гантелі або дисків з **одного** боку
+  грифа, без самого грифа (як у CSV-таблиці: `2*20`).
+- `weight_units` — скільки таких одиниць, зазвичай 2.
+- Загальна вага = `weight_per_unit_kg × weight_units`. Обсяг = вага × сума повторень.
+- `weight_per_unit_kg IS NULL` означає безвагову вправу.
+
+### `sets`
+Найпростіша таблиця: номер підходу й кількість повторень. Унікальність
+`(workout_exercise_id, set_number)` не дає двох «других підходів» в одній
+вправі. Це страховка від дублювання при автозбереженні.
+
+## Поведінка при видаленні (FK)
+
+| Зв'язок | ON DELETE | Наслідок |
+|---|---|---|
+| `users` → усі дочірні | **CASCADE** | видалення користувача прибирає всі його дані |
+| `workouts` → `workout_exercises` → `sets` | **CASCADE** | видалив тренування — зникли й вправи з підходами |
+| `programs` → `program_exercises` | **CASCADE** | склад програми видаляється разом з нею |
+| `programs` → `workouts.program_id` | **SET NULL** | тренування лишаються, губиться тільки зв'язок із програмою |
+| `exercises` ← `workout_exercises`, `program_exercises` | **RESTRICT** | вправу з історією видалити не можна, лише архівувати |
+
+RESTRICT на `exercises` захищає історію: видалення вправи інакше або знищило б
+усі минулі підходи (CASCADE), або залишило б підходи «нічиєї» вправи (SET NULL).
+
+## Індекси
+
+| Індекс | Під який запит |
+|---|---|
+| `users_email_idx` UNIQUE on `lower(email)` | логін, перевірка email при реєстрації |
+| `workouts_user_date_idx` `(user_id, date)` | журнал з пагінацією, календар консистентності, `/workouts/dates?from&to` |
+| `workouts_user_label_idx` `(user_id, program_label)` | `GET /workouts/templates`: останнє тренування на кожну мітку |
+| `workout_exercises_exercise_idx` | історія й графік прогресу однієї вправи, «останнє виконання вправи» |
+| `workout_exercises_workout_idx`, `sets_workout_exercise_idx`, `program_exercises_program_idx` | завантаження дочірніх рядків |
+| `*_user_idx` | списки «все моє» (вправи, програми, токени, історія розкладу) |
+
+Postgres **не створює** індекси на FK-колонках автоматично (на відміну від
+MySQL/InnoDB), тому вони прописані явно в `schema.ts`.
+
+## Типи даних: чому саме такі
+
+- **uuid** замість serial для PK: id не розкривають кількість записів і не
+  вгадуються перебором (`/workouts/1`, `/workouts/2`…). Бекенд перевіряє
+  формат UUID у path-параметрах ще до запиту в БД.
+- **numeric** для ваги, а не float: 1.25 + 1.25 має давати рівно 2.50, без
+  `2.4999999`. Drizzle повертає numeric як **рядок**, тому бекенд перетворює
+  його на число вручну.
+- **smallint** для повторень, підходів і порядку: значення гарантовано малі.
+- **date** для `workouts.date` і **timestamptz** для моментів часу: дата
+  тренування — календарний день без часового поясу, а `time_start`/`created_at`
+  — точні моменти.
+- **pgEnum** для `equipment` і `category`: набір значень фіксований і
+  впливає на логіку. Мітка програми, навпаки, звичайний text, бо назви вигадує
+  користувач.
+
+## Службова схема `drizzle`
+
+`drizzle.__drizzle_migrations` — журнал застосованих міграцій (хеш + час).
+drizzle-kit за ним визначає, які файли з `backend/migrations/` ще не накочені.
+Руками не редагувати.
+
+## Як звідси читати дані: приклад
+
+Історія ваги і повторень по одній вправі (по суті, що бачить графік прогресу):
+
+```sql
+SELECT w.date,
+       we.weight_per_unit_kg * we.weight_units           AS total_weight_kg,
+       max(s.reps)                                        AS max_reps,
+       we.weight_per_unit_kg * we.weight_units * sum(s.reps) AS volume_kg
+FROM workouts w
+JOIN workout_exercises we ON we.workout_id = w.id
+JOIN exercises e          ON e.id = we.exercise_id
+JOIN sets s               ON s.workout_exercise_id = we.id
+WHERE w.user_id = :user_id AND e.name = 'Присідання'
+GROUP BY w.date, we.id
+ORDER BY w.date;
+```
+
+## Файли дампу
+
+| Файл | Що всередині | Git |
+|---|---|---|
+| `docs/db/schema.sql` | лише структура (`--schema-only`) | безпечно комітити |
+| `backups/mygym_full_<дата>.sql` | структура + дані, текстовий SQL | **ні**: `backups/` у `.gitignore`, там хеш пароля й refresh-токени |
+| `backups/mygym_full_<дата>.dump` | те саме в custom-форматі (`-Fc`) | **ні** |
+
+Перезняти дамп (dev-стек має бути запущений):
+
+```bash
+docker compose -f docker-compose.dev.yml exec -T postgres \
+  pg_dump -U mygym -d mygym --schema-only --no-owner --no-privileges > docs/db/schema.sql
+```
+
+Відновити повний дамп у **порожню** БД:
+
+```bash
+# custom-формат
+docker compose -f docker-compose.dev.yml exec -T postgres \
+  pg_restore -U mygym -d mygym --clean --if-exists --no-owner < backups/mygym_full_<дата>.dump
+```
