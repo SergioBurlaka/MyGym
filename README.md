@@ -137,7 +137,32 @@ nginx/      Reverse-proxy config
 
 ## AI-assisted development
 
-I build this project with Claude Code as a pair programmer. `.claude/`
-holds the project's agent setup (researcher / reviewer / tester subagents
-and an `/orchestrate` workflow), and `CLAUDE.md` documents the
-architecture decisions and gotchas.
+I build this project with Claude Code. `.claude/` holds a lightweight AI
+orchestrator for solo development, and `CLAUDE.md` documents the architecture
+decisions and gotchas.
+
+**Usage:** run `claude` from the repo root, then describe the task:
+
+```
+/feature add a "notes" field to workouts
+```
+
+Claude then runs the full cycle: **branch → plan (waits for approval) →
+implementation with Conventional Commits → review by the `reviewer` subagent →
+checks by the `tester` subagent** (backend typecheck + Vitest, frontend build,
+en/uk i18n key parity), and finishes with a report. Pushing and opening the PR
+stay with me.
+
+| Command | Purpose |
+| :-- | :-- |
+| `/feature <description>` | main entry point for a feature, fix or change |
+| `/review-changes [base]` | independent review of the current branch vs `main` |
+| `/update-context` | update only the affected sections of `CLAUDE.md` after notable changes |
+
+**Guardrails:** a `PreToolUse` hook (`.claude/hooks/guard.mjs`, Node, so it works
+on Windows too) blocks access to `.env*` files, destructive commands
+(`rm -rf`, `git reset --hard`, `docker compose down -v`, `DROP`), force-push,
+`--no-verify`, and committing or pushing on `main` (a push to `main` deploys to
+the VPS). `.claude/settings.json` sets the allow/ask/deny permissions; git rules
+live in `.claude/rules/git-workflow.md`. Full guide (in Ukrainian):
+[README.uk.md](README.uk.md#робота-з-claude-code-оркестратор).
