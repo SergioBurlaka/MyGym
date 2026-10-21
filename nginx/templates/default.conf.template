@@ -40,13 +40,29 @@ server {
 
     client_max_body_size 10m;
 
-    # Внутрішній DNS Docker. Потрібен для /mcp нижче: адреса сервісу mcp
-    # шукається під час запиту, а не при старті, тож nginx запускається
-    # навіть тоді, коли контейнера mcp ще не існує (/mcp поки віддасть 502).
-    resolver 127.0.0.11 valid=30s ipv6=off;
+    # Внутрішній DNS Docker. Усі upstream-и задані через змінну, тож адреса
+    # шукається під час запиту, а не раз при старті nginx. Інакше деплой,
+    # що перестворює контейнер (нова IP), лишав nginx зі старою адресою -
+    # 502 на весь сайт до рестарту nginx (так і сталося 2026-10-21 з
+    # frontend). Заодно nginx стартує, навіть коли якогось контейнера ще нема.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $backend_upstream  backend:4000;
+    set $frontend_upstream frontend:80;
 
     location /api/ {
-        proxy_pass http://backend:4000;
+        proxy_pass http://$backend_upstream;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # OAuth-документи для MCP-клієнтів (Claude, ChatGPT) віддає бекенд:
+    # де входити і як (RFC 8414, RFC 9728). openid-configuration теж сюди -
+    # інакше SPA відповіла б на нього 200 з index.html, і клієнт, який
+    # пробує OIDC-discovery, спіткнувся б об HTML замість чесного 404.
+    location ~ ^/\.well-known/(oauth-authorization-server|oauth-protected-resource|openid-configuration)(/|$) {
+        proxy_pass http://$backend_upstream;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -73,7 +89,7 @@ server {
     }
 
     location / {
-        proxy_pass http://frontend:80;
+        proxy_pass http://$frontend_upstream;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;

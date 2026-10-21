@@ -9,11 +9,42 @@ import { createMcpServer } from './createMcpServer.js';
 // missing header shares one bucket per IP).
 export const MCP_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
 
+const TOKEN_CHECK_TIMEOUT_MS = 5_000;
+
 function jsonRpcError(reply: FastifyReply, status: number, code: number, message: string) {
   return reply.code(status).send({ jsonrpc: '2.0', error: { code, message }, id: null });
 }
 
-export function buildApp({ apiUrl, logger = true }: { apiUrl: string; logger?: boolean }) {
+export function buildApp({ apiUrl, publicUrl, logger = true }: { apiUrl: string; publicUrl: string; logger?: boolean }) {
+  // RFC 9728: a 401 points MCP clients (Claude, ChatGPT) at the metadata that
+  // says where to sign in - that's what turns on their "Sign in" button.
+  const challenge = (error?: string) =>
+    [
+      `Bearer resource_metadata="${publicUrl}/.well-known/oauth-protected-resource/mcp"`,
+      'scope="mygym"',
+      ...(error ? [`error="${error}"`] : []),
+    ].join(', ');
+
+  // Asked on EVERY request, not cached: an OAuth access token expires on the
+  // hour, and a cached "accepted" would turn the first requests after that
+  // into tool errors inside a 200 - no 401, so the client wouldn't refresh.
+  // false only on a real 401 from the API. Unreachable API -> let the request
+  // through: the tools report that better than a misleading "sign in again".
+  async function tokenAccepted(authorization: string) {
+    let status: number;
+    try {
+      const res = await fetch(`${apiUrl}/settings`, {
+        headers: { authorization },
+        signal: AbortSignal.timeout(TOKEN_CHECK_TIMEOUT_MS),
+      });
+      await res.body?.cancel();
+      status = res.status;
+    } catch {
+      return true;
+    }
+    return status !== 401;
+  }
+
   // Behind the top-level nginx - same single trusted hop as the backend.
   const app = Fastify({ logger, trustProxy: (_addr: string, hop: number) => hop === 0 });
 
@@ -42,10 +73,16 @@ export function buildApp({ apiUrl, logger = true }: { apiUrl: string; logger?: b
       },
       async (request, reply) => {
         const authorization = request.headers.authorization;
-        // The token itself is NOT checked here - it is passed through to the
-        // MyGym API, which decides whose account it is (or rejects it).
         if (!authorization?.startsWith('Bearer ')) {
+          reply.header('www-authenticate', challenge());
           return jsonRpcError(reply, 401, -32001, 'Missing "Authorization: Bearer <MyGym access token>" header');
+        }
+        // The API decides whose token it is; asking it here only lets an
+        // expired or revoked token get a real HTTP 401 - clients start
+        // "Sign in" / refresh on that, not on a tool error inside a 200.
+        if (!(await tokenAccepted(authorization))) {
+          reply.header('www-authenticate', challenge('invalid_token'));
+          return jsonRpcError(reply, 401, -32001, 'The MyGym access token is invalid, expired or revoked');
         }
 
         // Stateless: a fresh server + transport per request, bound to this

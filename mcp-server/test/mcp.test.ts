@@ -12,21 +12,35 @@ const TOKENS = {
   alice: 'Bearer mygym_pat_alice',
   bob: 'Bearer mygym_pat_bob',
   revoked: 'Bearer mygym_pat_revoked',
+  // Accepted by the up-front check, then revoked before the tool call.
+  revokedMidway: 'Bearer mygym_pat_revoked_midway',
+  // The token check itself answers 500.
+  checkFails: 'Bearer mygym_pat_check_fails',
 };
+const PUBLIC_URL = 'https://gym.example';
+const RESOURCE_METADATA = `${PUBLIC_URL}/.well-known/oauth-protected-resource/mcp`;
 
 type Seen = { method: string; url: string; authorization?: string; body: unknown };
 let seen: Seen[] = [];
+let checks: (string | undefined)[] = [];
 let backend: FastifyInstance;
 let backendUrl: string;
 
 beforeAll(async () => {
   backend = Fastify();
   backend.addHook('onRequest', async (request, reply) => {
-    if (request.headers.authorization === TOKENS.revoked) {
-      return reply.code(401).send({ error: 'invalid_token' });
-    }
+    const auth = request.headers.authorization;
+    const rejected = auth === TOKENS.revoked || (auth === TOKENS.revokedMidway && request.url !== '/api/settings');
+    if (rejected) return reply.code(401).send({ error: 'invalid_token' });
+  });
+  // The MCP server's token check - kept out of `seen`, which is about tools.
+  backend.get('/api/settings', async (request, reply) => {
+    checks.push(request.headers.authorization);
+    if (request.headers.authorization === TOKENS.checkFails) return reply.code(500).send({ error: 'internal_error' });
+    return { trainingDays: [1, 3, 5] };
   });
   backend.addHook('preHandler', async (request) => {
+    if (request.url === '/api/settings') return;
     seen.push({ method: request.method, url: request.url, authorization: request.headers.authorization, body: request.body });
   });
   const owner = (auth?: string) => (auth === TOKENS.alice ? 'alice' : 'bob');
@@ -54,7 +68,8 @@ const clients: Client[] = [];
 
 beforeEach(async () => {
   seen = [];
-  mcp = buildApp({ apiUrl: `${backendUrl}/api`, logger: false });
+  checks = [];
+  mcp = buildApp({ apiUrl: `${backendUrl}/api`, publicUrl: PUBLIC_URL, logger: false });
   mcpUrl = new URL(`${await mcp.listen({ port: 0, host: '127.0.0.1' })}/mcp`);
 });
 
@@ -68,6 +83,18 @@ async function connect(authorization: string) {
   await client.connect(new StreamableHTTPClientTransport(mcpUrl, { requestInit: { headers: { authorization } } }));
   clients.push(client);
   return client;
+}
+
+function rawPost(authorization?: string, url: URL | string = mcpUrl) {
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      ...(authorization ? { authorization } : {}),
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+  });
 }
 
 function text(result: Awaited<ReturnType<Client['callTool']>>) {
@@ -104,14 +131,40 @@ describe('MCP protocol', () => {
     expect(log.description).toMatch(/get_workout/);
   });
 
-  it('answers 401 without a Bearer header, without touching the API', async () => {
-    const res = await fetch(mcpUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-    });
+  it('answers 401 without a Bearer header, pointing at the OAuth metadata, without touching the API', async () => {
+    const res = await rawPost();
     expect(res.status).toBe(401);
+    expect(res.headers.get('www-authenticate')).toBe(`Bearer resource_metadata="${RESOURCE_METADATA}", scope="mygym"`);
     expect(seen).toHaveLength(0);
+    expect(checks).toHaveLength(0);
+  });
+
+  it('answers a real HTTP 401 for a rejected token, so clients sign in again or refresh', async () => {
+    const res = await rawPost(TOKENS.revoked);
+    expect(res.status).toBe(401);
+    expect(res.headers.get('www-authenticate')).toBe(
+      `Bearer resource_metadata="${RESOURCE_METADATA}", scope="mygym", error="invalid_token"`,
+    );
+    expect(seen).toHaveLength(0);
+  });
+
+  it('checks the token with the API on every request (an OAuth token can expire any moment)', async () => {
+    for (let i = 0; i < 3; i++) expect((await rawPost(TOKENS.alice)).status).toBe(200);
+    expect(checks).toEqual([TOKENS.alice, TOKENS.alice, TOKENS.alice]);
+  });
+
+  it('lets the request through when the token check fails with a server error', async () => {
+    expect((await rawPost(TOKENS.checkFails)).status).toBe(200);
+  });
+
+  it('lets the request through when the API is unreachable (tools report it)', async () => {
+    const offline = buildApp({ apiUrl: 'http://127.0.0.1:1/api', publicUrl: PUBLIC_URL, logger: false });
+    const url = `${await offline.listen({ port: 0, host: '127.0.0.1' })}/mcp`;
+    try {
+      expect((await rawPost(TOKENS.alice, url)).status).toBe(200);
+    } finally {
+      await offline.close();
+    }
   });
 
   it('refuses GET/DELETE (stateless: no stream, no session)', async () => {
@@ -209,11 +262,11 @@ describe('isolation between users', () => {
 });
 
 describe('errors', () => {
-  it('turns a revoked token into a tool error and keeps serving other users', async () => {
-    const revoked = await connect(TOKENS.revoked);
+  it('turns a token revoked after the check into a tool error and keeps serving other users', async () => {
+    const revoked = await connect(TOKENS.revokedMidway);
     const result = await revoked.callTool({ name: 'list_exercises', arguments: {} });
     expect(result.isError).toBe(true);
-    expect(text(result)).toMatch(/invalid or was revoked/);
+    expect(text(result)).toMatch(/invalid, expired or was revoked/);
     expect(text(result)).toMatch(/Integrations/);
 
     const alice = await connect(TOKENS.alice);
@@ -241,12 +294,7 @@ describe('errors', () => {
 
 describe('rate limit', () => {
   it(`allows ${MCP_RATE_LIMIT.max} requests a minute per token, independently for each token`, async () => {
-    const post = (authorization: string) =>
-      fetch(mcpUrl, {
-        method: 'POST',
-        headers: { authorization, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-      });
+    const post = (authorization: string) => rawPost(authorization);
 
     for (let i = 0; i < MCP_RATE_LIMIT.max; i++) {
       expect((await post(TOKENS.alice)).status).toBe(200);

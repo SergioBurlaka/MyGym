@@ -21,7 +21,7 @@
 ## Стек (узгоджено з користувачем, не змінювати без явного запиту)
 
 - **Backend:** Node.js + TypeScript, Fastify + Zod (валідація), Drizzle ORM + drizzle-kit (міграції), PostgreSQL
-- **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google"), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
+- **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google"), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user. Для програм — PAT і власний OAuth authorization server для MCP-клієнтів (див. "OAuth для MCP-клієнтів")
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
 - **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
@@ -39,7 +39,8 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 
 - `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі
 - `refresh_tokens` — хеші refresh-токенів. Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
-- `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче
+- `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
+- `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. Див. "OAuth для MCP-клієнтів" нижче
 - `exercises` — вправи користувача (кожен юзер має свій список, сідиться 13 вправами при реєстрації, можна додавати свої через UI)
 - `workouts` — одне тренування (дата, timeStart/timeEnd — виставляються **автоматично**, не вручну). `programLabel` — довільний текст (напр. «А»/«Б»), яким користувач сам позначає тренування для чергування програм (див. "Шаблони тренувань" нижче). `programId` — nullable FK на `programs` (`onDelete: 'set null'`) — яка саме Програма (не мітка-текст) стартувала це тренування; видалення програми обнуляє лише це поле, саме тренування й підходи не чіпає
 - `workout_exercises` — вправа в межах тренування. **Вага фіксується один раз на всю вправу** (не змінюється між підходами — підтверджено користувачем), зберігається як `weightPerUnitKg` + `weightUnits` (зазвичай 2 — по обидва боки штанги / обидві гантелі)
@@ -181,27 +182,93 @@ popup GIS погано працює у встановленому PWA, а так
   `/mcp-…`), тож `<origin>/mcp` однаковий у dev і проді.
 - Тести (`mcp-server/test/mcp.test.ts`, `npm test` у `mcp-server/`): справжній
   SDK-клієнт проти фейкового бекенду, що відповідає кожному токену своїми даними.
-- Підключення: Claude Code — `claude mcp add --transport http mygym
-  https://<домен>/mcp --header "Authorization: Bearer mygym_pat_…"`. claude.ai /
-  Desktop / телефон (перевірено 2026-10-21, OAuth не потрібен): Settings →
-  Connectors → Add custom connector → URL `https://<домен>/mcp` → крок 2:
-  Authentication **No sign-in** (не «Sign in now», хоч форма й позначає його
-  «Detected» через наш 401) → Request headers `Authorization` = `Bearer
-  mygym_pat_…`. Desktop і мобільний беруть конектор з акаунта. Значення заголовка
-  форма не показує повторно — при «токен відхилено» перевірити токен окремо
-  (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`) і
-  перезаписати конектор; першою причиною виявився dev-токен у прод-конекторі.
+- Підключення: claude.ai / Desktop / телефон / ChatGPT — Add custom connector →
+  URL `https://<домен>/mcp` → **Sign in** (OAuth, див. нижче; у Claude — «Use
+  Claude's published identity», client ID не потрібен). Claude Code — `claude mcp
+  add --transport http mygym https://<домен>/mcp --header "Authorization: Bearer
+  mygym_pat_…"` (OAuth без `--header` спрацює, лише якщо Claude Code
+  представляється через CIMD, а не DCR — не перевірено). PAT у полі
+  Request headers конектора (Authentication **No sign-in**) теж працює. Значення
+  заголовка форма не показує повторно — при «токен відхилено» перевірити токен
+  окремо (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`);
+  першою причиною колись виявився dev-токен у прод-конекторі.
+- **401 з `WWW-Authenticate`:** без `Bearer` або з токеном, який API відхиляє
+  (перевірка `GET /api/settings` на **кожен** запит — без кешу: кешоване
+  «прийнято» після протухання OAuth-токена давало б `isError` у 200 замість 401,
+  і клієнт не робив би refresh; знахідка рев'ю), MCP-сервер відповідає справжнім HTTP 401 з `Bearer
+  resource_metadata="<PUBLIC_URL>/.well-known/oauth-protected-resource/mcp"`.
+  Саме на 401 (а не на `isError` у 200) Claude/ChatGPT вмикають «Sign in» і
+  оновлюють протухлий OAuth-токен. API недоступне → запит пропускається
+  (інструменти скажуть «could not reach»), щоб не просити зайвий раз увійти.
+  Конфіг — `PUBLIC_URL` (compose: `https://${DOMAIN}`, dev: `http://localhost:5173`).
 - **Gotcha (поза MCP, знайдено при e2e):** користувача з тренуваннями не можна
   видалити (`DELETE FROM users`) — каскад іде в `exercises`, а
   `workout_exercises.exerciseId` має `restrict`. Тести не ловлять, бо
   `TRUNCATE … CASCADE`. Виправити перед фічею «видалити акаунт».
+
+## OAuth для MCP-клієнтів (`modules/oauth/`, етап 3 ROADMAP, частина 3)
+
+MyGym — власний OAuth authorization server для MCP (специфікація MCP
+2026-07-28), щоб Claude і ChatGPT підключались через «Sign in» без копіювання
+токена. Рішення користувача (2026-10-21): MCP і REST API — **один ресурс**
+(OAuth-токен для `<PUBLIC_URL>/mcp` приймає й API); клієнти **лише через CIMD**
+з allow-list хостів (без DCR); access 1 год, refresh 30 днів з ротацією **без
+grace-вікна** — повтор старого refresh відкликає весь grant (на відміну від
+сесійного refresh вище; ціна — рідкісне «відключилось само» після загубленої
+відповіді).
+- Discovery (`wellKnown.routes.ts`, на корені, CORS `*`):
+  `/.well-known/oauth-authorization-server` (RFC 8414; без
+  `client_id_metadata_document_supported` + `"none"` у
+  `token_endpoint_auth_methods_supported` Claude не бере CIMD, без
+  `authorization_response_iss_parameter_supported` ChatGPT не бере стабільний
+  redirect) і `/.well-known/oauth-protected-resource[/mcp]` (RFC 9728). nginx і
+  Vite проксять їх (і `openid-configuration` → чесний 404 замість index.html) у
+  бекенд; решта `/.well-known` (ACME) — як раніше.
+- **CIMD** (`cimd.client.ts`): `client_id` = https-URL без порту на хості з
+  `OAUTH_CLIENT_HOSTS` (default `claude.ai,claude.com,chatgpt.com`); документ
+  тягнеться без редиректів, 5 с, ≤5 КБ, кеш за Cache-Control (помилки не
+  кешуються); `redirect_uris` лише https або loopback http. Redirect — точний
+  збіг, для loopback (Claude Code) порт ігнорується (RFC 8252). Claude:
+  `https://claude.ai/oauth/mcp-oauth-client-metadata`, ChatGPT:
+  `https://chatgpt.com/oauth/client.json`. Тести мокають лише `resolveClient`.
+- `GET /api/oauth/authorize` → запит у БД → 302 на `/oauth/consent?request=<id>`
+  (SPA, `OAuthConsentPage.tsx`, сама веде на login з `?next=`). PKCE S256
+  обов'язковий, `resource` = `<PUBLIC_URL>/mcp`, scope лише `mygym`, кожен
+  редирект з `iss` (RFC 9207). Невідомий клієнт / чужий redirect → помилка на
+  НАШІЙ сторінці (`?error=`), ніколи не редирект туди. Повторений параметр →
+  `invalid_request`.
+- **Прив'язка до браузера:** `/authorize` ставить httpOnly cookie
+  `mygym_oauth_browser` (`path=/api/oauth`, Lax, 10 хв, одна на браузер — кілька
+  паралельних запитів працюють), її хеш — у запиті; без неї API згоди віддає 404.
+  Інакше атакер почав би підключення у своєму Claude і надіслав посилання на
+  згоду жертві (знахідка рев'ю).
+- API згоди (`/requests/:id`, `/requests/:id/decision`, `/grants`) — лише сесія
+  (`requireSession`), не PAT/OAuth-токен: токен не схвалить сам собі ще доступу.
+- `POST /api/oauth/token` (form-urlencoded, `@fastify/formbody`): код одноразовий
+  (атомарний claim у транзакції), `mygym_oat_…` лежить у `api_tokens` (тому
+  `authenticate.ts` і ізоляція даних ті самі, `authMethod = 'pat'`),
+  `mygym_ort_…` — у `oauth_refresh_tokens`. Прострочені рядки прибираються при
+  видачі нових. `/api/tokens` OAuth-токенів не показує й не рахує в ліміт 20.
+- Повернення після входу: `?next=` на login/register/Google (`utils/safeNext.ts`,
+  дзеркало на фронтенді). Відкидає `//`, `\`, пробіли й керівні символи —
+  браузер викидає TAB/LF з URL, і `/<TAB>/evil.com` ставав би `//evil.com`.
+  Google тримає `next` у cookie `mygym_google_next` на час походу до Google.
+- `PUBLIC_URL` (бекенд і MCP-сервер; compose `https://${DOMAIN}`) — issuer і
+  ресурс мусять посимвольно збігатися з тим, що бачить клієнт; не-https у
+  production → попередження в лозі.
+- «Інтеграції» → «Підключені застосунки»: список grant-ів, «Відключити»
+  відкликає grant і всі його токени одразу.
+- Тести: `test/oauth.test.ts` (повний потік, PKCE, повтор refresh, прив'язка до
+  браузера), `test/oauth-cimd.test.ts`.
 
 ## Захист API та тести
 
 - **Rate limit** (`@fastify/rate-limit`, `global: false`): лише `/api/auth/login`
   (10/хв), `/api/auth/register` (5/15 хв) і обидва Google-роути (20/хв) на IP —
   константи `LOGIN_RATE_LIMIT`/`REGISTER_RATE_LIMIT`/`GOOGLE_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
-  смикає кожна відкрита вкладка (таймер, `visibilitychange`).
+  смикає кожна відкрита вкладка (таймер, `visibilitychange`). OAuth:
+  `/api/oauth/authorize` 30/хв і `/api/oauth/token` 60/хв на IP
+  (`AUTHORIZE_RATE_LIMIT`/`TOKEN_RATE_LIMIT` в `oauth.routes.ts`).
 - **`trustProxy` = рівно один хоп** (`(addr, hop) => hop === 0` в `app.ts`), а не
   `true`: з `true` Fastify брав би крайню ліву, клієнтську адресу з
   `X-Forwarded-For`, і rate limit обходився б підробленим заголовком. Протокол
@@ -361,8 +428,12 @@ Docker-стек (dev + prod), nginx reverse-proxy. Backend покритий ав
   `certbot` (`renew --webroot` двічі на добу), nginx перечитує конфіг раз на 6 год.
   Скрипт читає з `.env` лише дві змінні через `grep`, не `. ./.env` (синтаксис
   Compose ≠ shell).
-- `/mcp` → `mcp:8080` через `resolver 127.0.0.11` + змінну в `proxy_pass`:
-  nginx стартує й без контейнера `mcp` (тоді 502).
+- **Усі upstream-и** (`backend`, `frontend`, `mcp`) — через `resolver 127.0.0.11`
+  + змінну в `proxy_pass`, тобто DNS на кожен запит. **Gotcha:** зі статичним
+  `proxy_pass http://frontend:80` деплой, що перестворив контейнер (нова IP),
+  лишив nginx зі старою адресою — 502 на весь сайт до `docker compose restart
+  nginx` (2026-10-21, після merge PR #13). Заодно nginx стартує й без
+  якогось контейнера.
 - HSTS навмисно `max-age=86400` — підняти до року, коли HTTPS стабільний.
 - Відома прогалина: `deploy.yml` не перевіряє, що контейнери реально
   піднялись (`docker compose up -d` зелений і при nginx у циклі рестартів).

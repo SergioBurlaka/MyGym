@@ -19,6 +19,12 @@ export default defineConfig({
         target: process.env.VITE_BACKEND_URL ?? 'http://localhost:4000',
         changeOrigin: true,
       },
+      // OAuth discovery documents for MCP clients - served by the backend,
+      // same set as nginx's location.
+      '^/\\.well-known/(oauth-authorization-server|oauth-protected-resource|openid-configuration)(/|$)': {
+        target: process.env.VITE_BACKEND_URL ?? 'http://localhost:4000',
+        changeOrigin: true,
+      },
       // Same for the MCP server, so the "claude mcp add <origin>/mcp" command
       // shown on /integrations works in dev exactly like in prod (nginx).
       // Regex, like nginx's location: a bare '/mcp' prefix would also

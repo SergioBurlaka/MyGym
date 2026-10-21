@@ -63,6 +63,8 @@ services:
     restart: unless-stopped
     environment:
       MYGYM_API_URL: http://backend:4000/api
+      # Public origin for the OAuth hint in 401 answers (WWW-Authenticate).
+      PUBLIC_URL: https://${DOMAIN}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 30s
