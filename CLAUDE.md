@@ -24,7 +24,7 @@
 - **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
-- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy на HTTP (SSL поки не налаштований — буде certbot пізніше, коли з'явиться домен)
+- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
 
 Ці рішення — результат явного обговорення з користувачем (Fastify+Zod над
 Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT над
@@ -65,7 +65,8 @@ Access-токен живе 15 хв (`JWT_ACCESS_TTL`), refresh — 30 днів (
   `NODE_ENV === 'production'`, а prod nginx — plain HTTP: браузер мовчки
   відкидає `Secure`-cookie, отриману по HTTP, тож refresh на проді не працював
   узагалі. Тепер `secure: request.protocol === 'https'` (Fastify
-  `trustProxy: true` + `X-Forwarded-Proto` від nginx) — з certbot увімкнеться сам.
+  `trustProxy` + `X-Forwarded-Proto` від nginx). З переходом проду на HTTPS
+  (2026-10-21) прапорець `Secure` увімкнувся сам; у dev (HTTP) його нема.
 - Cookie має `maxAge` (= `JWT_REFRESH_TTL`), а не сесійна — мобільний браузер
   губив сесійну cookie, коли вбивав фонову вкладку.
 - **Grace-вікно ротації 60 с** (`ROTATION_GRACE_MS` у `auth.service.ts`): щойно
@@ -225,6 +226,26 @@ en/uk, автовизначення мови з браузера (див. "Ст�
 Docker-стек (dev + prod), nginx reverse-proxy. Backend покритий автотестами (`backend/test/`, див.
 "Захист API та тести"). Frontend компілюється і збирається
 (vite build) без помилок.
+
+**Прод: HTTPS** (з 2026-10-21): https://my-gym-com.duckdns.org, VPS
+`91.232.30.91`, репозиторій на сервері — `/root/MyGym`.
+- nginx-конфіг — шаблон `nginx/templates/default.conf.template`, офіційний
+  образ nginx підставляє `${DOMAIN}` через envsubst при старті. HTTP (і голий
+  IP) → 301 на `https://${DOMAIN}` (не `$host` — інакше IP потрапляв би на
+  чужий сертифікат); на 80-му лишається лише ACME webroot.
+- `DOMAIN`/`CERTBOT_EMAIL` — лише в серверному `.env`; у compose `DOMAIN` через
+  `${DOMAIN:?}` — без нього деплой падає червоним, а не крутить nginx у рестартах.
+- Перший сертифікат — `scripts/init-letsencrypt.sh` (certbot `--standalone`,
+  nginx на хвилину зупиняється; `STAGING=1` — пробний прогін, наступний
+  звичайний запуск сам замінює staging-сертифікат). Поновлення — сервіс
+  `certbot` (`renew --webroot` двічі на добу), nginx перечитує конфіг раз на 6 год.
+  Скрипт читає з `.env` лише дві змінні через `grep`, не `. ./.env` (синтаксис
+  Compose ≠ shell).
+- `/mcp` → `mcp:8080` через `resolver 127.0.0.11` + змінну в `proxy_pass`:
+  nginx стартує й без контейнера `mcp` (тоді 502).
+- HSTS навмисно `max-age=86400` — підняти до року, коли HTTPS стабільний.
+- Відома прогалина: `deploy.yml` не перевіряє, що контейнери реально
+  піднялись (`docker compose up -d` зелений і при nginx у циклі рестартів).
 
 Перевірено реальний підйом dev-стека (`docker compose -f docker-compose.dev.yml
 up --build`) на машині користувача (Windows + Docker Desktop): postgres,
