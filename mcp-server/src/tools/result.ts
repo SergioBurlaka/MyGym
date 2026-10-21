@@ -20,7 +20,7 @@ function describeError(err: unknown): string {
   const body = err.body as { error?: string; issues?: unknown } | null;
   switch (err.status) {
     case 401:
-      return 'MyGym rejected the access token: it is invalid or was revoked. Create a new token in MyGym → Integrations and update this connector.';
+      return 'MyGym rejected the access token: it is invalid, expired or was revoked. Reconnect MyGym (sign in again), or create a new token in MyGym → Integrations and update this connector.';
     case 404:
       return 'Not found in this MyGym account (wrong id, or it was deleted). List the items first to get valid ids.';
     case 400:
