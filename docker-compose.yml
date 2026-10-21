@@ -3,8 +3,10 @@
 # exposed to the host.
 #
 # Usage:
-#   cp .env.example .env   # fill in real secrets first!
-#   docker compose up --build -d
+#   cp .env.example .env               # fill in real secrets + DOMAIN, CERTBOT_EMAIL
+#   docker compose build
+#   sh scripts/init-letsencrypt.sh     # first time only: gets the HTTPS certificate
+#   docker compose up -d
 #
 # For local development with hot-reload, use docker-compose.dev.yml instead
 # (see README.md).
@@ -53,12 +55,32 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "${NGINX_PORT:-80}:80"
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # шаблон -> /etc/nginx/conf.d/default.conf з підставленим ${DOMAIN}
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
     depends_on:
       - backend
       - frontend
+    # Раз на 6 годин перечитує конфіг, щоб підхопити поновлений сертифікат.
+    # Потім запускає звичайний entrypoint образу (він і підставляє ${DOMAIN}).
+    command: /bin/sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g 'daemon off;'"
+
+  # Поновлює сертифікат Let's Encrypt (перевіряє двічі на добу; реально
+  # поновлює лише коли до кінця дії лишилось < 30 днів).
+  # Перший сертифікат отримується скриптом scripts/init-letsencrypt.sh.
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
 
 volumes:
   postgres_data:
