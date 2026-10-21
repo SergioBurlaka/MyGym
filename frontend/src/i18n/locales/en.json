@@ -286,7 +286,8 @@
     "google_email_unverified": "Your Google account email isn't verified",
     "google_account_mismatch": "This email is already linked to a different Google account",
     "session_required": "Log in to manage access tokens",
-    "too_many_tokens": "Too many active tokens - revoke one you no longer use"
+    "too_many_tokens": "Too many active tokens - revoke one you no longer use",
+    "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app."
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
@@ -361,5 +362,28 @@
     "revokeError": "Couldn't revoke the token - it still works. Try again",
     "claudeCodeLabel": "Connect Claude Code (run in a terminal)",
     "connectorHint": "For Claude Desktop / claude.ai: if Settings → Connectors → Add custom connector offers custom request headers, use URL {{url}} and the header Authorization = Bearer + the token above. If it only offers OAuth fields, these clients can't connect with a token yet."
+  },
+  "oauth": {
+    "consent": {
+      "title": "«{{client}}» wants to access your MyGym",
+      "access": "If you allow it, it can work with your account on your behalf:",
+      "canRead": "see your workouts, exercises, programs and progress",
+      "canWrite": "start and log workouts, create exercises and programs",
+      "cannot": "it can not see your password or create other access tokens",
+      "client": "App",
+      "returnsTo": "Returns to",
+      "account": "Account",
+      "allow": "Allow",
+      "deny": "Deny",
+      "redirecting": "Redirecting…",
+      "revokeHint": "You can disconnect it at any time in",
+      "errorTitle": "Can't connect this app",
+      "error": {
+        "generic": "Something went wrong. Start connecting again from the app.",
+        "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app.",
+        "invalid_client": "This app is not allowed to connect to MyGym.",
+        "invalid_request": "The connection request was invalid (wrong return address). Start connecting again from the app."
+      }
+    }
   }
 }

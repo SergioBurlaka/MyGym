@@ -16,7 +16,8 @@ export const AuthApi = {
   },
   // Not an XHR: the browser itself has to go to Google and come back, so
   // the button is a plain link to this backend route.
-  googleSignInUrl() {
-    return `${api.defaults.baseURL}/auth/google`;
+  googleSignInUrl(next?: string | null) {
+    const query = next ? `?next=${encodeURIComponent(next)}` : '';
+    return `${api.defaults.baseURL}/auth/google${query}`;
   },
 };

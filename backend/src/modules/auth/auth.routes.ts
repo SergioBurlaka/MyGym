@@ -11,12 +11,16 @@ import {
 } from './auth.service.js';
 import { createGoogleAuthRequest, exchangeCodeForProfile, isGoogleEnabled } from './google.client.js';
 import { refreshTtlToDate } from '../../utils/tokens.js';
+import { safeNext } from '../../utils/safeNext.js';
 
 const REFRESH_COOKIE = 'mygym_refresh';
 // "<state>.<PKCE verifier>" for the Google round trip (state is hex, so the
 // first dot is the separator).
 const GOOGLE_FLOW_COOKIE = 'mygym_google_flow';
 const GOOGLE_FLOW_PATH = '/api/auth/google';
+// Where to land after a successful Google sign-in (e.g. back on the OAuth
+// consent page). Same lifetime and path as the flow cookie.
+const GOOGLE_NEXT_COOKIE = 'mygym_google_next';
 
 // Per-IP throttling for the two endpoints that verify a password (argon2 is
 // deliberately slow, so these are also the cheapest way to load the CPU).
@@ -72,6 +76,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
     const { url, state, codeVerifier } = authRequest;
     reply.setCookie(GOOGLE_FLOW_COOKIE, `${state}.${codeVerifier}`, googleFlowCookieOptions(request));
+    const next = safeNext((request.query as { next?: string }).next);
+    if (next) reply.setCookie(GOOGLE_NEXT_COOKIE, next, googleFlowCookieOptions(request));
+    else reply.clearCookie(GOOGLE_NEXT_COOKIE, { path: GOOGLE_FLOW_PATH });
     return reply.redirect(url);
   });
 
@@ -83,7 +90,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     const query = request.query as { code?: string; state?: string; error?: string };
     const flow = request.cookies?.[GOOGLE_FLOW_COOKIE] ?? '';
+    const next = safeNext(request.cookies?.[GOOGLE_NEXT_COOKIE]);
     reply.clearCookie(GOOGLE_FLOW_COOKIE, { path: GOOGLE_FLOW_PATH });
+    reply.clearCookie(GOOGLE_NEXT_COOKIE, { path: GOOGLE_FLOW_PATH });
     const fail = (code: string) => reply.redirect(`/login?error=${code}`);
 
     // e.g. access_denied when the user closes Google's account chooser.
@@ -110,7 +119,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // Same session cookie as a password login; the SPA picks it up with
       // its usual refresh on load.
       reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
-      return reply.redirect('/');
+      return reply.redirect(next ?? '/');
     } catch (err) {
       if (err instanceof AuthError) return fail(err.code);
       // Unexpected (DB) error: still a redirect - the browser is mid-navigation

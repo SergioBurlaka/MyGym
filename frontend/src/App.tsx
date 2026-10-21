@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext.js';
 import Navbar from './components/Navbar.js';
@@ -12,10 +12,12 @@ import ImportPage from './pages/ImportPage.js';
 import ProgramsPage from './pages/ProgramsPage.js';
 import PrivacyPage from './pages/PrivacyPage.js';
 import IntegrationsPage from './pages/IntegrationsPage.js';
+import OAuthConsentPage from './pages/OAuthConsentPage.js';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center pt-[env(safe-area-inset-top)] text-slate-400">
@@ -23,7 +25,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    // Come back here after logging in (e.g. the OAuth consent page).
+    const here = location.pathname + location.search;
+    return <Navigate to={here === '/' ? '/login' : `/login?next=${encodeURIComponent(here)}`} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -39,6 +45,8 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          {/* Handles login itself: its error variant is shown logged out too. */}
+          <Route path="/oauth/consent" element={<OAuthConsentPage />} />
           <Route
             path="/"
             element={
