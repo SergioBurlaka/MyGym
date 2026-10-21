@@ -32,7 +32,8 @@
     "logout": "Log out",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "profileMenu": "Profile menu"
+    "profileMenu": "Profile menu",
+    "integrations": "Integrations"
   },
   "auth": {
     "login": {
@@ -283,7 +284,9 @@
     "google_state_mismatch": "Google sign-in expired or was interrupted. Please try again",
     "google_failed": "Couldn't sign in with Google. Please try again",
     "google_email_unverified": "Your Google account email isn't verified",
-    "google_account_mismatch": "This email is already linked to a different Google account"
+    "google_account_mismatch": "This email is already linked to a different Google account",
+    "session_required": "Log in to manage access tokens",
+    "too_many_tokens": "Too many active tokens - revoke one you no longer use"
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
@@ -333,5 +336,28 @@
     },
     "back": "Back to MyGym",
     "link": "Privacy policy"
+  },
+  "integrations": {
+    "title": "Integrations",
+    "intro": "Personal access tokens let a program work with your MyGym data on your behalf - for example Claude, through the MyGym MCP server. Each token only ever sees your account. Revoke a token as soon as you stop using it.",
+    "nameLabel": "Token name (where you will use it)",
+    "create": "Create token",
+    "creating": "Creating…",
+    "createError": "Couldn't create the token",
+    "createdTitle": "Token «{{name}}» created",
+    "createdWarning": "Copy it now - for your security it will never be shown again. Anyone with this token can read and change your training data.",
+    "tokenLabel": "Token",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done, I saved it",
+    "activeTokens": "Active tokens",
+    "empty": "No tokens yet.",
+    "createdAt": "created {{date}}",
+    "lastUsed": "last used {{date}}",
+    "neverUsed": "never used",
+    "revoke": "Revoke",
+    "revokeConfirmTitle": "Revoke this token?",
+    "revokeConfirmDescription": "Programs using «{{name}}» will lose access immediately.",
+    "revokeError": "Couldn't revoke the token - it still works. Try again"
   }
 }

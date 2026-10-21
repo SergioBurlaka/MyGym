@@ -21,6 +21,15 @@ export function generateRefreshToken(): string {
   return crypto.randomBytes(48).toString('hex');
 }
 
+// Personal access tokens: the prefix tells them apart from JWTs (which
+// always contain dots) at a glance - in authenticate() and in a config file.
+export const PAT_PREFIX = 'mygym_pat_';
+
+export function generatePersonalAccessToken(): string {
+  return PAT_PREFIX + crypto.randomBytes(32).toString('hex');
+}
+
+// Also used for personal access tokens - same "store only a hash" rule.
 export function hashRefreshToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }

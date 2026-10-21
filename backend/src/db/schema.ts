@@ -54,6 +54,23 @@ export const refreshTokens = pgTable('refresh_tokens', {
   userIdx: index('refresh_tokens_user_idx').on(table.userId),
 }));
 
+// Personal access tokens ("mygym_pat_...") for programs acting on a user's
+// behalf - the MCP server, Claude Code. Long-lived until revoked; like
+// refresh tokens only a SHA-256 hash is stored, the raw token is shown once.
+export const apiTokens = pgTable('api_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(), // e.g. "Claude Code"
+  tokenHash: text('token_hash').notNull(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  // Every PAT request looks the token up by hash.
+  tokenHashIdx: uniqueIndex('api_tokens_token_hash_idx').on(table.tokenHash),
+  userIdx: index('api_tokens_user_idx').on(table.userId),
+}));
+
 // One row per day the training schedule actually changed - lets the
 // consistency calendar judge each past date against the schedule that was
 // really in effect THEN, instead of retroactively re-judging history every
@@ -197,6 +214,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   exercises: many(exercises),
   workouts: many(workouts),
   refreshTokens: many(refreshTokens),
+  apiTokens: many(apiTokens),
   programs: many(programs),
   trainingScheduleHistory: many(trainingScheduleHistory),
 }));
