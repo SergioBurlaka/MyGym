@@ -6,11 +6,17 @@ import {
   issueTokenPair,
   rotateRefreshToken,
   revokeRefreshToken,
+  loginWithGoogle,
   AuthError,
 } from './auth.service.js';
+import { createGoogleAuthRequest, exchangeCodeForProfile, isGoogleEnabled } from './google.client.js';
 import { refreshTtlToDate } from '../../utils/tokens.js';
 
 const REFRESH_COOKIE = 'mygym_refresh';
+// "<state>.<PKCE verifier>" for the Google round trip (state is hex, so the
+// first dot is the separator).
+const GOOGLE_FLOW_COOKIE = 'mygym_google_flow';
+const GOOGLE_FLOW_PATH = '/api/auth/google';
 
 // Per-IP throttling for the two endpoints that verify a password (argon2 is
 // deliberately slow, so these are also the cheapest way to load the CPU).
@@ -18,6 +24,8 @@ const REFRESH_COOKIE = 'mygym_refresh';
 // a password-guessing script wants.
 export const LOGIN_RATE_LIMIT = { max: 10, timeWindow: '1 minute' };
 export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: '15 minutes' };
+// Each Google round trip hits our server twice (start + callback).
+export const GOOGLE_RATE_LIMIT = { max: 20, timeWindow: '1 minute' };
 
 // Persistent (maxAge) rather than a session cookie: mobile browsers drop
 // session cookies when they kill a backgrounded tab mid-workout. `secure`
@@ -34,7 +42,84 @@ function cookieOptions(request: FastifyRequest) {
   };
 }
 
+// Only lives for the trip to Google and back. `lax` is what lets it ride
+// along on Google's top-level redirect to the callback.
+function googleFlowCookieOptions(request: FastifyRequest) {
+  return {
+    path: GOOGLE_FLOW_PATH,
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: request.protocol === 'https',
+    maxAge: 10 * 60,
+  };
+}
+
+const googleDisabled = { error: 'google_disabled', message: 'Google sign-in is not configured' };
+
 export default async function authRoutes(fastify: FastifyInstance) {
+  // Which sign-in methods the login page should offer.
+  fastify.get('/providers', async () => ({ google: isGoogleEnabled() }));
+
+  fastify.get('/google', { config: { rateLimit: GOOGLE_RATE_LIMIT } }, async (request, reply) => {
+    if (!isGoogleEnabled()) return reply.code(404).send(googleDisabled);
+
+    let authRequest;
+    try {
+      authRequest = await createGoogleAuthRequest();
+    } catch (err) {
+      request.log.error({ err }, 'Could not start Google sign-in');
+      return reply.redirect('/login?error=google_failed');
+    }
+    const { url, state, codeVerifier } = authRequest;
+    reply.setCookie(GOOGLE_FLOW_COOKIE, `${state}.${codeVerifier}`, googleFlowCookieOptions(request));
+    return reply.redirect(url);
+  });
+
+  // Google sends the browser back here. Every outcome is a redirect: the
+  // user is mid-navigation, not in a fetch, so errors go to the login page
+  // as ?error=<code> (translated there via errors.<code>).
+  fastify.get('/google/callback', { config: { rateLimit: GOOGLE_RATE_LIMIT } }, async (request, reply) => {
+    if (!isGoogleEnabled()) return reply.code(404).send(googleDisabled);
+
+    const query = request.query as { code?: string; state?: string; error?: string };
+    const flow = request.cookies?.[GOOGLE_FLOW_COOKIE] ?? '';
+    reply.clearCookie(GOOGLE_FLOW_COOKIE, { path: GOOGLE_FLOW_PATH });
+    const fail = (code: string) => reply.redirect(`/login?error=${code}`);
+
+    // e.g. access_denied when the user closes Google's account chooser.
+    if (query.error) return fail('google_cancelled');
+
+    const dot = flow.indexOf('.');
+    const expectedState = dot > 0 ? flow.slice(0, dot) : '';
+    const codeVerifier = dot > 0 ? flow.slice(dot + 1) : '';
+    if (!query.code || !query.state || !expectedState || query.state !== expectedState) {
+      return fail('google_state_mismatch');
+    }
+
+    let profile;
+    try {
+      profile = await exchangeCodeForProfile(query.code, codeVerifier);
+    } catch (err) {
+      request.log.warn({ err }, 'Google code exchange failed');
+      return fail('google_failed');
+    }
+
+    try {
+      const user = await loginWithGoogle(profile);
+      const { refreshToken } = await issueTokenPair(user);
+      // Same session cookie as a password login; the SPA picks it up with
+      // its usual refresh on load.
+      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
+      return reply.redirect('/');
+    } catch (err) {
+      if (err instanceof AuthError) return fail(err.code);
+      // Unexpected (DB) error: still a redirect - the browser is mid-navigation
+      // and a raw JSON error page would be a dead end.
+      request.log.error({ err }, 'Google sign-in failed');
+      return fail('google_failed');
+    }
+  });
+
   fastify.post('/register', { config: { rateLimit: REGISTER_RATE_LIMIT } }, async (request, reply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {

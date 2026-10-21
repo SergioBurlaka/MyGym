@@ -27,13 +27,20 @@ export const muscleCategoryEnum = pgEnum('muscle_category', ['large', 'small', '
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull(),
-  passwordHash: text('password_hash').notNull(),
+  // null for accounts created through "Sign in with Google" - they have no
+  // password until (some future) "set password" feature.
+  passwordHash: text('password_hash'),
+  // Google's stable account id (`sub` of the ID token). Set on the first
+  // Google sign-in, either for a new account or linked to an existing one
+  // with the same (Google-verified) email.
+  googleSub: text('google_sub'),
   // ISO weekday numbers (1=Mon..7=Sun) the user plans to train on. Drives the
   // consistency calendar's "missed a planned day" detection.
   trainingDays: jsonb('training_days').$type<number[]>().notNull().default([1, 3, 5]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   emailIdx: uniqueIndex('users_email_idx').on(sql`lower(${table.email})`),
+  googleSubIdx: uniqueIndex('users_google_sub_idx').on(table.googleSub),
 }));
 
 export const refreshTokens = pgTable('refresh_tokens', {

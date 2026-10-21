@@ -21,7 +21,7 @@
 ## Стек (узгоджено з користувачем, не змінювати без явного запиту)
 
 - **Backend:** Node.js + TypeScript, Fastify + Zod (валідація), Drizzle ORM + drizzle-kit (міграції), PostgreSQL
-- **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
+- **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google"), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
 - **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
@@ -37,7 +37,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 --schema-only` (перезнімати після міграцій, команда — в кінці ARCHITECTURE.md).
 Повні дампи з даними — тільки в `backups/` (у `.gitignore`: хеш пароля, refresh-токени).
 
-- `users` — email/пароль. `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі
+- `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі
 - `refresh_tokens` — хеші refresh-токенів. Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
 - `exercises` — вправи користувача (кожен юзер має свій список, сідиться 13 вправами при реєстрації, можна додавати свої через UI)
 - `workouts` — одне тренування (дата, timeStart/timeEnd — виставляються **автоматично**, не вручну). `programLabel` — довільний текст (напр. «А»/«Б»), яким користувач сам позначає тренування для чергування програм (див. "Шаблони тренувань" нижче). `programId` — nullable FK на `programs` (`onDelete: 'set null'`) — яка саме Програма (не мітка-текст) стартувала це тренування; видалення програми обнуляє лише це поле, саме тренування й підходи не чіпає
@@ -76,11 +76,50 @@ Access-токен живе 15 хв (`JWT_ACCESS_TTL`), refresh — 30 днів (
   **видаляє** рядок `refresh_tokens`, а не ставить `revokedAt` — інакше grace
   дав би хвилину на повторне використання токена після виходу.
 
+## Вхід через Google (`modules/auth/google.client.ts` + `auth.routes.ts`)
+
+Серверний OAuth Authorization Code flow, а не кнопка Google Identity Services:
+popup GIS погано працює у встановленому PWA, а так секрет лишається на
+сервері й уся сесійна логіка вище (refresh-cookie, ротація) не змінюється.
+- `GET /api/auth/google` → 302 на Google; `state` (CSRF) і PKCE-verifier — у
+  cookie `mygym_google_flow` (`<state>.<verifier>`, httpOnly, `SameSite=Lax`,
+  10 хв, `path=/api/auth/google`). Scopes лише `openid email`.
+- `GET /api/auth/google/callback` — звіряє `state`, міняє код на ID-токен,
+  `verifyIdToken` (підпис, `aud`). **Будь-який результат — редирект**: успіх →
+  ставить звичайну `mygym_refresh` і `/` (SPA підхоплює своїм refresh на
+  старті), помилка → `/login?error=<код>` (`errors.google_*` у словниках).
+- `loginWithGoogle` (`auth.service.ts`): спершу за `googleSub`, інакше за email
+  (без регістру) — **прив'язує Google до наявного акаунта і пароль лишається
+  робочим** (рішення користувача 2026-10-21; свідомо прийнятий ризик: email при
+  реєстрації паролем не підтверджується, тож теоретично хтось міг заздалегідь
+  зайняти чужий email; щоб звузити його, прив'язка **видаляє всі
+  refresh-токени** цього акаунта — хто був залогінений до прив'язки, вилітає),
+  інакше створює новий акаунт без пароля з тими самими
+  13 вправами (`createUserWithDefaults`, спільна з `registerUser`). Вимагає
+  `email_verified`; email, уже прив'язаний до іншого Google ID →
+  `google_account_mismatch`. Вхід паролем в акаунт без пароля → `use_google_login`.
+- `GET /api/auth/providers` → `{ google }` — фронтенд (`GoogleSignInButton`)
+  показує кнопку лише коли Google налаштований.
+- Конфіг: `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` (разом або жодного;
+  порожні = вимкнено, роути 404) і `GOOGLE_REDIRECT_URI` (dev — через проксі
+  Vite: `http://localhost:5173/api/auth/google/callback`; прод —
+  `https://<DOMAIN>/api/auth/google/callback`), має посимвольно збігатись з
+  "Authorized redirect URIs" OAuth-клієнта (Google Cloud Console, проєкт MyGym,
+  статус In production; логотип у Branding **не завантажувати** — тоді Google
+  вимагає перевірку бренду).
+  У production не-`https://` `GOOGLE_REDIRECT_URI` (напр. забутий dev-default)
+  **вимикає** Google-вхід з попередженням у лозі, а не валить увесь бекенд.
+  Email з Google приводиться до нижнього регістру, як і скрізь у `users`.
+- **Gotcha:** `google-auth-library` 11.x вимагає Node ≥22 — Docker/CI на Node 20,
+  тому зафіксовано 10.x.
+- Тести (`test/google-auth.test.ts`) мокають `google.client.ts` цілком — без мережі.
+- `/privacy` (`PrivacyPage.tsx`, публічна) — на неї посилається consent screen Google.
+
 ## Захист API та тести
 
 - **Rate limit** (`@fastify/rate-limit`, `global: false`): лише `/api/auth/login`
-  (10/хв) і `/api/auth/register` (5/15 хв) на IP — константи `LOGIN_RATE_LIMIT`/
-  `REGISTER_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
+  (10/хв), `/api/auth/register` (5/15 хв) і обидва Google-роути (20/хв) на IP —
+  константи `LOGIN_RATE_LIMIT`/`REGISTER_RATE_LIMIT`/`GOOGLE_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
   смикає кожна відкрита вкладка (таймер, `visibilitychange`).
 - **`trustProxy` = рівно один хоп** (`(addr, hop) => hop === 0` в `app.ts`), а не
   `true`: з `true` Fastify брав би крайню ліву, клієнтську адресу з
@@ -381,6 +420,12 @@ prev/next). Без цього старі імпортовані тренуван
   Ознака: новий клас (напр. `animate-*`) видимо не діє. Фікс — повний
   рестарт контейнера: `docker compose -f docker-compose.dev.yml restart frontend`
   (просто reload сторінки браузера не допомагає).
+- Те саме з бекендом: `backend_node_modules` — named volume, і ні зміна
+  `package.json`, ні `--build` його не оновлюють. Після нової backend-залежності
+  dev-бекенд тихо падає на hot-reload з `ERR_MODULE_NOT_FOUND` — треба
+  `docker compose -f docker-compose.dev.yml exec backend npm install` + `restart backend`.
+  А нові змінні з `.env` (`env_file`) підхоплюються лише при перестворенні
+  контейнера: `up -d --force-recreate backend`, не `restart`.
 - `npm install` виконується у named volume контейнера (`frontend_node_modules`),
   не на хості — після додавання нових залежностей треба також запустити
   `npm install` у `frontend/` **на хості**, інакше редактор (TS-сервер) не
