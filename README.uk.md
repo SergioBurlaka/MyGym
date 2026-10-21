@@ -129,6 +129,7 @@ TEST_DATABASE_URL=postgres://<user>:<password>@localhost:<POSTGRES_PORT>/mygym_t
 ```
 backend/    Fastify API, Drizzle-схема, міграції, логіка прогресії й CSV-імпорту
 frontend/   React SPA (журнал, форма тренування, графіки, керування вправами)
+mcp-server/ MCP-сервер для Claude (stateless-проксі до API)
 nginx/      Конфіг reverse-proxy для продакшна (HTTPS-шаблон)
 scripts/    init-letsencrypt.sh — перше отримання сертифіката
 docker-compose.yml       Продакшн-стек

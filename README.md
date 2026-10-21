@@ -24,6 +24,10 @@ from day one.
   last-used weights.
 - **CSV import** from the Google Sheet I used before this app (idempotent).
 - **i18n** (English / Ukrainian), installable as a PWA on Android.
+- **Sign in with Google** next to email + password.
+- **Claude integration (MCP):** personal access tokens plus an MCP server, so
+  Claude can show progress, start and log workouts or create programs from a
+  chat - each user with their own token, the server holds none.
 
 ## Tech stack
 
@@ -146,6 +150,7 @@ again, since the origin changes.
 ```
 backend/    Fastify API, Drizzle schema & migrations, progression logic, CSV import, tests
 frontend/   React SPA
+mcp-server/ MCP server for Claude (stateless proxy to the API)
 nginx/      Reverse-proxy config (HTTPS template)
 scripts/    init-letsencrypt.sh - first certificate issue
 .github/    CI/CD workflow

@@ -24,7 +24,7 @@
 - **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google"), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
-- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
+- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
 
 Ці рішення — результат явного обговорення з користувачем (Fastify+Zod над
 Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT над
@@ -138,11 +138,51 @@ popup GIS погано працює у встановленому PWA, а так
   мобільному меню) — створення з назвою, одноразовий показ токена, список,
   відкликання (помилку відкликання показує явно). Сирий токен не лишається в
   кеші TanStack: мутація створення з `gcTime: 0` + `reset()` на «Готово».
-  Готова команда `claude mcp add` з'явиться разом із самим MCP-сервером
-  (частина 2) — до того `/mcp` віддавав би 502.
+  Картка нового токена показує готову команду `claude mcp add --transport http
+  mygym <origin>/mcp --header …` (див. "MCP-сервер" нижче).
 - Ліміт 20 рахується в транзакції з `SELECT … FOR UPDATE` рядка `users` —
   інакше паралельні POST-и проходили б перевірку разом.
 - Тести: `test/api-tokens.test.ts` (зокрема ізоляція двох користувачів через PAT).
+
+## MCP-сервер (`mcp-server/`, етап 3 ROADMAP, частина 2)
+
+Окремий пакет (Node 20 + TS, `@modelcontextprotocol/sdk` 1.32, **Fastify** —
+як бекенд, а не Express із прикладів SDK), через який Claude керує MyGym.
+**Тонкий stateless-проксі без бізнес-логіки й без токенів:**
+- `POST /mcp` — на **кожен** запит новий `McpServer` + `StreamableHTTPServerTransport`
+  (`sessionIdGenerator: undefined`, `enableJsonResponse: true`) + `apiClient` з
+  `Authorization` саме цього запиту → пересилається в бекенд без перевірки
+  (вирішує бекенд — PAT вище). Ніколи не тримати сервер/клієнт між запитами:
+  інструменти «запам'ятали б» токен першого користувача (тест ізоляції це ловить —
+  перевірено навмисною поломкою). Без `Bearer` → 401; `GET/DELETE /mcp` → 405;
+  `GET /health`. Єдиний конфіг — `MYGYM_API_URL`, `PORT` (8080).
+- 12 інструментів (`src/tools/*.ts`): вправи (list/create), тренування
+  (list/get/start/finish, `log_workout_exercises`), програми (list/create/suggested),
+  прогрес (overview, history). Схеми входу дзеркалять бекенд; відповідь — JSON
+  бекенду як є; помилки → `isError` з текстом, з яким Claude може щось зробити
+  (`tools/result.ts`: 401 → «токен відкликано, створіть новий в Інтеграціях»).
+- **`log_workout_exercises` = `PUT …/exercises`, що ЗАМІНЮЄ весь список** (на цьому
+  стоїть автозбереження форми). Рішення користувача (2026-10-21): бекенд не чіпати,
+  а в описі інструмента прямо написати «REPLACES ALL… спершу get_workout». Додати
+  merge-ендпоінт у бекенд — якщо колись Claude таки зітре вправи.
+- Видалення через MCP свідомо нема — деструктивне лишається в UI.
+- Ліміт 60 запитів/хв на токен (ключ — sha256 заголовка). **Gotcha:** роути мусять
+  бути всередині `app.register(...)` — оголошені на корені додаються до того, як
+  `@fastify/rate-limit` завантажився, і `config.rateLimit` тихо не діє (так і було,
+  зловив тест).
+- Docker: сервіс `mcp` у `docker-compose.yml` (nginx `/mcp` → `mcp:8080` через
+  `resolver` — з етапу HTTPS); у dev — `mcp` на `:8080` з hot-reload, і Vite
+  проксить `/mcp` туди ж, тож `<origin>/mcp` однаковий у dev і проді.
+- Тести (`mcp-server/test/mcp.test.ts`, `npm test` у `mcp-server/`): справжній
+  SDK-клієнт проти фейкового бекенду, що відповідає кожному токену своїми даними.
+- Підключення: Claude Code — `claude mcp add --transport http mygym
+  https://<домен>/mcp --header "Authorization: Bearer mygym_pat_…"`. claude.ai /
+  Desktop / телефон — лише якщо в Add custom connector є поле заголовків; інакше
+  потрібна OAuth-авторизація в MCP-сервері (окрема задача, не вигадувати обхід).
+- **Gotcha (поза MCP, знайдено при e2e):** користувача з тренуваннями не можна
+  видалити (`DELETE FROM users`) — каскад іде в `exercises`, а
+  `workout_exercises.exerciseId` має `restrict`. Тести не ловлять, бо
+  `TRUNCATE … CASCADE`. Виправити перед фічею «видалити акаунт».
 
 ## Захист API та тести
 
@@ -172,8 +212,8 @@ popup GIS погано працює у встановленому PWA, а так
   чисті функції `suggestProgression`/`buildHistoryPoints` саме заради юніт-тестів.
   Свіжий `buildApp()` на кожен тест = свіже in-memory сховище rate limit.
 - **CI** (`.github/workflows/deploy.yml`): `backend-test` (typecheck + тести з
-  postgres-сервісом) і `frontend-build` на кожен push/PR; `deploy` — тільки
-  push у `main` і тільки після обох зелених джобів.
+  postgres-сервісом), `frontend-build` і `mcp-server-test` на кожен push/PR;
+  `deploy` — тільки push у `main` і тільки після всіх трьох зелених джобів.
 
 ## Логіка прогресії (backend/src/modules/progression/progression.service.ts)
 
