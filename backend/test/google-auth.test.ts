@@ -273,7 +273,15 @@ describe('Google sign-in: return-to after login', () => {
     expect(res.headers.location).toBe('/oauth/consent?request=abc');
   });
 
-  it.each(['//evil.example/x', '/\\evil.example','https://evil.example/', 'javascript:alert(1)'])(
+  it.each([
+    '//evil.example/x',
+    '/\\evil.example',
+    '/\t/evil.example',
+    '/\n/evil.example',
+    '/%09/evil.example/../x\\',
+    'https://evil.example/',
+    'javascript:alert(1)',
+  ])(
     'ignores an off-site next (%s)',
     async (next) => {
       const start = await app.inject({ method: 'GET', url: `/api/auth/google?next=${encodeURIComponent(next)}` });
