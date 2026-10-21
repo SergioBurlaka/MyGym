@@ -115,6 +115,8 @@ function TokenRow({ id, name, createdAt, lastUsedAt }: { id: string; name: strin
 // Shown right after creation - the only moment the raw token is available.
 function CreatedTokenCard({ token, onDone }: { token: CreatedApiToken; onDone: () => void }) {
   const { t } = useTranslation();
+  // Same origin in prod (nginx) and dev (Vite proxy) - see vite.config.ts.
+  const mcpCommand = `claude mcp add --transport http mygym ${window.location.origin}/mcp --header "Authorization: Bearer ${token.token}"`;
   return (
     <div className="card space-y-4 border-accent">
       <div>
@@ -122,6 +124,8 @@ function CreatedTokenCard({ token, onDone }: { token: CreatedApiToken; onDone: (
         <p className="mt-1 text-sm text-warn">{t('integrations.createdWarning')}</p>
       </div>
       <CopyField label={t('integrations.tokenLabel')} value={token.token} />
+      <CopyField label={t('integrations.claudeCodeLabel')} value={mcpCommand} />
+      <p className="text-sm text-slate-400">{t('integrations.connectorHint', { url: `${window.location.origin}/mcp` })}</p>
       <button className="btn-secondary" onClick={onDone}>{t('integrations.done')}</button>
     </div>
   );

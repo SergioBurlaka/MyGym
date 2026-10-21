@@ -9,9 +9,10 @@
 ## Стек
 
 - **Backend:** Node.js + TypeScript, [Fastify](https://fastify.dev) + [Zod](https://zod.dev) (валідація), [Drizzle ORM](https://orm.drizzle.team) + drizzle-kit (міграції), PostgreSQL
-- **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для можливості відкликання)
+- **Auth:** email + пароль (argon2) або вхід через Google, JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для можливості відкликання); персональні токени доступу для програм
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts
-- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy з HTTPS (Let's Encrypt)
+- **Інтеграція з Claude:** MCP-сервер (`mcp-server/`, `@modelcontextprotocol/sdk`) — Claude показує прогрес, створює й записує тренування та програми з розмови; кожен користувач підключається своїм токеном зі сторінки «Інтеграції»
+- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy з HTTPS (Let's Encrypt)
 
 ## Логіка прогресії
 
@@ -129,6 +130,7 @@ TEST_DATABASE_URL=postgres://<user>:<password>@localhost:<POSTGRES_PORT>/mygym_t
 ```
 backend/    Fastify API, Drizzle-схема, міграції, логіка прогресії й CSV-імпорту
 frontend/   React SPA (журнал, форма тренування, графіки, керування вправами)
+mcp-server/ MCP-сервер для Claude (stateless-проксі до API)
 nginx/      Конфіг reverse-proxy для продакшна (HTTPS-шаблон)
 scripts/    init-letsencrypt.sh — перше отримання сертифіката
 docker-compose.yml       Продакшн-стек

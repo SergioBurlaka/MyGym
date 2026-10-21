@@ -51,6 +51,24 @@ services:
     depends_on:
       - backend
 
+  # MCP server (Claude integration). Stateless proxy to the backend: holds
+  # no tokens - each user's Claude sends their own MyGym access token, which
+  # is passed through to the API. Reached as /mcp via nginx below.
+  mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MYGYM_API_URL: http://backend:4000/api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - backend
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
