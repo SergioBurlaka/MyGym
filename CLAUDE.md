@@ -21,7 +21,7 @@
 ## Стек (узгоджено з користувачем, не змінювати без явного запиту)
 
 - **Backend:** Node.js + TypeScript, Fastify + Zod (валідація), Drizzle ORM + drizzle-kit (міграції), PostgreSQL
-- **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google"), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user
+- **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google"), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user. Для програм — PAT і власний OAuth authorization server для MCP-клієнтів (див. "OAuth для MCP-клієнтів")
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
 - **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
@@ -266,7 +266,9 @@ grace-вікна** — повтор старого refresh відкликає в
 - **Rate limit** (`@fastify/rate-limit`, `global: false`): лише `/api/auth/login`
   (10/хв), `/api/auth/register` (5/15 хв) і обидва Google-роути (20/хв) на IP —
   константи `LOGIN_RATE_LIMIT`/`REGISTER_RATE_LIMIT`/`GOOGLE_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
-  смикає кожна відкрита вкладка (таймер, `visibilitychange`).
+  смикає кожна відкрита вкладка (таймер, `visibilitychange`). OAuth:
+  `/api/oauth/authorize` 30/хв і `/api/oauth/token` 60/хв на IP
+  (`AUTHORIZE_RATE_LIMIT`/`TOKEN_RATE_LIMIT` в `oauth.routes.ts`).
 - **`trustProxy` = рівно один хоп** (`(addr, hop) => hop === 0` в `app.ts`), а не
   `true`: з `true` Fastify брав би крайню ліву, клієнтську адресу з
   `X-Forwarded-For`, і rate limit обходився б підробленим заголовком. Протокол
