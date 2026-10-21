@@ -64,7 +64,12 @@ export default function Navbar() {
   }
 
   return (
-    <header ref={headerRef} className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 backdrop-blur">
+    // pt-safe-area: in the installed (standalone) PWA the page runs under the
+    // status bar / camera cutout (viewport-fit=cover); 0 in a normal tab.
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur"
+    >
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex items-center gap-6">
           {/* Icon + wordmark lockup from the design, text outlined as paths
