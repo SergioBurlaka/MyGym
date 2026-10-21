@@ -55,11 +55,28 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  mcp-server-test:
+    name: MCP server - typecheck & tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
   deploy:
     name: Deploy to VPS
-    # Only after both checks are green, and only for pushes to main (never
+    # Only after all checks are green, and only for pushes to main (never
     # for pull requests).
-    needs: [backend-test, frontend-build]
+    needs: [backend-test, frontend-build, mcp-server-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

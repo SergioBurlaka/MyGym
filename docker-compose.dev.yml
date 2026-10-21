@@ -52,6 +52,26 @@ services:
     # Apply migrations then start the watcher every time the container boots.
     command: sh -c "npm run db:migrate && npm run dev"
 
+  # MCP server for Claude, from source with hot-reload. Connect Claude Code
+  # with: claude mcp add --transport http mygym-dev http://localhost:8080/mcp
+  #   --header "Authorization: Bearer <token from /integrations>"
+  mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      MYGYM_API_URL: http://backend:4000/api
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+    volumes:
+      - ./mcp-server:/app
+      - mcp_node_modules:/app/node_modules
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
   frontend:
     build:
       context: ./frontend
@@ -71,3 +91,4 @@ volumes:
   postgres_data_dev:
   backend_node_modules:
   frontend_node_modules:
+  mcp_node_modules:

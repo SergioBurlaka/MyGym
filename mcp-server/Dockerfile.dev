@@ -1,0 +1,12 @@
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 8080
+
+# The compose file mounts the source tree over this; tsx watch reloads.
+CMD ["npm", "run", "dev"]

@@ -23,7 +23,8 @@ export function buildApp({ apiUrl, logger = true }: { apiUrl: string; logger?: b
   // before @fastify/rate-limit has loaded, and their rateLimit config would
   // silently do nothing (caught by the rate-limit test).
   app.register(async (routes) => {
-    routes.get('/health', async () => ({ ok: true }));
+    // Polled by the Docker healthcheck every 30 s - keep it out of the log.
+    routes.get('/health', { logLevel: 'warn' }, async () => ({ ok: true }));
 
     routes.post(
       '/mcp',
