@@ -11,6 +11,7 @@ import ProgressPage from './pages/ProgressPage.js';
 import ImportPage from './pages/ImportPage.js';
 import ProgramsPage from './pages/ProgramsPage.js';
 import PrivacyPage from './pages/PrivacyPage.js';
+import IntegrationsPage from './pages/IntegrationsPage.js';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -75,6 +76,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/integrations"
+            element={
+              <ProtectedRoute>
+                <IntegrationsPage />
               </ProtectedRoute>
             }
           />

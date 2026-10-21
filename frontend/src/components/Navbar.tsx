@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import LanguageSwitcher from './LanguageSwitcher.js';
@@ -136,6 +136,9 @@ export default function Navbar() {
                 {item.label}
               </NavLink>
             ))}
+            <NavLink to="/integrations" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
+              {t('nav.integrations')}
+            </NavLink>
             <div className="mt-2 flex items-center justify-between border-t border-surface-border pt-3">
               <span className="text-sm text-slate-400">{user.email}</span>
               <button className="btn-ghost" onClick={handleLogout}>
@@ -194,6 +197,13 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-56 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-2 shadow-xl">
           <p className="truncate px-2 py-1.5 text-sm text-slate-400">{email}</p>
+          <Link
+            to="/integrations"
+            className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
+            onClick={() => setOpen(false)}
+          >
+            {t('nav.integrations')}
+          </Link>
           <button
             className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
             onClick={onLogout}
