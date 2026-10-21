@@ -35,6 +35,7 @@ describe('which client ids are even considered', () => {
     ['a host outside the allow-list', 'https://evil.example/oauth/client'],
     ['a look-alike host', 'https://claude.ai.evil.example/oauth/client'],
     ['credentials in the URL', 'https://user:pw@claude.ai/oauth/client'],
+    ['a port (another service on an allowed host)', 'https://claude.ai:8443/oauth/client'],
     ['no path', 'https://claude.ai/'],
     ['not a URL', 'claude'],
   ])('rejects %s without fetching', async (_label, clientId) => {
@@ -58,11 +59,18 @@ describe('resolving a metadata document', () => {
     ['a client_id that differs from its URL', doc({ client_id: 'https://claude.ai/oauth/other' })],
     ['no redirect URIs', doc({ redirect_uris: [] })],
     ['a shared secret auth method', doc({ token_endpoint_auth_method: 'client_secret_post' })],
+    ['a javascript: redirect URI', doc({ redirect_uris: ['javascript:alert(1)'] })],
+    ['an http redirect URI off loopback', doc({ redirect_uris: ['http://claude.ai/callback'] })],
     ['invalid JSON', 'not json'],
     ['an oversized document', doc({ client_name: 'x'.repeat(200), padding: 'y'.repeat(6000) })],
   ])('rejects %s', async (_label, body) => {
     stubFetch(body);
     await expect(resolveClient(CLIENT_ID)).rejects.toThrow(OAuthClientError);
+  });
+
+  it('refuses a declared-too-large body before reading it', async () => {
+    stubFetch(doc(), { headers: { 'content-length': '1000000' } });
+    await expect(resolveClient(CLIENT_ID)).rejects.toThrow(/too large/);
   });
 
   it('rejects a non-200 answer (including a redirect)', async () => {

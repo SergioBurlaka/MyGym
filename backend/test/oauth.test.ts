@@ -26,9 +26,12 @@ const verifier = crypto.randomBytes(32).toString('base64url');
 const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
 
 let app: FastifyInstance;
+// The test's one browser: /authorize sets this cookie, the consent API needs it.
+let browserCookie: string | undefined;
 
 beforeEach(async () => {
   await resetDb();
+  browserCookie = undefined;
   vi.resetAllMocks();
   cimd.resolveClient.mockImplementation(async (clientId: string) => {
     if (clientId === CLIENT.clientId) return CLIENT;
@@ -67,8 +70,15 @@ function authorizeUrl(overrides: Record<string, string | undefined> = {}) {
 }
 
 async function authorize(overrides: Record<string, string | undefined> = {}) {
-  return app.inject({ method: 'GET', url: authorizeUrl(overrides) });
+  const res = await app.inject({ method: 'GET', url: authorizeUrl(overrides), headers: browserCookie ? { cookie: browserCookie } : {} });
+  const set = ([] as string[]).concat((res.headers['set-cookie'] as string[] | string | undefined) ?? []);
+  const found = set.find((c) => c.startsWith('mygym_oauth_browser='));
+  if (found) browserCookie = found.split(';')[0];
+  return res;
 }
+
+// The logged-in user in the browser that started the request.
+const inBrowser = (user: User, cookie = browserCookie) => ({ ...user.auth, ...(cookie ? { cookie } : {}) });
 
 async function startRequest() {
   const res = await authorize();
@@ -82,7 +92,7 @@ async function approve(user: User, requestId: string, approved = true) {
   return app.inject({
     method: 'POST',
     url: `/api/oauth/requests/${requestId}/decision`,
-    headers: user.auth,
+    headers: inBrowser(user),
     payload: { approve: approved },
   });
 }
@@ -172,6 +182,12 @@ describe('authorize', () => {
     expect(await db.select().from(oauthAuthorizationRequests)).toHaveLength(0);
   });
 
+  it('refuses a repeated parameter without redirecting anywhere', async () => {
+    const res = await app.inject({ method: 'GET', url: `${authorizeUrl()}&redirect_uri=${encodeURIComponent('https://evil.example/cb')}` });
+    expect(res.headers.location).toBe('/oauth/consent?error=invalid_request');
+    expect(await db.select().from(oauthAuthorizationRequests)).toHaveLength(0);
+  });
+
   it.each([
     ['no PKCE', { code_challenge: undefined }, 'invalid_request'],
     ['plain PKCE', { code_challenge_method: 'plain' }, 'invalid_request'],
@@ -193,8 +209,42 @@ describe('consent', () => {
   it('shows the client name and the redirect host to the logged-in user', async () => {
     const user = await registerUser(app);
     const requestId = await startRequest();
-    const res = await app.inject({ method: 'GET', url: `/api/oauth/requests/${requestId}`, headers: user.auth });
+    const res = await app.inject({ method: 'GET', url: `/api/oauth/requests/${requestId}`, headers: inBrowser(user) });
     expect(res.json()).toMatchObject({ clientName: 'Claude', clientHost: 'claude.ai', redirectHost: 'claude.ai' });
+  });
+
+  it("can't be seen or answered from another browser (a consent link sent to a victim)", async () => {
+    const victim = await registerUser(app);
+    const requestId = await startRequest(); // the attacker's browser
+
+    for (const cookie of [undefined, `mygym_oauth_browser=${crypto.randomBytes(32).toString('base64url')}`]) {
+      const headers = { ...victim.auth, ...(cookie ? { cookie } : {}) };
+      expect((await app.inject({ method: 'GET', url: `/api/oauth/requests/${requestId}`, headers })).statusCode).toBe(404);
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/oauth/requests/${requestId}/decision`,
+        headers,
+        payload: { approve: true },
+      });
+      expect(res.statusCode).toBe(404);
+    }
+    const [row] = await db.select().from(oauthAuthorizationRequests);
+    expect(row.userId).toBeNull();
+  });
+
+  it('binds requests with a short-lived httpOnly cookie, shared by parallel requests of one browser', async () => {
+    const res = await authorize();
+    const header = ([] as string[]).concat(res.headers['set-cookie'] as string[]).find((c) => c.startsWith('mygym_oauth_browser='))!;
+    expect(header).toContain('HttpOnly');
+    expect(header).toContain('Path=/api/oauth');
+    expect(header).toContain('SameSite=Lax');
+    expect(header).toContain('Max-Age=600');
+
+    const user = await registerUser(app);
+    const first = await startRequest();
+    const second = await startRequest(); // e.g. connecting ChatGPT at the same time
+    expect((await approve(user, first)).statusCode).toBe(200);
+    expect((await approve(user, second)).statusCode).toBe(200);
   });
 
   it('needs a browser session, not a token (no approving more access with a leaked token)', async () => {
@@ -292,6 +342,17 @@ describe('token: authorization code', () => {
 
   it('rejects an unsupported grant type', async () => {
     expect((await token({ grant_type: 'password' })).json().error).toBe('unsupported_grant_type');
+  });
+
+  it('answers a repeated parameter with invalid_request, not a 500', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/oauth/token',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      payload: 'grant_type=refresh_token&refresh_token=a&refresh_token=b&client_id=x',
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe('invalid_request');
   });
 });
 

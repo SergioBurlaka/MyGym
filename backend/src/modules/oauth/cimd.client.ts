@@ -23,10 +23,22 @@ const MAX_DOCUMENT_BYTES = 5 * 1024;
 const DEFAULT_CACHE_MS = 5 * 60_000;
 const MAX_CACHE_MS = 60 * 60_000;
 
+const isLoopback = (u: URL) => u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+
+// https, or http on loopback (RFC 8252) - never javascript:/data: and the
+// like: the consent page sends the browser to this URI.
+const redirectUriSchema = z
+  .string()
+  .url()
+  .refine((s) => {
+    const u = new URL(s);
+    return u.protocol === 'https:' || isLoopback(u);
+  });
+
 const documentSchema = z.object({
   client_id: z.string(),
   client_name: z.string().min(1).max(200),
-  redirect_uris: z.array(z.string().url()).min(1),
+  redirect_uris: z.array(redirectUriSchema).min(1),
   token_endpoint_auth_method: z.string().optional(),
 });
 
@@ -42,7 +54,8 @@ export function parseClientIdUrl(clientId: string): URL {
   } catch {
     throw new OAuthClientError('client_id must be a URL');
   }
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.pathname === '/') {
+  // A port would let client_id point at any service on an allowed host.
+  if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash || url.pathname === '/') {
     throw new OAuthClientError('client_id must be an https URL with a path');
   }
   if (!env.OAUTH_CLIENT_HOSTS.includes(url.hostname.toLowerCase())) {
@@ -74,6 +87,12 @@ export async function resolveClient(clientId: string): Promise<OAuthClient> {
   }
   if (res.status !== 200) {
     throw new OAuthClientError(`client metadata document answered ${res.status}`);
+  }
+  // Refuse a declared-too-large body before reading it; the length is
+  // checked again after, for responses that don't declare one.
+  if (Number(res.headers.get('content-length') ?? 0) > MAX_DOCUMENT_BYTES) {
+    await res.body?.cancel();
+    throw new OAuthClientError('client metadata document is too large');
   }
   const text = await res.text();
   if (Buffer.byteLength(text) > MAX_DOCUMENT_BYTES) {
@@ -112,11 +131,10 @@ export function redirectUriAllowed(client: OAuthClient, redirectUri: string): bo
   } catch {
     return false;
   }
-  const loopback = (u: URL) => u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
-  if (!loopback(requested)) return false;
+  if (!isLoopback(requested)) return false;
   return client.redirectUris.some((registered) => {
     const r = new URL(registered);
-    return loopback(r) && r.hostname === requested.hostname && r.pathname === requested.pathname && r.search === requested.search;
+    return isLoopback(r) && r.hostname === requested.hostname && r.pathname === requested.pathname && r.search === requested.search;
   });
 }
 

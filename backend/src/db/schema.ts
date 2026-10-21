@@ -91,6 +91,9 @@ export const oauthAuthorizationRequests = pgTable('oauth_authorization_requests'
   state: text('state'),
   resource: text('resource').notNull(),
   scope: text('scope').notNull(),
+  // sha256 of the browser cookie set by /authorize: only the browser that
+  // started the request may see or answer its consent page.
+  browserHash: text('browser_hash').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   // Filled in when the user approves.
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),

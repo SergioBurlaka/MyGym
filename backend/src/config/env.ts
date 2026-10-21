@@ -48,3 +48,9 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+// Like GOOGLE_REDIRECT_URI: warn instead of crashing the whole backend.
+// MCP clients refuse a non-https issuer, so OAuth sign-in won't work.
+if (env.NODE_ENV === 'production' && !env.PUBLIC_URL.startsWith('https://')) {
+  console.warn(`PUBLIC_URL is not https (${env.PUBLIC_URL}) - OAuth for MCP clients will not work`);
+}

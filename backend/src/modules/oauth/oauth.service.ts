@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { and, desc, eq, gt, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, lt } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { apiTokens, oauthAuthorizationRequests, oauthGrants, oauthRefreshTokens } from '../../db/schema.js';
 import { hashRefreshToken } from '../../utils/tokens.js';
@@ -63,7 +63,11 @@ export async function validateClientAndRedirect(params: AuthorizeParams) {
   return client;
 }
 
-export async function createAuthorizationRequest(params: AuthorizeParams) {
+// `browserSecret` is the /authorize cookie: the request can only be seen and
+// answered from the browser that started it. Otherwise anyone could start a
+// connection in their own Claude/ChatGPT account, send the consent link to
+// a victim and get the victim's approval delivered to their connector.
+export async function createAuthorizationRequest(params: AuthorizeParams, browserSecret: string) {
   const client = await validateClientAndRedirect(params);
 
   if (params.response_type !== 'code') {
@@ -86,6 +90,11 @@ export async function createAuthorizationRequest(params: AuthorizeParams) {
     throw new OAuthError('invalid_scope', `Only the "${SCOPE}" scope is supported`);
   }
 
+  // Housekeeping: a request (and its code) is dead within ~20 minutes.
+  await db
+    .delete(oauthAuthorizationRequests)
+    .where(lt(oauthAuthorizationRequests.expiresAt, new Date(Date.now() - 60 * 60_000)));
+
   const [row] = await db
     .insert(oauthAuthorizationRequests)
     .values({
@@ -96,6 +105,7 @@ export async function createAuthorizationRequest(params: AuthorizeParams) {
       state: params.state ?? null,
       resource,
       scope: SCOPE,
+      browserHash: hashRefreshToken(browserSecret),
       expiresAt: new Date(Date.now() + AUTHORIZATION_REQUEST_TTL_MS),
     })
     .returning({ id: oauthAuthorizationRequests.id });
@@ -113,10 +123,12 @@ export function clientRedirect(redirectUri: string, params: Record<string, strin
 
 // ---------- consent ----------
 
-function pendingRequest(id: string) {
+function pendingRequest(id: string, browserSecret: string | undefined) {
+  if (!browserSecret) return Promise.resolve(undefined);
   return db.query.oauthAuthorizationRequests.findFirst({
     where: and(
       eq(oauthAuthorizationRequests.id, id),
+      eq(oauthAuthorizationRequests.browserHash, hashRefreshToken(browserSecret)),
       isNull(oauthAuthorizationRequests.userId),
       isNull(oauthAuthorizationRequests.usedAt),
       gt(oauthAuthorizationRequests.expiresAt, new Date()),
@@ -126,8 +138,8 @@ function pendingRequest(id: string) {
 
 // What the consent page shows. The redirect host is required by the MCP
 // spec - it's how the user can tell a real client from an impostor.
-export async function getConsentInfo(id: string) {
-  const req = await pendingRequest(id);
+export async function getConsentInfo(id: string, browserSecret: string | undefined) {
+  const req = await pendingRequest(id, browserSecret);
   if (!req) return null;
   return {
     clientName: req.clientName,
@@ -139,8 +151,8 @@ export async function getConsentInfo(id: string) {
 }
 
 // Returns the URL to send the browser to (code on approve, error on deny).
-export async function decide(id: string, userId: string, approve: boolean) {
-  const req = await pendingRequest(id);
+export async function decide(id: string, userId: string, approve: boolean, browserSecret: string | undefined) {
+  const req = await pendingRequest(id, browserSecret);
   if (!req) return null;
 
   if (!approve) {
@@ -273,6 +285,13 @@ export async function refresh(params: { refresh_token?: string; client_id?: stri
     if (!claimed) return { error: 'reused' as const, grantId: row.grantId };
 
     await tx.update(oauthGrants).set({ lastUsedAt: new Date() }).where(eq(oauthGrants.id, row.grantId));
+    // Housekeeping: every refresh adds a row to both tables. Expired ones
+    // go; used-but-unexpired refresh tokens stay for replay detection.
+    const now = new Date();
+    await tx.delete(apiTokens).where(and(eq(apiTokens.grantId, row.grantId), lt(apiTokens.expiresAt, now)));
+    await tx
+      .delete(oauthRefreshTokens)
+      .where(and(eq(oauthRefreshTokens.grantId, row.grantId), lt(oauthRefreshTokens.expiresAt, now)));
     return { tokens: await issueTokens(tx, row.grant) };
   });
 
