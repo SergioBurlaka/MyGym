@@ -10,6 +10,7 @@ import ExercisesPage from './pages/ExercisesPage.js';
 import ProgressPage from './pages/ProgressPage.js';
 import ImportPage from './pages/ImportPage.js';
 import ProgramsPage from './pages/ProgramsPage.js';
+import PrivacyPage from './pages/PrivacyPage.js';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -36,6 +37,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route
             path="/"
             element={

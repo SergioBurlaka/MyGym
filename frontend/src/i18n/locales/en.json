@@ -298,5 +298,40 @@
   },
   "newWorkoutButton": {
     "programLabel": "Program «{{name}}»"
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "updated": "Last updated: {{date}}",
+    "intro": "MyGym is a personal workout journal. This page explains what data it keeps about you and why. In short: only what is needed to run your training log, nothing is sold or shared.",
+    "data": {
+      "title": "What we store",
+      "body": "• Your email address.\n• Your password as a one-way hash (argon2) if you signed up with a password - the password itself is never stored.\n• Your Google account ID if you sign in with Google.\n• What you enter in the app: exercises, workouts, sets, programs and your training schedule.\n• Technical session records (hashes of login tokens) so you stay signed in and can be signed out."
+    },
+    "google": {
+      "title": "Sign in with Google",
+      "body": "If you choose \"Continue with Google\", MyGym asks Google only for your account ID and email address (the openid and email scopes). It does not get your name, photo, contacts, Gmail, Drive or any other Google data, and it cannot act on your Google account."
+    },
+    "use": {
+      "title": "How the data is used",
+      "body": "Only to run the app for you: sign you in, show your workout history and progress charts, and suggest when to add weight or reps. There are no ads, no analytics or tracking services and no profiling."
+    },
+    "storage": {
+      "title": "Where it is kept",
+      "body": "On the MyGym server in a PostgreSQL database, over HTTPS. Your browser keeps a sign-in cookie (httpOnly, up to 30 days so you stay signed in) and remembers your interface language in local storage - no advertising or tracking cookies."
+    },
+    "sharing": {
+      "title": "Sharing",
+      "body": "Your data is not sold, rented or shared with third parties. Other MyGym users cannot see it."
+    },
+    "deletion": {
+      "title": "Deleting your data",
+      "body": "You can delete individual exercises, workouts and programs in the app at any time. To delete your whole account and all its data, email {{email}} from the address you use in MyGym - it will be removed within 30 days."
+    },
+    "contact": {
+      "title": "Contact",
+      "body": "Questions about this policy or your data: {{email}}"
+    },
+    "back": "Back to MyGym",
+    "link": "Privacy policy"
   }
 }

@@ -60,6 +60,11 @@ export default function LoginPage() {
             {t('auth.login.registerLink')}
           </Link>
         </p>
+        <p className="mt-3 text-center text-xs text-slate-500">
+          <Link to="/privacy" className="hover:underline">
+            {t('privacy.link')}
+          </Link>
+        </p>
       </div>
     </div>
   );
