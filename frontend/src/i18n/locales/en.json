@@ -360,6 +360,6 @@
     "revokeConfirmDescription": "Programs using «{{name}}» will lose access immediately.",
     "revokeError": "Couldn't revoke the token - it still works. Try again",
     "claudeCodeLabel": "Connect Claude Code (run in a terminal)",
-    "connectorHint": "For Claude Desktop / claude.ai: Settings → Connectors → Add custom connector, URL {{url}}, request header Authorization = Bearer + the token above."
+    "connectorHint": "For Claude Desktop / claude.ai: if Settings → Connectors → Add custom connector offers custom request headers, use URL {{url}} and the header Authorization = Bearer + the token above. If it only offers OAuth fields, these clients can't connect with a token yet."
   }
 }

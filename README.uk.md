@@ -9,9 +9,10 @@
 ## Стек
 
 - **Backend:** Node.js + TypeScript, [Fastify](https://fastify.dev) + [Zod](https://zod.dev) (валідація), [Drizzle ORM](https://orm.drizzle.team) + drizzle-kit (міграції), PostgreSQL
-- **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для можливості відкликання)
+- **Auth:** email + пароль (argon2) або вхід через Google, JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для можливості відкликання); персональні токени доступу для програм
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts
-- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy з HTTPS (Let's Encrypt)
+- **Інтеграція з Claude:** MCP-сервер (`mcp-server/`, `@modelcontextprotocol/sdk`) — Claude показує прогрес, створює й записує тренування та програми з розмови; кожен користувач підключається своїм токеном зі сторінки «Інтеграції»
+- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy з HTTPS (Let's Encrypt)
 
 ## Логіка прогресії
 

@@ -2,6 +2,8 @@
 // header. A new one is created for every MCP request, so a tool can only
 // ever act with the token of the request it is serving.
 
+const API_TIMEOUT_MS = 15_000;
+
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown) {
     super(`MyGym API answered ${status}`);
@@ -17,6 +19,9 @@ export function createApiClient(baseUrl: string, authorization: string) {
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
+      // A hung backend becomes a tool error ("could not reach") instead of
+      // a request held open until nginx's 300 s proxy timeout.
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
     const text = await res.text();
     const data = text ? JSON.parse(text) : null;

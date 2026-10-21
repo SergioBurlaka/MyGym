@@ -5,7 +5,10 @@ import { apiResult } from './result.js';
 
 const id = z.string().uuid();
 
-// Mirrors backend/src/modules/workouts/workouts.schema.ts.
+// Mirrors backend/src/modules/workouts/workouts.schema.ts - including
+// z.coerce: numeric columns (weightPerUnitKg) come back from get_workout as
+// strings like "22.50", and the description tells Claude to pass that list
+// back as is.
 export function registerWorkoutTools(server: McpServer, api: ApiClient) {
   server.registerTool(
     'list_recent_workouts',
@@ -13,8 +16,8 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
       title: 'List recent workouts',
       description: 'Lists the most recent workouts (newest first) with date, program label and exercises. Use page for older ones.',
       inputSchema: {
-        limit: z.number().int().min(1).max(50).optional().describe('How many workouts per page (default 10)'),
-        page: z.number().int().min(1).optional(),
+        limit: z.coerce.number().int().min(1).max(50).optional().describe('How many workouts per page (default 10)'),
+        page: z.coerce.number().int().min(1).optional(),
       },
       annotations: { readOnlyHint: true },
     },
@@ -67,11 +70,11 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
         exercises: z.array(
           z.object({
             exerciseId: id,
-            weightPerUnitKg: z.number().min(0).max(500).nullable().optional(),
-            weightUnits: z.number().int().min(1).max(2).nullable().optional(),
+            weightPerUnitKg: z.coerce.number().min(0).max(500).nullable().optional(),
+            weightUnits: z.coerce.number().int().min(1).max(2).nullable().optional(),
             notes: z.string().max(500).nullable().optional(),
             sets: z
-              .array(z.object({ setNumber: z.number().int().min(1), reps: z.number().int().min(0).max(200) }))
+              .array(z.object({ setNumber: z.coerce.number().int().min(1), reps: z.coerce.number().int().min(0).max(200) }))
               .min(1),
           }),
         ),

@@ -21,7 +21,9 @@ export default defineConfig({
       },
       // Same for the MCP server, so the "claude mcp add <origin>/mcp" command
       // shown on /integrations works in dev exactly like in prod (nginx).
-      '/mcp': {
+      // Regex, like nginx's location: a bare '/mcp' prefix would also
+      // swallow SPA routes such as /mcp-something.
+      '^/mcp(/|$)': {
         target: process.env.VITE_MCP_URL ?? 'http://localhost:8080',
         changeOrigin: true,
       },

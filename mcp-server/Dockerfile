@@ -20,4 +20,7 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 8080
 
+# Public-facing (via nginx) - no reason to run as root.
+USER node
+
 CMD ["node", "dist/index.js"]

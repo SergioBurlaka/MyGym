@@ -57,8 +57,18 @@ export function buildApp({ apiUrl, logger = true }: { apiUrl: string; logger?: b
           void transport.close();
           void server.close();
         });
-        await server.connect(transport);
-        await transport.handleRequest(request.raw, reply.raw, request.body);
+        try {
+          await server.connect(transport);
+          await transport.handleRequest(request.raw, reply.raw, request.body);
+        } catch (err) {
+          // After hijack() Fastify no longer answers for us - without this the
+          // client would wait for nginx's timeout.
+          request.log.error({ err }, 'MCP request failed');
+          if (!reply.raw.headersSent) {
+            reply.raw.writeHead(500, { 'content-type': 'application/json' });
+          }
+          reply.raw.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal error' }, id: null }));
+        }
       },
     );
 

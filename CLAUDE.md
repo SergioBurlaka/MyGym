@@ -158,7 +158,10 @@ popup GIS погано працює у встановленому PWA, а так
   `GET /health`. Єдиний конфіг — `MYGYM_API_URL`, `PORT` (8080).
 - 12 інструментів (`src/tools/*.ts`): вправи (list/create), тренування
   (list/get/start/finish, `log_workout_exercises`), програми (list/create/suggested),
-  прогрес (overview, history). Схеми входу дзеркалять бекенд; відповідь — JSON
+  прогрес (overview, history). Схеми входу дзеркалять бекенд **разом із
+  `z.coerce.number()`**: `numeric`-колонки (`weightPerUnitKg`) Drizzle віддає
+  рядком `"22.50"`, і Claude передає їх назад як є — з `z.number()` перша спроба
+  `log_workout_exercises` після `get_workout` падала б. Відповідь — JSON
   бекенду як є; помилки → `isError` з текстом, з яким Claude може щось зробити
   (`tools/result.ts`: 401 → «токен відкликано, створіть новий в Інтеграціях»).
 - **`log_workout_exercises` = `PUT …/exercises`, що ЗАМІНЮЄ весь список** (на цьому
@@ -170,9 +173,12 @@ popup GIS погано працює у встановленому PWA, а так
   бути всередині `app.register(...)` — оголошені на корені додаються до того, як
   `@fastify/rate-limit` завантажився, і `config.rateLimit` тихо не діє (так і було,
   зловив тест).
-- Docker: сервіс `mcp` у `docker-compose.yml` (nginx `/mcp` → `mcp:8080` через
+- Запит до бекенду з таймаутом 15 с; помилка після `reply.hijack()` закриває
+  відповідь сама (500 JSON-RPC) — Fastify після hijack цього вже не робить.
+- Docker: сервіс `mcp` у `docker-compose.yml` (образ працює від `USER node`) (nginx `/mcp` → `mcp:8080` через
   `resolver` — з етапу HTTPS); у dev — `mcp` на `:8080` з hot-reload, і Vite
-  проксить `/mcp` туди ж, тож `<origin>/mcp` однаковий у dev і проді.
+  проксить `^/mcp(/|$)` туди ж (регекс, як у nginx — щоб не ковтати SPA-маршрути
+  `/mcp-…`), тож `<origin>/mcp` однаковий у dev і проді.
 - Тести (`mcp-server/test/mcp.test.ts`, `npm test` у `mcp-server/`): справжній
   SDK-клієнт проти фейкового бекенду, що відповідає кожному токену своїми даними.
 - Підключення: Claude Code — `claude mcp add --transport http mygym

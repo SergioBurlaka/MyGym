@@ -364,6 +364,6 @@
     "revokeConfirmDescription": "Програми, що використовують «{{name}}», одразу втратять доступ.",
     "revokeError": "Не вдалося відкликати токен - він досі працює. Спробуйте ще раз",
     "claudeCodeLabel": "Підключити Claude Code (виконайте в терміналі)",
-    "connectorHint": "Для Claude Desktop / claude.ai: Settings → Connectors → Add custom connector, URL {{url}}, заголовок Authorization = Bearer + токен вище."
+    "connectorHint": "Для Claude Desktop / claude.ai: якщо в Settings → Connectors → Add custom connector можна задати власні заголовки, вкажіть URL {{url}} і заголовок Authorization = Bearer + токен вище. Якщо там лише поля OAuth, ці клієнти поки не можуть підключитися токеном."
   }
 }

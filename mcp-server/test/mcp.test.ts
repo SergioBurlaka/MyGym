@@ -157,6 +157,28 @@ describe('forwarding to the MyGym API', () => {
     ]);
   });
 
+  it('accepts numbers as strings, the way get_workout returns weights ("22.50")', async () => {
+    const client = await connect(TOKENS.alice);
+    const workoutId = '11111111-1111-4111-8111-111111111111';
+    const result = await client.callTool({
+      name: 'log_workout_exercises',
+      arguments: {
+        workoutId,
+        exercises: [
+          {
+            exerciseId: '22222222-2222-4222-8222-222222222222',
+            weightPerUnitKg: '22.50',
+            weightUnits: 2,
+            sets: [{ setNumber: 1, reps: 8 }],
+          },
+        ],
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect((seen[0].body as { exercises: { weightPerUnitKg: unknown }[] }).exercises[0].weightPerUnitKg).toBe(22.5);
+  });
+
   it('rejects malformed input before calling the API', async () => {
     const client = await connect(TOKENS.alice);
     const result = await client.callTool({ name: 'get_workout', arguments: { workoutId: 'not-a-uuid' } });
