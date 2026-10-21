@@ -1,8 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
 import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
+import type { GoogleProfile } from './google.client.js';
 import {
   signAccessToken,
   generateRefreshToken,
@@ -25,6 +26,42 @@ function isUniqueViolation(err: unknown): boolean {
   return e?.code === PG_UNIQUE_VIOLATION || e?.cause?.code === PG_UNIQUE_VIOLATION;
 }
 
+// Creates a user with everything a fresh account starts with. Shared by
+// password registration and the first Google sign-in.
+async function createUserWithDefaults(values: typeof users.$inferInsert) {
+  // One transaction: if seeding the schedule/exercises fails, the user row
+  // is rolled back too - otherwise we'd leave a half-created account that
+  // can log in but has no exercises and blocks re-registration.
+  return db.transaction(async (tx) => {
+    const [user] = await tx.insert(users).values(values).returning();
+
+    // Seed one schedule-history row from day one, so the consistency calendar
+    // has something to judge past dates against even if the user never opens
+    // Settings to change the (default) schedule.
+    await tx.insert(trainingScheduleHistory).values({
+      userId: user.id,
+      trainingDays: user.trainingDays,
+      effectiveFrom: user.createdAt.toISOString().slice(0, 10),
+    });
+
+    // Seed the default exercise list for the new user so they have something
+    // to log against right away.
+    await tx.insert(exercises).values(
+      DEFAULT_EXERCISES.map((ex) => ({
+        userId: user.id,
+        name: ex.name,
+        equipment: ex.equipment,
+        category: ex.category,
+        repRangeMin: ex.repRangeMin,
+        repRangeMax: ex.repRangeMax,
+        weightStepKg: ex.weightStepKg,
+      })),
+    );
+
+    return user;
+  });
+}
+
 export async function registerUser(email: string, password: string) {
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
@@ -34,42 +71,59 @@ export async function registerUser(email: string, password: string) {
   const passwordHash = await hashPassword(password);
 
   try {
-    // One transaction: if seeding the schedule/exercises fails, the user row
-    // is rolled back too - otherwise we'd leave a half-created account that
-    // can log in but has no exercises and blocks re-registration.
-    return await db.transaction(async (tx) => {
-      const [user] = await tx.insert(users).values({ email, passwordHash }).returning();
-
-      // Seed one schedule-history row from day one, so the consistency calendar
-      // has something to judge past dates against even if the user never opens
-      // Settings to change the (default) schedule.
-      await tx.insert(trainingScheduleHistory).values({
-        userId: user.id,
-        trainingDays: user.trainingDays,
-        effectiveFrom: user.createdAt.toISOString().slice(0, 10),
-      });
-
-      // Seed the default exercise list for the new user so they have something
-      // to log against right away.
-      await tx.insert(exercises).values(
-        DEFAULT_EXERCISES.map((ex) => ({
-          userId: user.id,
-          name: ex.name,
-          equipment: ex.equipment,
-          category: ex.category,
-          repRangeMin: ex.repRangeMin,
-          repRangeMax: ex.repRangeMax,
-          weightStepKg: ex.weightStepKg,
-        })),
-      );
-
-      return user;
-    });
+    return await createUserWithDefaults({ email, passwordHash });
   } catch (err) {
     // Two concurrent sign-ups with the same email both pass the findFirst
     // check above; the unique index on lower(email) stops the second one.
     if (isUniqueViolation(err)) {
       throw new AuthError('email_taken', 'An account with this email already exists');
+    }
+    throw err;
+  }
+}
+
+function findUserForGoogle(profile: GoogleProfile) {
+  return db.query.users.findFirst({
+    where: or(eq(users.googleSub, profile.sub), sql`lower(${users.email}) = lower(${profile.email})`),
+    // A row already bound to this Google account wins over a same-email one.
+    orderBy: sql`${users.googleSub} = ${profile.sub} desc nulls last`,
+  });
+}
+
+// Signs in (or up) with an already verified Google profile:
+//  1. an account already linked to this Google id;
+//  2. otherwise an existing account with the same email - Google is linked
+//     to it and its password keeps working (the user's choice, see CLAUDE.md);
+//  3. otherwise a brand-new account without a password.
+export async function loginWithGoogle(profile: GoogleProfile) {
+  // Linking by email is only safe when Google vouches for the address.
+  if (!profile.emailVerified) {
+    throw new AuthError('google_email_unverified', 'Google has not verified this email');
+  }
+
+  const existing = await findUserForGoogle(profile);
+  if (existing) {
+    if (existing.googleSub === profile.sub) return existing;
+    if (existing.googleSub) {
+      // The email's account is linked to a *different* Google account.
+      throw new AuthError('google_account_mismatch', 'This email is linked to another Google account');
+    }
+    const [linked] = await db
+      .update(users)
+      .set({ googleSub: profile.sub })
+      .where(eq(users.id, existing.id))
+      .returning();
+    return linked;
+  }
+
+  try {
+    return await createUserWithDefaults({ email: profile.email, passwordHash: null, googleSub: profile.sub });
+  } catch (err) {
+    // Two callbacks for the same new account at once (double click): the
+    // unique indexes stop the second insert - the first one's user is it.
+    if (isUniqueViolation(err)) {
+      const user = await findUserForGoogle(profile);
+      if (user?.googleSub === profile.sub) return user;
     }
     throw err;
   }
