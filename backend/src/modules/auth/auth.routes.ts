@@ -21,8 +21,9 @@ export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: '15 minutes' };
 
 // Persistent (maxAge) rather than a session cookie: mobile browsers drop
 // session cookies when they kill a backgrounded tab mid-workout. `secure`
-// follows the actual scheme - prod nginx is still plain HTTP, and browsers
-// silently discard Secure cookies set over HTTP, which broke refresh entirely.
+// follows the actual scheme (X-Forwarded-Proto from nginx) - browsers silently
+// discard Secure cookies set over HTTP, which broke refresh entirely back when
+// prod nginx was plain HTTP; dev still is.
 function cookieOptions(request: FastifyRequest) {
   return {
     path: '/api/auth',
