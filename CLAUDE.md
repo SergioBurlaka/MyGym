@@ -185,8 +185,9 @@ popup GIS погано працює у встановленому PWA, а так
 - Підключення: claude.ai / Desktop / телефон / ChatGPT — Add custom connector →
   URL `https://<домен>/mcp` → **Sign in** (OAuth, див. нижче; у Claude — «Use
   Claude's published identity», client ID не потрібен). Claude Code — `claude mcp
-  add --transport http mygym https://<домен>/mcp` (без `--header` → OAuth у
-  браузері) або з `--header "Authorization: Bearer mygym_pat_…"`. PAT у полі
+  add --transport http mygym https://<домен>/mcp --header "Authorization: Bearer
+  mygym_pat_…"` (OAuth без `--header` спрацює, лише якщо Claude Code
+  представляється через CIMD, а не DCR — не перевірено). PAT у полі
   Request headers конектора (Authentication **No sign-in**) теж працює. Значення
   заголовка форма не показує повторно — при «токен відхилено» перевірити токен
   окремо (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`);
