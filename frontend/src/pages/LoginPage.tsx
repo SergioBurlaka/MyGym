@@ -29,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="flex min-h-screen items-center justify-center px-4 pt-[env(safe-area-inset-top)]">
       <div className="card w-full max-w-sm">
         <h1 className="mb-1 text-3xl text-accent">MyGym</h1>
         <p className="mb-6 text-sm text-slate-400">{t('auth.login.subtitle')}</p>
