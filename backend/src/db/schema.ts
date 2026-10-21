@@ -281,6 +281,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   trainingScheduleHistory: many(trainingScheduleHistory),
 }));
 
+export const oauthGrantsRelations = relations(oauthGrants, ({ one, many }) => ({
+  user: one(users, { fields: [oauthGrants.userId], references: [users.id] }),
+  refreshTokens: many(oauthRefreshTokens),
+}));
+
+export const oauthRefreshTokensRelations = relations(oauthRefreshTokens, ({ one }) => ({
+  grant: one(oauthGrants, { fields: [oauthRefreshTokens.grantId], references: [oauthGrants.id] }),
+}));
+
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({
   user: one(users, { fields: [exercises.userId], references: [users.id] }),
   workoutExercises: many(workoutExercises),

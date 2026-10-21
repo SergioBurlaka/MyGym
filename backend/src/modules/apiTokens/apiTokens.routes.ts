@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { requireSession } from '../../plugins/authenticate.js';
 import { createApiTokenSchema } from './apiTokens.schema.js';
 import { ApiTokenError, createApiToken, listApiTokens, revokeApiToken } from './apiTokens.service.js';
 
@@ -8,11 +9,7 @@ export default async function apiTokensRoutes(fastify: FastifyInstance) {
   // Managing tokens needs the person, not a program: a leaked PAT must not
   // be able to mint itself fresh tokens (revoking the leaked one would then
   // achieve nothing) or revoke the owner's other integrations.
-  fastify.addHook('preHandler', async (request, reply) => {
-    if (request.authMethod !== 'session') {
-      return reply.code(403).send({ error: 'session_required', message: 'Log in to manage access tokens' });
-    }
-  });
+  fastify.addHook('preHandler', requireSession);
 
   fastify.get('/', async (request) => {
     return listApiTokens(request.userId);

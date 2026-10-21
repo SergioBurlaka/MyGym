@@ -1,6 +1,6 @@
-import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { apiTokens, users } from '../../db/schema.js';
+import { apiTokens, oauthGrants, users } from '../../db/schema.js';
 import { generatePersonalAccessToken, hashRefreshToken } from '../../utils/tokens.js';
 
 // Plenty for "Claude Code on the laptop, Claude Desktop, a spare", and a
@@ -10,6 +10,12 @@ export const MAX_ACTIVE_TOKENS = 20;
 // lastUsedAt only needs minute precision; without this every MCP tool call
 // would also be a write.
 const LAST_USED_RESOLUTION_MS = 60_000;
+
+// Personal tokens only - OAuth access tokens (grantId set) are listed and
+// revoked per connected app instead.
+function personalTokensOf(userId: string) {
+  return and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt), isNull(apiTokens.grantId));
+}
 
 export class ApiTokenError extends Error {
   constructor(public code: string, message: string) {
@@ -27,7 +33,7 @@ export async function listApiTokens(userId: string) {
       lastUsedAt: apiTokens.lastUsedAt,
     })
     .from(apiTokens)
-    .where(and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)))
+    .where(personalTokensOf(userId))
     .orderBy(desc(apiTokens.createdAt));
 }
 
@@ -41,7 +47,7 @@ export async function createApiToken(userId: string, name: string) {
     const [{ active }] = await tx
       .select({ active: count() })
       .from(apiTokens)
-      .where(and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)));
+      .where(personalTokensOf(userId));
     if (active >= MAX_ACTIVE_TOKENS) {
       throw new ApiTokenError('too_many_tokens', `At most ${MAX_ACTIVE_TOKENS} active tokens`);
     }
@@ -61,31 +67,50 @@ export async function revokeApiToken(userId: string, id: string) {
   const [row] = await db
     .update(apiTokens)
     .set({ revokedAt: new Date() })
-    .where(and(eq(apiTokens.id, id), eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)))
+    .where(and(eq(apiTokens.id, id), personalTokensOf(userId)))
     .returning({ id: apiTokens.id });
   return row ?? null;
 }
 
+// Both personal access tokens and OAuth access tokens (same table): an
+// OAuth one must also be unexpired and belong to a grant that wasn't revoked.
 export async function findUserByApiToken(rawToken: string) {
+  const now = new Date();
   const [row] = await db
-    .select({ tokenId: apiTokens.id, userId: users.id, email: users.email, lastUsedAt: apiTokens.lastUsedAt })
+    .select({
+      tokenId: apiTokens.id,
+      grantId: apiTokens.grantId,
+      userId: users.id,
+      email: users.email,
+      lastUsedAt: apiTokens.lastUsedAt,
+    })
     .from(apiTokens)
     .innerJoin(users, eq(users.id, apiTokens.userId))
-    .where(and(eq(apiTokens.tokenHash, hashRefreshToken(rawToken)), isNull(apiTokens.revokedAt)));
+    .leftJoin(oauthGrants, eq(oauthGrants.id, apiTokens.grantId))
+    .where(
+      and(
+        eq(apiTokens.tokenHash, hashRefreshToken(rawToken)),
+        isNull(apiTokens.revokedAt),
+        or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, now)),
+        or(isNull(apiTokens.grantId), isNull(oauthGrants.revokedAt)),
+      ),
+    );
   if (!row) return null;
 
-  const now = new Date();
   if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() >= LAST_USED_RESOLUTION_MS) {
+    const stale = new Date(now.getTime() - LAST_USED_RESOLUTION_MS);
     // Conditional, so parallel requests don't all write.
     await db
       .update(apiTokens)
       .set({ lastUsedAt: now })
-      .where(
-        and(
-          eq(apiTokens.id, row.tokenId),
-          or(isNull(apiTokens.lastUsedAt), lt(apiTokens.lastUsedAt, new Date(now.getTime() - LAST_USED_RESOLUTION_MS))),
-        ),
-      );
+      .where(and(eq(apiTokens.id, row.tokenId), or(isNull(apiTokens.lastUsedAt), lt(apiTokens.lastUsedAt, stale))));
+    // "Last used" of a connected app, shown on Integrations.
+    if (row.grantId) {
+      await db
+        .update(oauthGrants)
+        .set({ lastUsedAt: now })
+        .where(and(eq(oauthGrants.id, row.grantId), or(isNull(oauthGrants.lastUsedAt), lt(oauthGrants.lastUsedAt, stale))));
+    }
   }
   return { userId: row.userId, email: row.email };
 }
