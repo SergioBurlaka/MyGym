@@ -119,19 +119,26 @@ frontend build on every push and pull request; the deploy job runs only for
 cp .env.example .env
 openssl rand -base64 48   # -> JWT_ACCESS_SECRET
 openssl rand -base64 48   # -> JWT_REFRESH_SECRET
-# + a strong POSTGRES_PASSWORD
-docker compose up --build -d
+# + a strong POSTGRES_PASSWORD, DOMAIN (e.g. a DuckDNS subdomain) and CERTBOT_EMAIL
+docker compose build
+sh scripts/init-letsencrypt.sh   # first time only: issues the HTTPS certificate
+docker compose up -d
 ```
 
-nginx serves on `${NGINX_PORT:-80}`, proxying `/api/*` to the backend and
-everything else to the static frontend build.
+Needs a domain pointing at the server and ports 80 + 443 open. nginx
+redirects HTTP to `https://<DOMAIN>` and proxies `/api/*` to the backend,
+`/mcp` to the MCP server and everything else to the static frontend build.
+The `certbot` container renews the Let's Encrypt certificate (checks twice a
+day), nginx reloads every 6 h to pick it up. The nginx config is a template,
+`nginx/templates/default.conf.template`, with `DOMAIN` filled in at start.
 
 ## Repository layout
 
 ```
 backend/    Fastify API, Drizzle schema & migrations, progression logic, CSV import, tests
 frontend/   React SPA
-nginx/      Reverse-proxy config
+nginx/      Reverse-proxy config (HTTPS template)
+scripts/    init-letsencrypt.sh - first certificate issue
 .github/    CI/CD workflow
 ```
 

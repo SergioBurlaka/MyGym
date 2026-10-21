@@ -11,7 +11,7 @@
 - **Backend:** Node.js + TypeScript, [Fastify](https://fastify.dev) + [Zod](https://zod.dev) (валідація), [Drizzle ORM](https://orm.drizzle.team) + drizzle-kit (міграції), PostgreSQL
 - **Auth:** email + пароль (argon2), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для можливості відкликання)
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts
-- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy на HTTP
+- **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, nginx), docker-compose для dev (hot-reload) і prod, nginx як reverse-proxy з HTTPS (Let's Encrypt)
 
 ## Логіка прогресії
 
@@ -50,16 +50,22 @@ cp .env.example .env
 # ОБОВ'ЯЗКОВО згенеруйте реальні секрети:
 openssl rand -base64 48   # -> JWT_ACCESS_SECRET
 openssl rand -base64 48   # -> JWT_REFRESH_SECRET
-# і надійний POSTGRES_PASSWORD
+# надійний POSTGRES_PASSWORD, а також DOMAIN і CERTBOT_EMAIL
 
-docker compose up --build -d
+docker compose build
+sh scripts/init-letsencrypt.sh   # лише перший раз: отримує HTTPS-сертифікат
+docker compose up -d
 ```
 
-Застосунок буде доступний на порту `${NGINX_PORT:-80}` вашого сервера. nginx
-проксує `/api/*` на backend і все інше — на статичний білд фронтенду.
+Потрібен домен, що вказує на IP сервера (наприклад безкоштовний піддомен
+DuckDNS), і відкриті порти 80 та 443. Застосунок буде доступний на
+`https://<DOMAIN>`, HTTP автоматично перенаправляється на HTTPS. nginx проксує
+`/api/*` на backend, `/mcp` на MCP-сервер, а все інше — на статичний білд
+фронтенду.
 
-SSL зараз не налаштований (reverse-proxy працює на HTTP). Коли буде готовий
-домен, додайте certbot/Let's Encrypt і HTTPS server-блок у `nginx/nginx.conf`.
+Сертифікат поновлює контейнер `certbot` (перевіряє двічі на добу), nginx
+перечитує конфіг раз на 6 годин. Конфіг nginx — шаблон
+`nginx/templates/default.conf.template`, домен підставляється зі змінної `DOMAIN`.
 
 ### Оновлення на сервері
 
@@ -105,7 +111,8 @@ TEST_DATABASE_URL=postgres://<user>:<password>@localhost:<POSTGRES_PORT>/mygym_t
 ```
 backend/    Fastify API, Drizzle-схема, міграції, логіка прогресії й CSV-імпорту
 frontend/   React SPA (журнал, форма тренування, графіки, керування вправами)
-nginx/      Конфіг reverse-proxy для продакшна
+nginx/      Конфіг reverse-proxy для продакшна (HTTPS-шаблон)
+scripts/    init-letsencrypt.sh — перше отримання сертифіката
 docker-compose.yml       Продакшн-стек
 docker-compose.dev.yml   Dev-стек з hot-reload
 .env.example             Шаблон змінних середовища
