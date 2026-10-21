@@ -4,6 +4,8 @@ import i18n from '../i18n/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import { useCreateTokenMutation, useRevokeTokenMutation, useTokensQuery } from '../shared/api/tokens/index.js';
 import type { CreatedApiToken } from '../shared/api/tokens/tokens.types.js';
+import { useGrantsQuery, useRevokeGrantMutation } from '../shared/api/oauth/index.js';
+import type { OAuthGrant } from '../shared/api/oauth/oauth.types.js';
 import { translateApiError } from '../utils/apiError.js';
 
 // formatDate in utils/weight.ts is for date-only values; tokens carry
@@ -74,6 +76,62 @@ export default function IntegrationsPage() {
           <TokenRow key={token.id} id={token.id} name={token.name} createdAt={token.createdAt} lastUsedAt={token.lastUsedAt} />
         ))}
       </section>
+
+      <ConnectedApps />
+    </div>
+  );
+}
+
+// Apps connected by signing in (OAuth: Claude, ChatGPT) - no token to copy,
+// one row per connection; revoking cuts its access and refresh tokens.
+function ConnectedApps() {
+  const { t } = useTranslation();
+  const grantsQuery = useGrantsQuery();
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-100">{t('integrations.connectedApps')}</h2>
+        <p className="text-sm text-slate-400">{t('integrations.connectedAppsHint', { url: `${window.location.origin}/mcp` })}</p>
+      </div>
+      {grantsQuery.isPending && <p className="text-slate-400">{t('common.loading')}</p>}
+      {grantsQuery.data?.length === 0 && <p className="text-slate-400">{t('integrations.noConnectedApps')}</p>}
+      {grantsQuery.data?.map((grant) => (
+        <GrantRow key={grant.id} grant={grant} />
+      ))}
+    </section>
+  );
+}
+
+function GrantRow({ grant }: { grant: OAuthGrant }) {
+  const { t } = useTranslation();
+  const revokeMutation = useRevokeGrantMutation();
+
+  return (
+    <div className="card flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        {revokeMutation.isError && (
+          <p className="text-sm text-red-400">{translateApiError(revokeMutation.error, t, 'integrations.revokeError')}</p>
+        )}
+        <p className="truncate font-semibold text-slate-100">{grant.clientName}</p>
+        <p className="text-sm text-slate-400">
+          <span className="font-mono">{new URL(grant.clientId).hostname}</span>
+          {' · '}
+          {t('integrations.connectedAt', { date: formatDateTime(grant.createdAt) })}
+          {' · '}
+          {grant.lastUsedAt ? t('integrations.lastUsed', { date: formatDateTime(grant.lastUsedAt) }) : t('integrations.neverUsed')}
+        </p>
+      </div>
+      <Popconfirm
+        title={t('integrations.disconnectConfirmTitle')}
+        description={t('integrations.disconnectConfirmDescription', { name: grant.clientName })}
+        confirmText={t('integrations.disconnect')}
+        onConfirm={() => revokeMutation.mutate(grant.id)}
+      >
+        <button className="btn-ghost shrink-0 text-red-400" disabled={revokeMutation.isPending}>
+          {t('integrations.disconnect')}
+        </button>
+      </Popconfirm>
     </div>
   );
 }

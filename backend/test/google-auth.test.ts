@@ -265,6 +265,33 @@ describe('Google sign-in: callback', () => {
   });
 });
 
+describe('Google sign-in: return-to after login', () => {
+  it('lands on the requested path (e.g. the OAuth consent page)', async () => {
+    const start = await app.inject({ method: 'GET', url: '/api/auth/google?next=%2Foauth%2Fconsent%3Frequest%3Dabc' });
+    const cookies = ([] as string[]).concat(start.headers['set-cookie'] as string[]).map((c) => c.split(';')[0]);
+    const res = await callback(cookies.join('; '));
+    expect(res.headers.location).toBe('/oauth/consent?request=abc');
+  });
+
+  it.each([
+    '//evil.example/x',
+    '/\\evil.example',
+    '/\t/evil.example',
+    '/\n/evil.example',
+    '/%09/evil.example/../x\\',
+    'https://evil.example/',
+    'javascript:alert(1)',
+  ])(
+    'ignores an off-site next (%s)',
+    async (next) => {
+      const start = await app.inject({ method: 'GET', url: `/api/auth/google?next=${encodeURIComponent(next)}` });
+      const cookies = ([] as string[]).concat(start.headers['set-cookie'] as string[]).map((c) => c.split(';')[0]);
+      const res = await callback(cookies.join('; '));
+      expect(res.headers.location).toBe('/');
+    },
+  );
+});
+
 describe('password login into a Google-only account', () => {
   it('says to use Google instead of "wrong password"', async () => {
     await signInWithGoogle();

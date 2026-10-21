@@ -5,7 +5,8 @@ import { useAuthProvidersQuery } from '../shared/api/auth/index.js';
 // "Continue with Google" + an "or" divider above the email form. Hidden
 // until the backend says Google is configured, so a server without OAuth
 // credentials never shows a button that would 404.
-export default function GoogleSignInButton() {
+// `next`: where to land after signing in (e.g. back on the OAuth consent page).
+export default function GoogleSignInButton({ next }: { next?: string | null }) {
   const { t } = useTranslation();
   const { data } = useAuthProvidersQuery();
   if (!data?.google) return null;
@@ -14,7 +15,7 @@ export default function GoogleSignInButton() {
     <>
       {/* A real navigation, not fetch: the browser goes to Google and the
           backend callback brings it back to / with the session cookie set. */}
-      <a href={AuthApi.googleSignInUrl()} className="btn-secondary flex w-full items-center justify-center gap-3">
+      <a href={AuthApi.googleSignInUrl(next)} className="btn-secondary flex w-full items-center justify-center gap-3">
         <GoogleLogo />
         {t('auth.google.continue')}
       </a>

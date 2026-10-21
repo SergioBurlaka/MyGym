@@ -64,11 +64,75 @@ export const apiTokens = pgTable('api_tokens', {
   tokenHash: text('token_hash').notNull(),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  // Set only for OAuth access tokens ("mygym_oat_..."): short-lived and
+  // owned by an OAuth grant. Personal access tokens have neither.
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  grantId: uuid('grant_id').references(() => oauthGrants.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   // Every PAT request looks the token up by hash.
   tokenHashIdx: uniqueIndex('api_tokens_token_hash_idx').on(table.tokenHash),
   userIdx: index('api_tokens_user_idx').on(table.userId),
+  grantIdx: index('api_tokens_grant_idx').on(table.grantId),
+}));
+
+// ---------- OAuth (MCP clients signing in: Claude, ChatGPT) ----------
+// MyGym is the authorization server; clients identify themselves with a
+// Client ID Metadata Document URL (CIMD), so there's no clients table.
+
+// One pending "may <client> access your data?" request, from /authorize
+// until the code is exchanged. Short-lived; only hashes of the code.
+export const oauthAuthorizationRequests = pgTable('oauth_authorization_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  clientId: text('client_id').notNull(), // the CIMD URL
+  clientName: text('client_name').notNull(),
+  redirectUri: text('redirect_uri').notNull(),
+  codeChallenge: text('code_challenge').notNull(), // PKCE S256
+  state: text('state'),
+  resource: text('resource').notNull(),
+  scope: text('scope').notNull(),
+  // sha256 of the browser cookie set by /authorize: only the browser that
+  // started the request may see or answer its consent page.
+  browserHash: text('browser_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  // Filled in when the user approves.
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: text('code_hash'),
+  codeExpiresAt: timestamp('code_expires_at', { withTimezone: true }),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  codeHashIdx: uniqueIndex('oauth_authorization_requests_code_hash_idx').on(table.codeHash),
+}));
+
+// One connection of a user to a client ("Claude", "ChatGPT") - what the
+// Integrations page lists and revokes. Its access tokens live in api_tokens.
+export const oauthGrants = pgTable('oauth_grants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  clientId: text('client_id').notNull(),
+  clientName: text('client_name').notNull(),
+  resource: text('resource').notNull(),
+  scope: text('scope').notNull(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdx: index('oauth_grants_user_idx').on(table.userId),
+}));
+
+// Rotating refresh tokens of a grant. A used one is kept (usedAt) so that
+// presenting it again is recognised as theft and revokes the whole grant.
+export const oauthRefreshTokens = pgTable('oauth_refresh_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  grantId: uuid('grant_id').notNull().references(() => oauthGrants.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  tokenHashIdx: uniqueIndex('oauth_refresh_tokens_token_hash_idx').on(table.tokenHash),
+  grantIdx: index('oauth_refresh_tokens_grant_idx').on(table.grantId),
 }));
 
 // One row per day the training schedule actually changed - lets the
@@ -215,8 +279,18 @@ export const usersRelations = relations(users, ({ many }) => ({
   workouts: many(workouts),
   refreshTokens: many(refreshTokens),
   apiTokens: many(apiTokens),
+  oauthGrants: many(oauthGrants),
   programs: many(programs),
   trainingScheduleHistory: many(trainingScheduleHistory),
+}));
+
+export const oauthGrantsRelations = relations(oauthGrants, ({ one, many }) => ({
+  user: one(users, { fields: [oauthGrants.userId], references: [users.id] }),
+  refreshTokens: many(oauthRefreshTokens),
+}));
+
+export const oauthRefreshTokensRelations = relations(oauthRefreshTokens, ({ one }) => ({
+  grant: one(oauthGrants, { fields: [oauthRefreshTokens.grantId], references: [oauthGrants.id] }),
 }));
 
 export const exercisesRelations = relations(exercises, ({ one, many }) => ({

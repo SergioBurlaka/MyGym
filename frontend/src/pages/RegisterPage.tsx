@@ -1,15 +1,18 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import PasswordInput from '../components/PasswordInput.js';
 import GoogleSignInButton from '../components/GoogleSignInButton.js';
 import { translateApiError } from '../utils/apiError.js';
+import { safeNext } from '../utils/safeNext.js';
 
 export default function RegisterPage() {
   const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = safeNext(searchParams.get('next'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +24,7 @@ export default function RegisterPage() {
     setBusy(true);
     try {
       await register(email, password);
-      navigate('/');
+      navigate(next ?? '/');
     } catch (err) {
       setError(translateApiError(err, t, 'auth.register.genericError'));
     } finally {
@@ -34,7 +37,7 @@ export default function RegisterPage() {
       <div className="card w-full max-w-sm">
         <h1 className="mb-1 text-3xl text-accent">MyGym</h1>
         <p className="mb-6 text-sm text-slate-400">{t('auth.register.subtitle')}</p>
-        <GoogleSignInButton />
+        <GoogleSignInButton next={next} />
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label" htmlFor="email">{t('auth.register.email')}</label>
@@ -51,7 +54,7 @@ export default function RegisterPage() {
         </form>
         <p className="mt-4 text-center text-sm text-slate-400">
           {t('auth.register.haveAccount')}{' '}
-          <Link to="/login" className="text-accent hover:underline">
+          <Link to={next ? `/login?next=${encodeURIComponent(next)}` : '/login'} className="text-accent hover:underline">
             {t('auth.register.loginLink')}
           </Link>
         </p>

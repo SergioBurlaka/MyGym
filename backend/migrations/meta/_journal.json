@@ -78,6 +78,20 @@
       "when": 1792599845419,
       "tag": "0010_api_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792608131543,
+      "tag": "0011_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792614032064,
+      "tag": "0012_oauth_browser_binding",
+      "breakpoints": true
     }
   ]
 }
