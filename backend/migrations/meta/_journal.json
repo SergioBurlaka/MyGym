@@ -71,6 +71,13 @@
       "when": 1792596931713,
       "tag": "0009_users_google_sub",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792599845419,
+      "tag": "0010_api_tokens",
+      "breakpoints": true
     }
   ]
 }
