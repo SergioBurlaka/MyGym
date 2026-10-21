@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import PasswordInput from '../components/PasswordInput.js';
+import GoogleSignInButton from '../components/GoogleSignInButton.js';
 import { translateApiError } from '../utils/apiError.js';
 
 export default function LoginPage() {
@@ -11,7 +12,12 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // The Google callback lands here as /login?error=<code> when sign-in fails.
+  const [searchParams] = useSearchParams();
+  const googleError = searchParams.get('error');
+  const [error, setError] = useState<string | null>(() =>
+    googleError ? t(`errors.${googleError}`, { defaultValue: t('auth.login.genericError') }) : null,
+  );
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
@@ -33,6 +39,7 @@ export default function LoginPage() {
       <div className="card w-full max-w-sm">
         <h1 className="mb-1 text-3xl text-accent">MyGym</h1>
         <p className="mb-6 text-sm text-slate-400">{t('auth.login.subtitle')}</p>
+        <GoogleSignInButton />
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label" htmlFor="email">{t('auth.login.email')}</label>

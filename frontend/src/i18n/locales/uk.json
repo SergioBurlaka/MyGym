@@ -54,6 +54,10 @@
       "haveAccount": "Вже є акаунт?",
       "loginLink": "Увійти",
       "genericError": "Не вдалося зареєструватись"
+    },
+    "google": {
+      "continue": "Продовжити з Google",
+      "or": "або"
     }
   },
   "dashboard": {
@@ -276,7 +280,14 @@
     "invalid_id": "Некоректне посилання - такого запису не існує",
     "too_many_requests": "Забагато спроб. Зачекайте хвилину і спробуйте знову",
     "bad_request": "Не вдалося обробити запит",
-    "internal_error": "Помилка сервера, спробуйте пізніше"
+    "internal_error": "Помилка сервера, спробуйте пізніше",
+    "use_google_login": "Цей акаунт входить через Google - скористайтесь кнопкою «Продовжити з Google»",
+    "google_disabled": "Вхід через Google недоступний",
+    "google_cancelled": "Вхід через Google скасовано",
+    "google_state_mismatch": "Вхід через Google перервано або він застарів. Спробуйте ще раз",
+    "google_failed": "Не вдалося увійти через Google. Спробуйте ще раз",
+    "google_email_unverified": "Email вашого Google-акаунта не підтверджений",
+    "google_account_mismatch": "Цей email уже прив'язаний до іншого Google-акаунта"
   },
   "duration": {
     "hoursMinutes": "{{h}} год {{m}} хв",
