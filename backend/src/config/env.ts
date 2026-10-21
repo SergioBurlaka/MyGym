@@ -21,6 +21,20 @@ const envSchema = z.object({
   // Must match an "Authorized redirect URI" of the OAuth client exactly.
   // Dev goes through the Vite proxy, so it's the frontend origin, not :4000.
   GOOGLE_REDIRECT_URI: z.string().url().default('http://localhost:5173/api/auth/google/callback'),
+  // Public origin of the app (no trailing slash). The OAuth issuer and the
+  // MCP resource URL ("<PUBLIC_URL>/mcp") are derived from it and must match
+  // what clients see byte for byte. Dev goes through the Vite proxy.
+  PUBLIC_URL: z
+    .string()
+    .url()
+    .default('http://localhost:5173')
+    .transform((u) => u.replace(/\/+$/, '')),
+  // Hosts allowed to act as OAuth clients via a Client ID Metadata Document
+  // (client_id = https URL on one of these hosts). Comma-separated.
+  OAUTH_CLIENT_HOSTS: z
+    .string()
+    .default('claude.ai,claude.com,chatgpt.com')
+    .transform((s) => s.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean)),
 }).refine((e) => Boolean(e.GOOGLE_CLIENT_ID) === Boolean(e.GOOGLE_CLIENT_SECRET), {
   message: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together',
   path: ['GOOGLE_CLIENT_SECRET'],

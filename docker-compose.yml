@@ -37,6 +37,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
+      # OAuth issuer / MCP resource URL for Claude & ChatGPT sign-in.
+      PUBLIC_URL: https://${DOMAIN}
     depends_on:
       postgres:
         condition: service_healthy

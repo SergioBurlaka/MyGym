@@ -15,6 +15,7 @@ import csvImportRoutes from './modules/import/csvImport.routes.js';
 import programsRoutes from './modules/programs/programs.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
 import apiTokensRoutes from './modules/apiTokens/apiTokens.routes.js';
+import wellKnownRoutes from './modules/oauth/wellKnown.routes.js';
 
 export type BuildAppOptions = {
   // Tests pass `false` to keep the pino output quiet.
@@ -65,6 +66,7 @@ export function buildApp(opts: BuildAppOptions = {}) {
   app.register(programsRoutes, { prefix: '/api/programs' });
   app.register(settingsRoutes, { prefix: '/api/settings' });
   app.register(apiTokensRoutes, { prefix: '/api/tokens' });
+  app.register(wellKnownRoutes);
 
   return app;
 }
