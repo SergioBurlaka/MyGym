@@ -183,8 +183,14 @@ popup GIS погано працює у встановленому PWA, а так
   SDK-клієнт проти фейкового бекенду, що відповідає кожному токену своїми даними.
 - Підключення: Claude Code — `claude mcp add --transport http mygym
   https://<домен>/mcp --header "Authorization: Bearer mygym_pat_…"`. claude.ai /
-  Desktop / телефон — лише якщо в Add custom connector є поле заголовків; інакше
-  потрібна OAuth-авторизація в MCP-сервері (окрема задача, не вигадувати обхід).
+  Desktop / телефон (перевірено 2026-10-21, OAuth не потрібен): Settings →
+  Connectors → Add custom connector → URL `https://<домен>/mcp` → крок 2:
+  Authentication **No sign-in** (не «Sign in now», хоч форма й позначає його
+  «Detected» через наш 401) → Request headers `Authorization` = `Bearer
+  mygym_pat_…`. Desktop і мобільний беруть конектор з акаунта. Значення заголовка
+  форма не показує повторно — при «токен відхилено» перевірити токен окремо
+  (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`) і
+  перезаписати конектор; першою причиною виявився dev-токен у прод-конекторі.
 - **Gotcha (поза MCP, знайдено при e2e):** користувача з тренуваннями не можна
   видалити (`DELETE FROM users`) — каскад іде в `exercises`, а
   `workout_exercises.exerciseId` має `restrict`. Тести не ловлять, бо
