@@ -424,7 +424,7 @@ prev/next). Без цього старі імпортовані тренуван
   `package.json`, ні `--build` його не оновлюють. Після нової backend-залежності
   dev-бекенд тихо падає на hot-reload з `ERR_MODULE_NOT_FOUND` — треба
   `docker compose -f docker-compose.dev.yml exec backend npm install` + `restart backend`.
-  А нові змінні з `.env` (`env_file`) підхоплюються лише при пересозданні
+  А нові змінні з `.env` (`env_file`) підхоплюються лише при перестворенні
   контейнера: `up -d --force-recreate backend`, не `restart`.
 - `npm install` виконується у named volume контейнера (`frontend_node_modules`),
   не на хості — після додавання нових залежностей треба також запустити
