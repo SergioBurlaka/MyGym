@@ -7,7 +7,7 @@ progress chart for every exercise, and get a nudge when it's time to add
 weight or reps. Built and used daily by me for my own training, multi-user
 from day one.
 
-**Live:** http://91.232.30.91
+**Live:** https://my-gym-com.duckdns.org
 
 ## Features
 
