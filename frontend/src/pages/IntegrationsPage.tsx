@@ -38,7 +38,15 @@ export default function IntegrationsPage() {
         <p className="mt-2 text-slate-400">{t('integrations.intro')}</p>
       </div>
 
-      {created && <CreatedTokenCard token={created} onDone={() => setCreated(null)} />}
+      {created && (
+        <CreatedTokenCard
+          token={created}
+          onDone={() => {
+            setCreated(null);
+            createMutation.reset(); // drops the raw token from the mutation state too
+          }}
+        />
+      )}
 
       <form onSubmit={handleCreate} className="card flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
@@ -77,6 +85,10 @@ function TokenRow({ id, name, createdAt, lastUsedAt }: { id: string; name: strin
   return (
     <div className="card flex items-center justify-between gap-4">
       <div className="min-w-0">
+        {/* Revoking is the security action - a failure must not pass silently. */}
+        {revokeMutation.isError && (
+          <p className="text-sm text-red-400">{translateApiError(revokeMutation.error, t, 'integrations.revokeError')}</p>
+        )}
         <p className="truncate font-semibold text-slate-100">{name}</p>
         <p className="text-sm text-slate-400">
           <span className="font-mono">mygym_pat_••••</span>
@@ -103,8 +115,6 @@ function TokenRow({ id, name, createdAt, lastUsedAt }: { id: string; name: strin
 // Shown right after creation - the only moment the raw token is available.
 function CreatedTokenCard({ token, onDone }: { token: CreatedApiToken; onDone: () => void }) {
   const { t } = useTranslation();
-  const mcpCommand = `claude mcp add --transport http mygym ${window.location.origin}/mcp --header "Authorization: Bearer ${token.token}"`;
-
   return (
     <div className="card space-y-4 border-accent">
       <div>
@@ -112,7 +122,6 @@ function CreatedTokenCard({ token, onDone }: { token: CreatedApiToken; onDone: (
         <p className="mt-1 text-sm text-warn">{t('integrations.createdWarning')}</p>
       </div>
       <CopyField label={t('integrations.tokenLabel')} value={token.token} />
-      <CopyField label={t('integrations.claudeCodeLabel')} value={mcpCommand} />
       <button className="btn-secondary" onClick={onDone}>{t('integrations.done')}</button>
     </div>
   );

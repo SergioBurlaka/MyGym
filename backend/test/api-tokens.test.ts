@@ -50,6 +50,19 @@ describe('creating and listing tokens', () => {
     expect(row.tokenHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('holds the cap under parallel creates', async () => {
+    const user = await registerUser(app);
+    for (let i = 0; i < MAX_ACTIVE_TOKENS - 2; i++) await createToken(user, `t${i}`);
+
+    const results = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        app.inject({ method: 'POST', url: '/api/tokens', headers: user.auth, payload: { name: `race${i}` } }),
+      ),
+    );
+    expect(results.filter((r) => r.statusCode === 201)).toHaveLength(2);
+    expect(await db.select().from(apiTokens)).toHaveLength(MAX_ACTIVE_TOKENS);
+  });
+
   it('validates the name', async () => {
     const user = await registerUser(app);
     const res = await app.inject({ method: 'POST', url: '/api/tokens', headers: user.auth, payload: { name: '   ' } });

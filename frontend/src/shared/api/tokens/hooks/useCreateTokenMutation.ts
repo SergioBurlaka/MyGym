@@ -8,6 +8,9 @@ export const useCreateTokenMutation = (): UseMutationResult<CreatedApiToken, Err
 
   return useMutation({
     mutationKey: tokensKeys.create.queryKey,
+    // The result is the raw token: don't keep it in the mutation cache after
+    // the page lets go of it.
+    gcTime: 0,
     mutationFn: async (name) => {
       const { data } = await TokensApi.create(name);
       return data;

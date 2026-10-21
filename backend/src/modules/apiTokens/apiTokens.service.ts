@@ -33,20 +33,26 @@ export async function listApiTokens(userId: string) {
 
 // Returns the raw token - the only time it exists outside the client.
 export async function createApiToken(userId: string, name: string) {
-  const [{ active }] = await db
-    .select({ active: count() })
-    .from(apiTokens)
-    .where(and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)));
-  if (active >= MAX_ACTIVE_TOKENS) {
-    throw new ApiTokenError('too_many_tokens', `At most ${MAX_ACTIVE_TOKENS} active tokens`);
-  }
+  return db.transaction(async (tx) => {
+    // Locks the user's row so parallel creates count one after another -
+    // otherwise N simultaneous requests would all see "19" and pass the cap.
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for('update');
 
-  const token = generatePersonalAccessToken();
-  const [row] = await db
-    .insert(apiTokens)
-    .values({ userId, name, tokenHash: hashRefreshToken(token) })
-    .returning({ id: apiTokens.id, name: apiTokens.name, createdAt: apiTokens.createdAt });
-  return { ...row, token };
+    const [{ active }] = await tx
+      .select({ active: count() })
+      .from(apiTokens)
+      .where(and(eq(apiTokens.userId, userId), isNull(apiTokens.revokedAt)));
+    if (active >= MAX_ACTIVE_TOKENS) {
+      throw new ApiTokenError('too_many_tokens', `At most ${MAX_ACTIVE_TOKENS} active tokens`);
+    }
+
+    const token = generatePersonalAccessToken();
+    const [row] = await tx
+      .insert(apiTokens)
+      .values({ userId, name, tokenHash: hashRefreshToken(token) })
+      .returning({ id: apiTokens.id, name: apiTokens.name, createdAt: apiTokens.createdAt });
+    return { ...row, token };
+  });
 }
 
 // Soft revoke: the row stays (who had which token, when it was last used),

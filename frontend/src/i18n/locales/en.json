@@ -347,7 +347,6 @@
     "createdTitle": "Token «{{name}}» created",
     "createdWarning": "Copy it now - for your security it will never be shown again. Anyone with this token can read and change your training data.",
     "tokenLabel": "Token",
-    "claudeCodeLabel": "Connect Claude Code (run in a terminal)",
     "copy": "Copy",
     "copied": "Copied",
     "done": "Done, I saved it",
@@ -358,6 +357,7 @@
     "neverUsed": "never used",
     "revoke": "Revoke",
     "revokeConfirmTitle": "Revoke this token?",
-    "revokeConfirmDescription": "Programs using «{{name}}» will lose access immediately."
+    "revokeConfirmDescription": "Programs using «{{name}}» will lose access immediately.",
+    "revokeError": "Couldn't revoke the token - it still works. Try again"
   }
 }
