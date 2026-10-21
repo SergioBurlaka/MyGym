@@ -21,36 +21,63 @@ if (!viewBox || !rect || !background) {
 }
 const content = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(rect, '');
 
-// Full-bleed square background + the logo content scaled around the centre.
-function fullBleed(scale) {
-  const offset = (viewBox * (1 - scale)) / 2;
+// Full-bleed square background + the logo content scaled by `scale` with the
+// point (cx, cy) (viewBox units) moved to the centre of the icon.
+function fullBleed(scale, cx = viewBox / 2, cy = viewBox / 2) {
+  const tx = viewBox / 2 - cx * scale;
+  const ty = viewBox / 2 - cy * scale;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBox} ${viewBox}">
   <rect width="${viewBox}" height="${viewBox}" fill="${background}"/>
-  <g transform="translate(${offset} ${offset}) scale(${scale})">${content}</g>
+  <g transform="translate(${tx} ${ty}) scale(${scale})">${content}</g>
 </svg>`;
 }
 
-// Android masks a maskable icon to any shape (circle, squircle...) and only
-// guarantees a centred circle of radius 40% of the icon. Measure the actual
-// text bounds and shrink the content until its farthest corner fits inside
-// that circle (a bit of margin so the glyphs don't touch the edge).
-async function maskableScale() {
+// Android masks a maskable icon to its launcher shape (circle, squircle...).
+// Fitting the text into the spec's guaranteed r = 40% circle made it look
+// clearly smaller than the "Add to Home screen" shortcut, so instead the
+// text is centred on its own bounds (the staircase sits a bit low in the
+// logo) and made as large as possible while
+//  - its bounds stay inside the central 80% square, and
+//  - no glyph pixel leaves a full-size circle mask (r = 50%, small margin),
+// which is what keeps round launchers from clipping the "y" / "G" corners.
+const MASKABLE_BOX = 0.8;
+const CIRCLE_MARGIN = 0.96;
+
+async function maskableLayout() {
   const size = 1024;
   const contentOnly = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBox} ${viewBox}">${content}</svg>`;
-  // Two pipelines on purpose: sharp always trims *before* resizing, so a
-  // single chain would measure the bounds at the SVG's native size.
-  const rendered = await sharp(Buffer.from(contentOnly), { density: 72 * (size / viewBox) })
+  const { data } = await sharp(Buffer.from(contentOnly), { density: 72 * (size / viewBox) })
     .resize(size, size)
-    .png()
-    .toBuffer();
-  const { info } = await sharp(rendered).trim().toBuffer({ resolveWithObject: true });
-  const left = -info.trimOffsetLeft;
-  const top = -info.trimOffsetTop;
-  const c = size / 2;
-  const dx = Math.max(c - left, left + info.width - c);
-  const dy = Math.max(c - top, top + info.height - c);
-  const safeRadius = size * 0.4 * 0.95;
-  return Math.min(1, safeRadius / Math.hypot(dx, dy));
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const glyphs = [];
+  let minX = size, minY = size, maxX = 0, maxY = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (data[(y * size + x) * 4 + 3] < 128) continue;
+      glyphs.push(x, y);
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (glyphs.length === 0) {
+    throw new Error('favicon.svg: no logo text found after removing the background <rect>');
+  }
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  let farthest = 0;
+  for (let i = 0; i < glyphs.length; i += 2) {
+    farthest = Math.max(farthest, Math.hypot(glyphs[i] - cx, glyphs[i + 1] - cy));
+  }
+
+  const squareFit = (MASKABLE_BOX * size) / Math.max(maxX - minX, maxY - minY);
+  const circleFit = (0.5 * CIRCLE_MARGIN * size) / farthest;
+  const toViewBox = viewBox / size;
+  return { scale: Math.min(squareFit, circleFit), cx: cx * toViewBox, cy: cy * toViewBox };
 }
 
 function render(source, size, file, { opaque = false } = {}) {
@@ -59,15 +86,19 @@ function render(source, size, file, { opaque = false } = {}) {
 }
 
 await mkdir(outDir, { recursive: true });
-const scale = await maskableScale();
+const maskable = await maskableLayout();
+const maskableSvg = fullBleed(maskable.scale, maskable.cx, maskable.cy);
 
 await Promise.all([
   // "any" icons: the logo as is (rounded square, transparent corners).
   render(svg, 192, 'icon-192.png'),
   render(svg, 512, 'icon-512.png'),
-  render(fullBleed(scale), 512, 'icon-512-maskable.png', { opaque: true }),
+  // -vN in the name: an installed WebAPK only re-fetches icons whose URL or
+  // content changed on its periodic manifest check - bump N on every change.
+  render(maskableSvg, 192, 'icon-192-maskable-v2.png', { opaque: true }),
+  render(maskableSvg, 512, 'icon-512-maskable-v2.png', { opaque: true }),
   // iOS rounds the corners itself and fills transparency with black.
   render(fullBleed(1), 180, 'apple-touch-icon.png', { opaque: true }),
 ]);
 
-console.log(`Icons written to public/icons/ (maskable content scale ${scale.toFixed(3)})`);
+console.log(`Icons written to public/icons/ (maskable content scale ${maskable.scale.toFixed(3)})`);
