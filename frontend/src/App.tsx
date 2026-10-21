@@ -16,7 +16,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-slate-400">
+      <div className="flex min-h-screen items-center justify-center pt-[env(safe-area-inset-top)] text-slate-400">
         {t('common.loading')}
       </div>
     );
@@ -29,7 +29,10 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      {/* Safe-area insets (viewport-fit=cover): home indicator / gesture bar
+          at the bottom, camera cutout on the sides in landscape. The top one
+          is on the Navbar, or on the page itself when there's no Navbar. */}
+      <main className="mx-auto max-w-5xl pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-6">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
