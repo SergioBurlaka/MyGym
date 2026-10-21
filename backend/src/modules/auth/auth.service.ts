@@ -80,6 +80,11 @@ export async function validateCredentials(email: string, password: string) {
   if (!user) {
     throw new AuthError('invalid_credentials', 'Wrong email or password');
   }
+  // Created through Google, never had a password. Saying so doesn't leak
+  // more than /register already does (email_taken).
+  if (!user.passwordHash) {
+    throw new AuthError('use_google_login', 'This account signs in with Google');
+  }
   const valid = await verifyPassword(user.passwordHash, password);
   if (!valid) {
     throw new AuthError('invalid_credentials', 'Wrong email or password');
