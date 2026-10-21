@@ -132,6 +132,15 @@ The `certbot` container renews the Let's Encrypt certificate (checks twice a
 day), nginx reloads every 6 h to pick it up. The nginx config is a template,
 `nginx/templates/default.conf.template`, with `DOMAIN` filled in at start.
 
+Moving an already running HTTP server to HTTPS: a merge to `main` deploys
+right away and nginx can't start without a certificate, so first point the
+domain at the server, open 80/443 and add `DOMAIN` + `CERTBOT_EMAIL` to the
+server's `.env` (without `DOMAIN` compose fails before touching the old
+nginx); then merge, and right after the deploy run
+`sh scripts/init-letsencrypt.sh` (a `STAGING=1` dry run first is fine - the
+next normal run replaces the staging certificate). Everyone has to log in
+again, since the origin changes.
+
 ## Repository layout
 
 ```

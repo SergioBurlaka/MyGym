@@ -55,7 +55,9 @@ server {
 
     # MCP-сервер (TASK_MCP_SERVER.md). Заголовок Authorization з токеном
     # користувача nginx передає далі без змін.
-    location /mcp {
+    # Регекс, а не префікс /mcp: інакше сюди потрапили б і /mcp-foo, /mcpx
+    # (зокрема майбутні маршрути SPA).
+    location ~ ^/mcp(/|$) {
         set $mcp_upstream mcp:8080;
         proxy_pass http://$mcp_upstream;
         proxy_http_version 1.1;
