@@ -64,6 +64,9 @@ async function maskableLayout() {
       maxY = Math.max(maxY, y);
     }
   }
+  if (glyphs.length === 0) {
+    throw new Error('favicon.svg: no logo text found after removing the background <rect>');
+  }
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
   let farthest = 0;
