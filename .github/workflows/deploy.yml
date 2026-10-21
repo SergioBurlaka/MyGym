@@ -89,6 +89,13 @@ jobs:
           script: |
             set -e
             cd /root/MyGym
+            OLD_HEAD=$(git rev-parse HEAD)
             git pull origin main
             docker compose up -d --build
+            # nginx renders its config from nginx/templates only when the
+            # container starts, and `up` doesn't recreate it for a changed
+            # mounted file - restart it ourselves, only when nginx/ changed.
+            if ! git diff --quiet "$OLD_HEAD" HEAD -- nginx/; then
+              docker compose restart nginx
+            fi
             docker image prune -f
