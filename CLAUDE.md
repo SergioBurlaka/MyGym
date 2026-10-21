@@ -92,7 +92,9 @@ popup GIS погано працює у встановленому PWA, а так
   (без регістру) — **прив'язує Google до наявного акаунта і пароль лишається
   робочим** (рішення користувача 2026-10-21; свідомо прийнятий ризик: email при
   реєстрації паролем не підтверджується, тож теоретично хтось міг заздалегідь
-  зайняти чужий email), інакше створює новий акаунт без пароля з тими самими
+  зайняти чужий email; щоб звузити його, прив'язка **видаляє всі
+  refresh-токени** цього акаунта — хто був залогінений до прив'язки, вилітає),
+  інакше створює новий акаунт без пароля з тими самими
   13 вправами (`createUserWithDefaults`, спільна з `registerUser`). Вимагає
   `email_verified`; email, уже прив'язаний до іншого Google ID →
   `google_account_mismatch`. Вхід паролем в акаунт без пароля → `use_google_login`.
@@ -105,6 +107,9 @@ popup GIS погано працює у встановленому PWA, а так
   "Authorized redirect URIs" OAuth-клієнта (Google Cloud Console, проєкт MyGym,
   статус In production; логотип у Branding **не завантажувати** — тоді Google
   вимагає перевірку бренду).
+  У production не-`https://` `GOOGLE_REDIRECT_URI` (напр. забутий dev-default)
+  **вимикає** Google-вхід з попередженням у лозі, а не валить увесь бекенд.
+  Email з Google приводиться до нижнього регістру, як і скрізь у `users`.
 - **Gotcha:** `google-auth-library` 11.x вимагає Node ≥22 — Docker/CI на Node 20,
   тому зафіксовано 10.x.
 - Тести (`test/google-auth.test.ts`) мокають `google.client.ts` цілком — без мережі.
@@ -415,6 +420,12 @@ prev/next). Без цього старі імпортовані тренуван
   Ознака: новий клас (напр. `animate-*`) видимо не діє. Фікс — повний
   рестарт контейнера: `docker compose -f docker-compose.dev.yml restart frontend`
   (просто reload сторінки браузера не допомагає).
+- Те саме з бекендом: `backend_node_modules` — named volume, і ні зміна
+  `package.json`, ні `--build` його не оновлюють. Після нової backend-залежності
+  dev-бекенд тихо падає на hot-reload з `ERR_MODULE_NOT_FOUND` — треба
+  `docker compose -f docker-compose.dev.yml exec backend npm install` + `restart backend`.
+  А нові змінні з `.env` (`env_file`) підхоплюються лише при пересозданні
+  контейнера: `up -d --force-recreate backend`, не `restart`.
 - `npm install` виконується у named volume контейнера (`frontend_node_modules`),
   не на хості — після додавання нових залежностей треба також запустити
   `npm install` у `frontend/` **на хості**, інакше редактор (TS-сервер) не

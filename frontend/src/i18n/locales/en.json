@@ -305,7 +305,7 @@
     "intro": "MyGym is a personal workout journal. This page explains what data it keeps about you and why. In short: only what is needed to run your training log, nothing is sold or shared.",
     "data": {
       "title": "What we store",
-      "body": "• Your email address.\n• Your password as a one-way hash (argon2) if you signed up with a password - the password itself is never stored.\n• Your Google account ID if you sign in with Google.\n• What you enter in the app: exercises, workouts, sets, programs and your training schedule.\n• Technical session records (hashes of login tokens) so you stay signed in and can be signed out."
+      "body": "• Your email address.\n• Your password as a one-way hash (argon2) if you signed up with a password - the password itself is never stored.\n• Your Google account ID if you sign in with Google.\n• What you enter in the app: exercises, workouts, sets, programs and your training schedule.\n• Technical session records (hashes of login tokens) so you stay signed in and can be signed out.\n• Server logs with IP addresses and request times, kept for security and troubleshooting."
     },
     "google": {
       "title": "Sign in with Google",
@@ -325,7 +325,7 @@
     },
     "deletion": {
       "title": "Deleting your data",
-      "body": "You can delete individual exercises, workouts and programs in the app at any time. To delete your whole account and all its data, email {{email}} from the address you use in MyGym - it will be removed within 30 days."
+      "body": "You can delete individual exercises, workouts and programs in the app at any time. To delete your whole account and all its data, email {{email}} from the address you use in MyGym - it will be removed within 30 days. Server backups may still hold the data until they are rotated out."
     },
     "contact": {
       "title": "Contact",

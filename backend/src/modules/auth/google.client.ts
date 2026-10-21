@@ -11,8 +11,17 @@ export type GoogleProfile = {
   emailVerified: boolean;
 };
 
+// In production the redirect URI must be the real https callback - the dev
+// default (localhost) would only get redirect_uri_mismatch from Google. That
+// switches Google sign-in off with a warning rather than failing the whole
+// backend over one optional feature.
+const redirectUriUsable = env.NODE_ENV !== 'production' || env.GOOGLE_REDIRECT_URI.startsWith('https://');
+if (env.GOOGLE_CLIENT_ID && !redirectUriUsable) {
+  console.warn('Google sign-in disabled: set GOOGLE_REDIRECT_URI to https://<DOMAIN>/api/auth/google/callback');
+}
+
 export function isGoogleEnabled(): boolean {
-  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) && redirectUriUsable;
 }
 
 function createClient() {
@@ -54,5 +63,7 @@ export async function exchangeCodeForProfile(code: string, codeVerifier: string)
   if (!payload?.sub || !payload.email) {
     throw new Error('Google id_token has no sub/email');
   }
-  return { sub: payload.sub, email: payload.email, emailVerified: payload.email_verified === true };
+  // Lower case like every other email in users (auth.schema.ts normalises
+  // the password forms too); non-Gmail Google accounts can keep their case.
+  return { sub: payload.sub, email: payload.email.toLowerCase(), emailVerified: payload.email_verified === true };
 }

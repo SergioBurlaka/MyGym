@@ -63,7 +63,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.get('/google', { config: { rateLimit: GOOGLE_RATE_LIMIT } }, async (request, reply) => {
     if (!isGoogleEnabled()) return reply.code(404).send(googleDisabled);
 
-    const { url, state, codeVerifier } = await createGoogleAuthRequest();
+    let authRequest;
+    try {
+      authRequest = await createGoogleAuthRequest();
+    } catch (err) {
+      request.log.error({ err }, 'Could not start Google sign-in');
+      return reply.redirect('/login?error=google_failed');
+    }
+    const { url, state, codeVerifier } = authRequest;
     reply.setCookie(GOOGLE_FLOW_COOKIE, `${state}.${codeVerifier}`, googleFlowCookieOptions(request));
     return reply.redirect(url);
   });
@@ -106,7 +113,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.redirect('/');
     } catch (err) {
       if (err instanceof AuthError) return fail(err.code);
-      throw err;
+      // Unexpected (DB) error: still a redirect - the browser is mid-navigation
+      // and a raw JSON error page would be a dead end.
+      request.log.error({ err }, 'Google sign-in failed');
+      return fail('google_failed');
     }
   });
 

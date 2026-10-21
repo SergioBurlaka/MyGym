@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { db, pool } from '../src/db/client.js';
 import { users } from '../src/db/schema.js';
@@ -164,6 +164,50 @@ describe('Google sign-in: callback', () => {
     const all = await db.select().from(users);
     expect(all).toHaveLength(1);
     expect(all[0].id).toBe(first.id);
+  });
+
+  it("prefers the account linked to the Google id over another account that has the profile's email", async () => {
+    await signInWithGoogle(); // A: linked to google-sub-1 as serhii@example.com
+    const [a] = await db.select().from(users);
+    const b = await registerUser(app, 'renamed@example.com'); // B: someone else's password account
+
+    // The owner of google-sub-1 changed their Google email to B's address.
+    google.exchangeCodeForProfile.mockResolvedValue(profile({ email: 'renamed@example.com' }));
+    const res = await signInWithGoogle();
+    expect(res.headers.location).toBe('/');
+
+    const refreshed = await app.inject({
+      method: 'POST',
+      url: '/api/auth/refresh',
+      headers: { cookie: refreshCookie(res) },
+    });
+    const { sub } = JSON.parse(Buffer.from(refreshed.json().accessToken.split('.')[1], 'base64url').toString());
+    expect(sub).toBe(a.id); // signed into A, not B
+
+    const bRow = await db.query.users.findFirst({ where: eq(users.id, b.user.id) });
+    expect(bRow!.googleSub).toBeNull(); // B untouched
+  });
+
+  it('signs out sessions that existed before Google was linked to the account', async () => {
+    const existing = await registerUser(app, 'serhii@example.com');
+
+    await signInWithGoogle();
+
+    const old = await app.inject({ method: 'POST', url: '/api/auth/refresh', headers: { cookie: existing.cookie } });
+    expect(old.statusCode).toBe(401);
+  });
+
+  it('turns an unexpected server error into a redirect, not a JSON error page', async () => {
+    await registerUser(app, 'serhii@example.com');
+    // Make linking fail inside the database.
+    await db.execute(sql`ALTER TABLE users ADD CONSTRAINT google_test_block CHECK (google_sub IS NULL)`);
+    try {
+      const res = await signInWithGoogle();
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.location).toBe('/login?error=google_failed');
+    } finally {
+      await db.execute(sql`ALTER TABLE users DROP CONSTRAINT google_test_block`);
+    }
   });
 
   it('refuses an email Google has not verified, without creating or linking anything', async () => {

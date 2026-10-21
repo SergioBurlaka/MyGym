@@ -108,12 +108,19 @@ export async function loginWithGoogle(profile: GoogleProfile) {
       // The email's account is linked to a *different* Google account.
       throw new AuthError('google_account_mismatch', 'This email is linked to another Google account');
     }
-    const [linked] = await db
-      .update(users)
-      .set({ googleSub: profile.sub })
-      .where(eq(users.id, existing.id))
-      .returning();
-    return linked;
+    return db.transaction(async (tx) => {
+      const [linked] = await tx
+        .update(users)
+        .set({ googleSub: profile.sub })
+        .where(eq(users.id, existing.id))
+        .returning();
+      // Narrows the accepted pre-registration risk (someone signed up with
+      // this email + their own password before the real owner): whoever was
+      // logged in before the owner proved the address via Google is signed
+      // out. Deleted, not revoked - see the rotation grace window above.
+      await tx.delete(refreshTokens).where(eq(refreshTokens.userId, existing.id));
+      return linked;
+    });
   }
 
   try {
