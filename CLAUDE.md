@@ -400,8 +400,24 @@ https://claude.ai/artifact/8JHoTP8Ny7DEfEKNrnjnvZ (артборди іконки
 «B · Помаранчевий фон»). Помаранчевий `#ff5a36` квадрат (viewBox 256, радіус
 56), «My» білим угорі праворуч, «Gym» темним `#16181d` унизу ліворуч —
 сходинкою, шрифт Barlow Condensed 800 (уже в контурах).
-- `frontend/public/favicon.svg` — повна «Сходинка»: фавікон і іконка
-  домашнього екрана (`manifest.json`, `apple-touch-icon`).
+- `frontend/public/favicon.svg` — повна «Сходинка»: фавікон і **джерело** PNG-іконок
+  PWA. `npm run icons` (`frontend/scripts/generate-icons.mjs`, `sharp`) генерує
+  `public/icons/`: `icon-192/512` (як є, прозорі кути), `icon-512-maskable`
+  (фон на всю площу, напис зменшено під безпечне коло Android r=40% — масштаб
+  рахується за реальними межами напису) і `apple-touch-icon` (180, непрозора —
+  iOS сам заокруглює). PNG комітяться, Docker їх не перегенеровує — після зміни
+  лого запустити `npm run icons`. Gotcha: `sharp` робить `trim()` ДО `resize()`
+  у межах одного ланцюжка, тому межі напису міряються окремим пайплайном.
+- **PWA (встановлюваний застосунок):** `public/manifest.webmanifest`
+  (`display: standalone`, `id: "/"`, кольори = `surface` `#14171c`, як і
+  `<meta name="theme-color">` — статус-бар зливається з хедером). Сервіс-воркера
+  свідомо нема (Chrome для встановлення не вимагає; офлайн — окрема задача через
+  `vite-plugin-pwa`). `viewport-fit=cover` → safe-area відступи: зверху на
+  `<header>` у `Navbar`, а на login/register/екрані завантаження (там Navbar
+  нема) — на самій сторінці; низ і боки — на `<main>` через `max(…, env(…))`.
+  Встановлення як WebAPK працює лише з HTTPS-домену. `nginx.frontend.conf`:
+  маніфест з `application/manifest+json` + `no-cache`; `/icons/` без SPA-fallback
+  (неіснуюча іконка = 404, а не index.html).
 - `frontend/public/logo.svg` — горизонтальний локап (іконка + напис «MyGym»
   контурами Barlow Condensed, viewBox 710×256) у хедері (`Navbar.tsx`,
   `<img src="/logo.svg" class="h-9 w-auto">`). Взятий з горизонтального
