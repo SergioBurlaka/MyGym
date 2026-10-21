@@ -193,8 +193,9 @@ popup GIS погано працює у встановленому PWA, а так
   окремо (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`);
   першою причиною колись виявився dev-токен у прод-конекторі.
 - **401 з `WWW-Authenticate`:** без `Bearer` або з токеном, який API відхиляє
-  (перевірка `GET /api/settings`, позитивний результат кешується на 60 с на
-  токен), MCP-сервер відповідає справжнім HTTP 401 з `Bearer
+  (перевірка `GET /api/settings` на **кожен** запит — без кешу: кешоване
+  «прийнято» після протухання OAuth-токена давало б `isError` у 200 замість 401,
+  і клієнт не робив би refresh; знахідка рев'ю), MCP-сервер відповідає справжнім HTTP 401 з `Bearer
   resource_metadata="<PUBLIC_URL>/.well-known/oauth-protected-resource/mcp"`.
   Саме на 401 (а не на `isError` у 200) Claude/ChatGPT вмикають «Sign in» і
   оновлюють протухлий OAuth-токен. API недоступне → запит пропускається

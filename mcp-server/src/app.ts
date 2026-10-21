@@ -9,10 +9,6 @@ import { createMcpServer } from './createMcpServer.js';
 // missing header shares one bucket per IP).
 export const MCP_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
 
-// A token the API accepted recently isn't re-checked for this long. Only
-// decides whether to answer 401 up front: every tool call still goes to the
-// API with the token, which rejects a revoked one there and then.
-const TOKEN_CHECK_CACHE_MS = 60_000;
 const TOKEN_CHECK_TIMEOUT_MS = 5_000;
 
 function jsonRpcError(reply: FastifyReply, status: number, code: number, message: string) {
@@ -29,11 +25,12 @@ export function buildApp({ apiUrl, publicUrl, logger = true }: { apiUrl: string;
       ...(error ? [`error="${error}"`] : []),
     ].join(', ');
 
-  const validUntil = new Map<string, number>();
+  // Asked on EVERY request, not cached: an OAuth access token expires on the
+  // hour, and a cached "accepted" would turn the first requests after that
+  // into tool errors inside a 200 - no 401, so the client wouldn't refresh.
   // false only on a real 401 from the API. Unreachable API -> let the request
   // through: the tools report that better than a misleading "sign in again".
-  async function tokenAccepted(authorization: string, key: string) {
-    if ((validUntil.get(key) ?? 0) > Date.now()) return true;
+  async function tokenAccepted(authorization: string) {
     let status: number;
     try {
       const res = await fetch(`${apiUrl}/settings`, {
@@ -45,15 +42,7 @@ export function buildApp({ apiUrl, publicUrl, logger = true }: { apiUrl: string;
     } catch {
       return true;
     }
-    if (status === 401) {
-      validUntil.delete(key);
-      return false;
-    }
-    if (status < 400) {
-      if (validUntil.size > 10_000) validUntil.clear();
-      validUntil.set(key, Date.now() + TOKEN_CHECK_CACHE_MS);
-    }
-    return true;
+    return status !== 401;
   }
 
   // Behind the top-level nginx - same single trusted hop as the backend.
@@ -91,8 +80,7 @@ export function buildApp({ apiUrl, publicUrl, logger = true }: { apiUrl: string;
         // The API decides whose token it is; asking it here only lets an
         // expired or revoked token get a real HTTP 401 - clients start
         // "Sign in" / refresh on that, not on a tool error inside a 200.
-        const key = crypto.createHash('sha256').update(authorization).digest('hex');
-        if (!(await tokenAccepted(authorization, key))) {
+        if (!(await tokenAccepted(authorization))) {
           reply.header('www-authenticate', challenge('invalid_token'));
           return jsonRpcError(reply, 401, -32001, 'The MyGym access token is invalid, expired or revoked');
         }

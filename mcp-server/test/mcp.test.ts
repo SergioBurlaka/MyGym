@@ -14,6 +14,8 @@ const TOKENS = {
   revoked: 'Bearer mygym_pat_revoked',
   // Accepted by the up-front check, then revoked before the tool call.
   revokedMidway: 'Bearer mygym_pat_revoked_midway',
+  // The token check itself answers 500.
+  checkFails: 'Bearer mygym_pat_check_fails',
 };
 const PUBLIC_URL = 'https://gym.example';
 const RESOURCE_METADATA = `${PUBLIC_URL}/.well-known/oauth-protected-resource/mcp`;
@@ -32,8 +34,9 @@ beforeAll(async () => {
     if (rejected) return reply.code(401).send({ error: 'invalid_token' });
   });
   // The MCP server's token check - kept out of `seen`, which is about tools.
-  backend.get('/api/settings', async (request) => {
+  backend.get('/api/settings', async (request, reply) => {
     checks.push(request.headers.authorization);
+    if (request.headers.authorization === TOKENS.checkFails) return reply.code(500).send({ error: 'internal_error' });
     return { trainingDays: [1, 3, 5] };
   });
   backend.addHook('preHandler', async (request) => {
@@ -145,11 +148,13 @@ describe('MCP protocol', () => {
     expect(seen).toHaveLength(0);
   });
 
-  it('checks an accepted token with the API once a minute, not on every request', async () => {
+  it('checks the token with the API on every request (an OAuth token can expire any moment)', async () => {
     for (let i = 0; i < 3; i++) expect((await rawPost(TOKENS.alice)).status).toBe(200);
-    expect(checks).toEqual([TOKENS.alice]);
-    expect((await rawPost(TOKENS.bob)).status).toBe(200);
-    expect(checks).toEqual([TOKENS.alice, TOKENS.bob]);
+    expect(checks).toEqual([TOKENS.alice, TOKENS.alice, TOKENS.alice]);
+  });
+
+  it('lets the request through when the token check fails with a server error', async () => {
+    expect((await rawPost(TOKENS.checkFails)).status).toBe(200);
   });
 
   it('lets the request through when the API is unreachable (tools report it)', async () => {

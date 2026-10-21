@@ -21,7 +21,7 @@ export default defineConfig({
       },
       // OAuth discovery documents for MCP clients - served by the backend,
       // same set as nginx's location.
-      '^/\.well-known/(oauth-authorization-server|oauth-protected-resource|openid-configuration)(/|$)': {
+      '^/\\.well-known/(oauth-authorization-server|oauth-protected-resource|openid-configuration)(/|$)': {
         target: process.env.VITE_BACKEND_URL ?? 'http://localhost:4000',
         changeOrigin: true,
       },

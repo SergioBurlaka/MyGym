@@ -63,7 +63,8 @@ services:
     environment:
       MYGYM_API_URL: http://backend:4000/api
       # Public origin for the OAuth hint in 401 answers (WWW-Authenticate).
-      PUBLIC_URL: http://localhost:5173
+      # Same origin as the backend's PUBLIC_URL (.env), or the dev default.
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:5173}
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "300"
     volumes:
