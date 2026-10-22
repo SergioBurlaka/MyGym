@@ -365,16 +365,126 @@
   },
   "integrations": {
     "title": "Integrations",
-    "intro": "Personal access tokens let a program work with your MyGym data on your behalf - for example Claude, through the MyGym MCP server. Each token only ever sees your account. Revoke a token as soon as you stop using it.",
-    "nameLabel": "Token name (where you will use it)",
+    "intro": "Connect MyGym to Claude or ChatGPT and the assistant will see your workouts, programs and progress, log sets for you and suggest the plan for the day.",
+    "mcpUrlTitle": "MyGym MCP server URL",
+    "mcpUrlHint": "You will need it at the \"paste the URL\" step in any app.",
+    "copyUrl": "Copy URL",
+    "howToTitle": "How to connect",
+    "howToHint": "Pick the app - it takes 2–3 minutes.",
+    "howToTabs": "App",
+    "tokenPlaceholder": "<TOKEN>",
+    "guide": {
+      "claude": {
+        "tab": "Claude",
+        "title": "Claude",
+        "badge": "Sign in with MyGym · no token",
+        "steps": {
+          "1": {
+            "title": "Open connector settings",
+            "body": "On <a>claude.ai</a>: <b>Settings → Connectors</b>."
+          },
+          "2": {
+            "title": "Add a custom connector",
+            "body": "Click <b>Add custom connector</b>, name it <code>MyGym</code> and paste the MCP server URL above into the URL field. Click <b>Add</b>."
+          },
+          "3": {
+            "title": "Sign in to MyGym",
+            "body": "Click <b>Connect</b> - the MyGym sign-in page opens. Approve access and Claude shows up below in \"Connected apps\"."
+          },
+          "4": {
+            "title": "Turn it on in a chat",
+            "body": "In a new chat click <b>+</b> → <b>Connectors</b> and turn MyGym on. Try: \"What is on my plan today?\""
+          }
+        },
+        "tips": {
+          "everywhere": {
+            "title": "Works everywhere",
+            "body": "Add the connector once on claude.ai - it shows up in the Claude desktop and mobile apps too."
+          },
+          "team": {
+            "title": "Team or Enterprise?",
+            "body": "The workspace owner has to add the connector in Organization settings → Connectors first."
+          }
+        }
+      },
+      "chatgpt": {
+        "tab": "ChatGPT",
+        "title": "ChatGPT",
+        "badge": "Developer mode required",
+        "steps": {
+          "1": {
+            "title": "Turn on Developer mode",
+            "body": "On <a>chatgpt.com</a>: <b>Settings → Apps & Connectors → Advanced</b> → turn on <b>Developer mode</b>."
+          },
+          "2": {
+            "title": "Create a connector",
+            "body": "Go back to <b>Apps & Connectors</b> and click <b>Create</b>. Name - <code>MyGym</code>, description - \"My workouts, programs and progress\", URL - the MCP server URL above, authentication - <b>OAuth</b>."
+          },
+          "3": {
+            "title": "Sign in to MyGym",
+            "body": "Confirm that you trust the app, click <b>Create</b> and sign in to your MyGym account on the page that opens."
+          },
+          "4": {
+            "title": "Pick MyGym in a chat",
+            "body": "In a new chat click <b>+</b> and choose MyGym. It works best when you name it: \"Using MyGym, show my latest workouts\"."
+          }
+        },
+        "tips": {
+          "plan": {
+            "title": "Your plan matters",
+            "body": "Developer mode is not available on every ChatGPT plan, and on some it is read-only. If there is no Create button, check your plan."
+          },
+          "browser": {
+            "title": "Start in the browser",
+            "body": "Add the connector on chatgpt.com; the mobile and desktop apps pick it up after a restart."
+          }
+        }
+      },
+      "code": {
+        "tab": "Claude Code / token",
+        "title": "Claude Code and other clients",
+        "badge": "With an access token",
+        "steps": {
+          "1": {
+            "title": "Create a token",
+            "body": "In \"Access tokens\" below, give the token a name (where you will use it) and copy it - it is shown in full only once."
+          },
+          "2": {
+            "title": "Add the server in a terminal",
+            "body": "Replace <token/> with the copied token:"
+          },
+          "3": {
+            "title": "Check it",
+            "body": "Run <code>claude</code> and type <code>/mcp</code> - MyGym should be connected."
+          }
+        },
+        "tips": {
+          "secret": {
+            "title": "A token is like a password",
+            "body": "Never publish it in repositories. Use a separate token for each client - then you can revoke one without touching the rest."
+          }
+        }
+      }
+    },
+    "connectedApps": "Connected apps",
+    "connectedAppsHint": "Apps you connected by signing in to your account.",
+    "active": "Active",
+    "noConnectedApps": "No connected apps yet.",
+    "connectedAt": "connected {{date}}",
+    "disconnect": "Disconnect",
+    "disconnectConfirmTitle": "Disconnect this app?",
+    "disconnectConfirmDescription": "«{{name}}» will lose access immediately and you will have to sign in again to reconnect it.",
+    "tokensTitle": "Access tokens",
+    "tokensHint": "For clients without account sign-in - Claude Code, Cursor, your own scripts. Each token only sees your account; revoke the ones you no longer use.",
+    "nameLabel": "Token name",
     "create": "Create token",
     "creating": "Creating…",
     "createError": "Couldn't create the token",
     "createdTitle": "Token «{{name}}» created",
     "createdWarning": "Copy it now - for your security it will never be shown again. Anyone with this token can read and change your training data.",
     "tokenLabel": "Token",
+    "claudeCodeLabel": "Connect Claude Code (run in a terminal)",
     "done": "Done, I saved it",
-    "activeTokens": "Active tokens",
     "empty": "No tokens yet.",
     "createdAt": "created {{date}}",
     "lastUsed": "last used {{date}}",
@@ -382,16 +492,7 @@
     "revoke": "Revoke",
     "revokeConfirmTitle": "Revoke this token?",
     "revokeConfirmDescription": "Programs using «{{name}}» will lose access immediately.",
-    "revokeError": "Couldn't revoke the token - it still works. Try again",
-    "claudeCodeLabel": "Connect Claude Code (run in a terminal)",
-    "connectorHint": "For Claude Desktop / claude.ai: if Settings → Connectors → Add custom connector offers custom request headers, use URL {{url}} and the header Authorization = Bearer + the token above. If it only offers OAuth fields, these clients can't connect with a token yet.",
-    "connectedApps": "Connected apps",
-    "connectedAppsHint": "Apps you connected by signing in (Claude, ChatGPT) - no token to copy: add the connector with the URL {{url}} and choose sign-in.",
-    "noConnectedApps": "No connected apps yet.",
-    "connectedAt": "connected {{date}}",
-    "disconnect": "Disconnect",
-    "disconnectConfirmTitle": "Disconnect this app?",
-    "disconnectConfirmDescription": "«{{name}}» will lose access immediately and you will have to sign in again to reconnect it."
+    "revokeError": "Couldn't revoke the token - it still works. Try again"
   },
   "oauth": {
     "consent": {
