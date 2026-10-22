@@ -45,7 +45,7 @@ export function buildApp(opts: BuildAppOptions = {}) {
               req(req) {
                 return {
                   method: req.method,
-                  url: req.url.replace(/mygym_cal_[a-f0-9]+/, 'mygym_cal_<redacted>'),
+                  url: req.url.replace(/mygym_cal_[a-f0-9]+/gi,'mygym_cal_<redacted>'),
                   hostname: req.hostname,
                   remoteAddress: req.ip,
                 };
