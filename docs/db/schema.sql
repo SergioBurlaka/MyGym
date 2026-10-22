@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict KV2bkgMWGwunKOcuXYrLLlz9AOSCKpd8044ug3YXgM02myIz76gCKSiyz3OE2TK
+\restrict 4XlNgmzpemg77g7ZR8cHpCTobTqGrFIHKgihWofWOb5CNZ7BoKFLLUxZOht1fRl
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -138,6 +138,21 @@ CREATE TABLE public.oauth_authorization_requests (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     browser_hash text NOT NULL,
     client_logo_uri text
+);
+
+
+--
+-- Name: oauth_clients; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.oauth_clients (
+    id text NOT NULL,
+    client_secret_hash text,
+    token_endpoint_auth_method text NOT NULL,
+    client_name text NOT NULL,
+    client_uri text,
+    redirect_uris jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -328,6 +343,14 @@ ALTER TABLE ONLY public.exercises
 
 ALTER TABLE ONLY public.oauth_authorization_requests
     ADD CONSTRAINT oauth_authorization_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: oauth_clients oauth_clients_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_clients
+    ADD CONSTRAINT oauth_clients_pkey PRIMARY KEY (id);
 
 
 --
@@ -696,5 +719,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict KV2bkgMWGwunKOcuXYrLLlz9AOSCKpd8044ug3YXgM02myIz76gCKSiyz3OE2TK
+\unrestrict 4XlNgmzpemg77g7ZR8cHpCTobTqGrFIHKgihWofWOb5CNZ7BoKFLLUxZOht1fRl
 
