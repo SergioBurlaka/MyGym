@@ -42,7 +42,31 @@ export async function fetchFavicon(host: string): Promise<ClientIcon | null> {
     await res.body?.cancel();
     return null;
   }
-  const body = Buffer.from(await res.arrayBuffer());
-  if (body.length === 0 || body.length > MAX_ICON_BYTES) return null;
+  const body = await readCapped(res);
+  if (!body || body.length === 0) return null;
   return { contentType, body };
+}
+
+// Reads at most MAX_ICON_BYTES, also without a Content-Length; a body that
+// is too big, cut off or slower than the timeout is just "no icon".
+async function readCapped(res: Response): Promise<Buffer | null> {
+  if (!res.body) return null;
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > MAX_ICON_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  return Buffer.concat(chunks);
 }

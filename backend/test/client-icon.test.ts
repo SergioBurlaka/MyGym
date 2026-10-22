@@ -78,6 +78,14 @@ describe('GET /api/oauth/client-icon', () => {
   it('needs a client_id', async () => {
     expect((await icon()).statusCode).toBe(400);
   });
+
+  it('is rate limited per IP - it is public and fetches from other hosts', async () => {
+    net.fetchFavicon.mockResolvedValue(null);
+    for (let i = 0; i < 60; i++) expect((await icon(CLAUDE)).statusCode).toBe(404);
+    const res = await icon(CLAUDE);
+    expect(res.statusCode).toBe(429);
+    expect(res.json().error).toBe('too_many_requests');
+  });
 });
 
 describe('fetchFavicon', () => {
@@ -114,6 +122,30 @@ describe('fetchFavicon', () => {
     ['an oversized icon', Buffer.alloc(100 * 1024 + 1), { 'content-type': 'image/png' }, 200],
   ])('rejects %s', async (_label, body, headers, status) => {
     stubFetch(body as BodyInit | null, { status, headers });
+    expect(await (await realFetchFavicon())('claude.ai')).toBeNull();
+  });
+
+  it('rejects an oversized icon without a Content-Length, without buffering all of it', async () => {
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(new Uint8Array(16 * 1024));
+      },
+    });
+    stubFetch(endless, { headers: { 'content-type': 'image/png' } });
+    expect(await (await realFetchFavicon())('claude.ai')).toBeNull();
+    expect(pulled).toBeLessThan(20);
+  });
+
+  it('returns null when the body breaks off mid-way', async () => {
+    const broken = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(PNG);
+        controller.error(new TypeError('terminated'));
+      },
+    });
+    stubFetch(broken, { headers: { 'content-type': 'image/png' } });
     expect(await (await realFetchFavicon())('claude.ai')).toBeNull();
   });
 
