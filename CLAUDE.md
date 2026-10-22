@@ -25,6 +25,7 @@
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
 - **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
 - **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" нижче)
+- **Node 24 LTS** (підтримка до 04.2028) у всіх Dockerfile-ах і CI — з 2026-10-22, замість Node 20 (EOL 04.2026). Версія зафіксована в 7 Dockerfile-ах (`node:24-alpine`) і 3 джобах `deploy.yml` — міняти разом. Після зміни версії в dev — `npm install` у контейнерах (named volumes `*_node_modules` не оновлюються самі, `argon2` — нативний модуль)
 
 Ці рішення — результат явного обговорення з користувачем (Fastify+Zod над
 Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT над
@@ -112,8 +113,8 @@ popup GIS погано працює у встановленому PWA, а так
   У production не-`https://` `GOOGLE_REDIRECT_URI` (напр. забутий dev-default)
   **вимикає** Google-вхід з попередженням у лозі, а не валить увесь бекенд.
   Email з Google приводиться до нижнього регістру, як і скрізь у `users`.
-- **Gotcha:** `google-auth-library` 11.x вимагає Node ≥22 — Docker/CI на Node 20,
-  тому зафіксовано 10.x.
+- `google-auth-library` зафіксовано на 10.x з часів Node 20 (11.x вимагає Node ≥22);
+  з переходом на Node 24 можна оновити окремою задачею.
 - Тести (`test/google-auth.test.ts`) мокають `google.client.ts` цілком — без мережі.
 - `/privacy` (`PrivacyPage.tsx`, публічна) — на неї посилається consent screen Google.
 
@@ -147,7 +148,7 @@ popup GIS погано працює у встановленому PWA, а так
 
 ## MCP-сервер (`mcp-server/`, MCP, частина 2)
 
-Окремий пакет (Node 20 + TS, `@modelcontextprotocol/sdk` 1.32, **Fastify** —
+Окремий пакет (Node 24 + TS, `@modelcontextprotocol/sdk` 1.32, **Fastify** —
 як бекенд, а не Express із прикладів SDK), через який Claude керує MyGym.
 **Тонкий stateless-проксі без бізнес-логіки й без токенів:**
 - `POST /mcp` — на **кожен** запит новий `McpServer` + `StreamableHTTPServerTransport`
