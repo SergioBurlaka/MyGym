@@ -135,15 +135,16 @@ async function signIn(user: User) {
 const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
 
 describe('discovery documents', () => {
-  it('serve authorization server metadata that makes Claude and ChatGPT use CIMD + PKCE', async () => {
+  it('serve authorization server metadata: CIMD + PKCE for Claude and ChatGPT, DCR for the rest', async () => {
     const res = await app.inject({ method: 'GET', url: '/.well-known/oauth-authorization-server' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({
       issuer: ISSUER,
       authorization_endpoint: `${ISSUER}/api/oauth/authorize`,
       token_endpoint: `${ISSUER}/api/oauth/token`,
+      registration_endpoint: `${ISSUER}/api/oauth/register`,
       code_challenge_methods_supported: ['S256'],
-      token_endpoint_auth_methods_supported: ['none'],
+      token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
       client_id_metadata_document_supported: true,
       authorization_response_iss_parameter_supported: true,
     });
@@ -211,7 +212,7 @@ describe('consent', () => {
     const user = await registerUser(app);
     const requestId = await startRequest();
     const res = await app.inject({ method: 'GET', url: `/api/oauth/requests/${requestId}`, headers: inBrowser(user) });
-    expect(res.json()).toMatchObject({ clientName: 'Claude', clientHost: 'claude.ai', redirectHost: 'claude.ai' });
+    expect(res.json()).toMatchObject({ clientName: 'Claude', verified: true, clientHost: 'claude.ai', redirectHost: 'claude.ai' });
   });
 
   it("can't be seen or answered from another browser (a consent link sent to a victim)", async () => {
