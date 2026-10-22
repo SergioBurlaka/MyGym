@@ -26,8 +26,13 @@ erDiagram
     users {
         uuid id PK
         text email "unique lower(email)"
-        text password_hash "argon2"
+        text password_hash "argon2, null = Google"
+        text google_sub "unique, nullable"
         jsonb training_days "[1,3,5]"
+        text training_time "HH:MM"
+        smallint training_duration_min
+        text timezone "IANA"
+        text calendar_feed_token_hash "unique, nullable"
         timestamptz created_at
     }
     refresh_tokens {
@@ -115,9 +120,19 @@ erDiagram
 |---|---|---|
 | `id` | uuid PK | `gen_random_uuid()` |
 | `email` | text | унікальний **без урахування регістру**: індекс на `lower(email)`, а не на саму колонку |
-| `password_hash` | text | argon2, пароль у відкритому вигляді ніде не зберігається |
+| `password_hash` | text, nullable | argon2, пароль у відкритому вигляді ніде не зберігається. `null` — акаунт створено через Google |
+| `google_sub` | text, nullable, unique | Google ID (`sub`), якщо акаунт прив'язаний до Google |
 | `training_days` | jsonb | масив ISO-днів (1=Пн…7=Нд), за замовчуванням `[1,3,5]`. Це **поточний** розклад |
+| `training_time` | text | `HH:MM`, за замовчуванням `18:00` — початок тренування для календарного фіда |
+| `training_duration_min` | smallint | тривалість події у фіді, за замовчуванням 60 |
+| `timezone` | text | IANA-пояс (`Europe/Kyiv` за замовчуванням), у якому `training_time` — локальний час |
+| `calendar_feed_token_hash` | text, nullable, unique | SHA-256 секретного токена календарного фіда; `null` — календар не підключено |
+| `calendar_feed_created_at` | timestamptz, nullable | коли фід підключено / перегенеровано |
 | `created_at` | timestamptz | |
+
+Час, тривалість і пояс у `training_schedule_history` **не** дублюються: історія
+лише про дні, а всі серії календарного фіда беруть поточний час. Пояс — IANA, а не
+зсув UTC, щоб повторювані події не з'їжджали на годину при переході на літній/зимовий час.
 
 Чому `training_days` у jsonb, а не в окремій таблиці: це маленький масив, який
 завжди читається й пишеться цілком. Окрема таблиця `user_training_days` дала б

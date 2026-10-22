@@ -12,7 +12,9 @@
     "selectPlaceholder": "Select…",
     "kg": "kg",
     "reps": "reps",
-    "confirmDelete": "Yes, delete"
+    "confirmDelete": "Yes, delete",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "weekdays": {
     "mon": "Mon",
@@ -217,7 +219,30 @@
       "title": "Training schedule",
       "description": "The Journal calendar uses these days to mark missed workouts.",
       "daysPerWeek_one": "{{count}} day / week",
-      "daysPerWeek_other": "{{count}} days / week"
+      "daysPerWeek_other": "{{count}} days / week",
+      "time": "Start time",
+      "duration": "Duration",
+      "minutes": "{{count}} min",
+      "saveError": "Couldn't save the schedule"
+    },
+    "calendar": {
+      "title": "Calendar reminders",
+      "description": "Subscribe in Google, Apple or Outlook Calendar - workouts appear on your training days with a reminder.",
+      "connect": "Connect calendar",
+      "connectedAt": "Connected {{date}}. Changes to the schedule reach the calendar on its next refresh.",
+      "regenerate": "New link",
+      "regenerateConfirmTitle": "Create a new link?",
+      "regenerateConfirmDescription": "The current link will stop working - calendars subscribed to it stop updating.",
+      "disconnect": "Disconnect",
+      "disconnectConfirmTitle": "Disconnect the calendar?",
+      "disconnectConfirmDescription": "The link stops working; remove the subscription in your calendar app too.",
+      "shownOnce": "The link is shown only once - add it to your calendar now.",
+      "openInCalendar": "Open in calendar",
+      "addToGoogle": "Add to Google Calendar",
+      "linkLabel": "Subscription link",
+      "done": "Done",
+      "error": "Couldn't update the calendar link",
+      "hint": "Google Calendar refreshes subscriptions slowly (up to a day) and uses your Google reminder settings instead of the 30-minute reminder. Apple Calendar and Outlook keep it."
     }
   },
   "import": {
@@ -348,8 +373,6 @@
     "createdTitle": "Token «{{name}}» created",
     "createdWarning": "Copy it now - for your security it will never be shown again. Anyone with this token can read and change your training data.",
     "tokenLabel": "Token",
-    "copy": "Copy",
-    "copied": "Copied",
     "done": "Done, I saved it",
     "activeTokens": "Active tokens",
     "empty": "No tokens yet.",

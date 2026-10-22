@@ -38,7 +38,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 --schema-only` (перезнімати після міграцій, команда — в кінці ARCHITECTURE.md).
 Повні дампи з даними — тільки в `backups/` (у `.gitignore`: хеш пароля, refresh-токени).
 
-- `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі
+- `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" нижче)
 - `refresh_tokens` — хеші refresh-токенів. Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
 - `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
 - `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. Див. "OAuth для MCP-клієнтів" нижче
@@ -355,7 +355,9 @@ grace-вікна** — повтор старого refresh відкликає в
 вправи; контейнер навмисно БЕЗ `overflow-x-auto` (сітка й так вміщується) —
 з ним CSS змушує `overflow-y` теж стати `auto`, і tooltip обрізається зверху.
 
-**`PATCH /api/settings`** тепер додатково апсертить рядок
+**`PATCH /api/settings`** — часткове оновлення (`trainingDays`, `trainingTime`,
+`trainingDurationMin`, `timezone`; хоча б одне поле, інакше 400). Якщо в тілі є
+`trainingDays`, додатково апсертить рядок
 `training_schedule_history` на сьогоднішню дату (одна зміна на день —
 повторний виклик того ж дня оновлює той самий рядок). Реєстрація нового
 користувача засіює перший рядок історії одразу (`auth.service.ts`), інакше
@@ -367,6 +369,57 @@ grace-вікна** — повтор старого refresh відкликає в
 `users` у цій БД (реальні тренування з липня, акаунт створений у вересні).
 Виправлено окремою міграцією: `effectiveFrom` підтягнутий до дати
 **найранішого тренування** користувача, якщо вона раніша.
+
+## Календарний фід (`modules/calendar/`)
+
+Підписка на розклад тренувань у Google / Apple / Outlook Calendar через
+секретне посилання на ICS-фід (блок «Нагадування в календарі» у картці розкладу
+на сторінці «Вправи», `components/CalendarSubscription.tsx`).
+- Налаштування в `users`: `trainingTime` (`HH:MM`, default `18:00`),
+  `trainingDurationMin` (60), `timezone` (IANA, default `Europe/Kyiv`). Пояс у
+  формі не показується: фронтенд додає пояс браузера до кожного збереження
+  розкладу, якщо він інший (і перед підключенням календаря).
+- Токен `mygym_cal_<64 hex>` (`utils/tokens.ts`), у БД лише sha256
+  (`users.calendarFeedTokenHash`, один фід на користувача). Посилання
+  показується **один раз** (як PAT; мутація з `gcTime: 0`); далі лише
+  «Нове посилання» (старе одразу 404) і «Відключити».
+- `POST/DELETE /api/calendar/token` — **лише сесія** (`requireSession`): злитий
+  PAT не повинен випускати собі секретні посилання. `POST {lang}` повертає
+  `feedUrl`, `webcalUrl`, `googleUrl` (`calendar.google.com/calendar/r?cid=<webcal>`),
+  усі від `PUBLIC_URL`; мова назви події — у URL як `?lang=en|uk` (Google тягне
+  фід зі своїх серверів, `Accept-Language` там не користувача).
+- `GET /api/calendar/feed/<token>.ics` — публічний; битий/невідомий токен → 404
+  (не 401). Rate limit 60/год **за файлом**, а не за IP: Google тягне всі
+  підписки зі спільного пулу своїх адрес.
+- ICS (`calendar.ics.ts`, `ical-generator` 11 + `@touch4it/ical-timezones` для
+  `VTIMEZONE`): **одна щотижнева серія на рядок `training_schedule_history`**
+  (`RRULE BYDAY`, `UNTIL` = остання секунда перед `effectiveFrom` наступного
+  рядка, в UTC), тож минулі тижні показують тодішній розклад; час і тривалість —
+  поточні для всіх серій. `UID` = `schedule-<effectiveFrom>-<userId>@mygym`
+  (стабільний — оновлення, а не дублі). `VALARM` за 30 хв, `REFRESH-INTERVAL` 6 год.
+- **Gotcha:** `ical-generator` форматує нативний `Date` **локальним годинником
+  процесу**, а не за `TZID` — у UTC-контейнері всі тренування з'їжджали на
+  зсув поясу (на хості з київським поясом баг не видно). Тому дати — Luxon
+  `DateTime` у поясі користувача. Тести (`test/calendar.test.ts`) парсять фід
+  `node-ical` і звіряють справжні UTC-моменти (літо/зима).
+- **Gotcha:** пакет VTIMEZONE знає лише стару назву `Europe/Kiev` — для
+  `Europe/Kyiv` аліас (`VTIMEZONE_ALIASES`), TZID і VTIMEZONE завжди однакові;
+  невідомий пояс → фід без VTIMEZONE (клієнти розуміють IANA-назву самі).
+  Для `Etc/GMT±N` VTIMEZONE **свідомо не генерується**: у пакеті знак офсету
+  перевернутий (`Etc/GMT+5` виходить +05:00, а це UTC−5) — Apple/Outlook зсунули б
+  події на 2N год (знахідка рев'ю).
+- `timezone` у PATCH приводиться до написання рантайму (`america/new_york` →
+  `America/New_York`); сирі офсети (`+05:00`) відкидаються — у `TZID` клієнти їх
+  не розуміють. Якщо сервер не знає пояс браузера (новіші tzdata), фронтенд
+  повторює збереження без `timezone`, щоб це не блокувало зміну розкладу.
+- Час старту, що потрапляє в «дірку» переходу на літній час (03:30 у день
+  переходу), — перший такий день пропускається: `DTSTART` задає настінний час
+  усій серії, і Luxon-овий зсув на 04:30 зсунув би всі події.
+- Секрет фіда — у шляху URL. У логах бекенду він маскується (серіалізатор `req`
+  в `app.ts`), але **access-лог nginx його містить** — свідомий компроміс: фід
+  лише для читання і містить тільки розклад.
+- Обмеження Google (показані підказкою в UI): оновлює підписки із затримкою до
+  доби і ігнорує `VALARM` (бере свої налаштування нагадувань).
 
 ## CSV-імпорт (backend/src/modules/import/)
 

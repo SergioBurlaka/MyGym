@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/index.js';
 import Popconfirm from '../components/Popconfirm.js';
+import CopyField from '../components/CopyField.js';
 import { useCreateTokenMutation, useRevokeTokenMutation, useTokensQuery } from '../shared/api/tokens/index.js';
 import type { CreatedApiToken } from '../shared/api/tokens/tokens.types.js';
 import { useGrantsQuery, useRevokeGrantMutation } from '../shared/api/oauth/index.js';
@@ -188,32 +189,4 @@ function CreatedTokenCard({ token, onDone }: { token: CreatedApiToken; onDone: (
     </div>
   );
 }
-
-function CopyField({ label, value }: { label: string; value: string }) {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API needs a secure context; the text is selectable anyway.
-    }
-  }
-
-  return (
-    <div>
-      <p className="label">{label}</p>
-      <div className="flex items-start gap-2">
-        <code className="min-w-0 flex-1 select-all break-all rounded-lg border border-surface-border bg-surface px-3 py-2 font-mono text-xs text-slate-100">
-          {value}
-        </code>
-        <button type="button" className="btn-secondary shrink-0" onClick={copy}>
-          {copied ? t('integrations.copied') : t('integrations.copy')}
-        </button>
-      </div>
-    </div>
-  );
-}
+

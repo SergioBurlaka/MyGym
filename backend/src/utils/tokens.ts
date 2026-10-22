@@ -29,7 +29,15 @@ export function generatePersonalAccessToken(): string {
   return PAT_PREFIX + crypto.randomBytes(32).toString('hex');
 }
 
-// Also used for personal access tokens - same "store only a hash" rule.
+// Secret part of a calendar feed URL. Not a credential for the API - it only
+// opens the read-only .ics feed with the training schedule.
+export const CALENDAR_TOKEN_PREFIX = 'mygym_cal_';
+
+export function generateCalendarFeedToken(): string {
+  return CALENDAR_TOKEN_PREFIX + crypto.randomBytes(32).toString('hex');
+}
+
+// Also used for personal access and calendar feed tokens - same "store only a hash" rule.
 export function hashRefreshToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }

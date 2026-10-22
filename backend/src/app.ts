@@ -17,6 +17,7 @@ import settingsRoutes from './modules/settings/settings.routes.js';
 import apiTokensRoutes from './modules/apiTokens/apiTokens.routes.js';
 import wellKnownRoutes from './modules/oauth/wellKnown.routes.js';
 import oauthRoutes from './modules/oauth/oauth.routes.js';
+import calendarRoutes from './modules/calendar/calendar.routes.js';
 
 export type BuildAppOptions = {
   // Tests pass `false` to keep the pino output quiet.
@@ -38,6 +39,18 @@ export function buildApp(opts: BuildAppOptions = {}) {
         : {
             level: env.NODE_ENV === 'production' ? 'info' : 'debug',
             transport: env.NODE_ENV === 'production' ? undefined : { target: 'pino-pretty' },
+            // The calendar feed's secret is in the URL path - keep it out of
+            // request logs (nginx's access log still has it; see CLAUDE.md).
+            serializers: {
+              req(req) {
+                return {
+                  method: req.method,
+                  url: req.url.replace(/mygym_cal_[a-f0-9]+/gi,'mygym_cal_<redacted>'),
+                  hostname: req.hostname,
+                  remoteAddress: req.ip,
+                };
+              },
+            },
           },
   });
 
@@ -69,6 +82,7 @@ export function buildApp(opts: BuildAppOptions = {}) {
   app.register(apiTokensRoutes, { prefix: '/api/tokens' });
   app.register(wellKnownRoutes);
   app.register(oauthRoutes, { prefix: '/api/oauth' });
+  app.register(calendarRoutes, { prefix: '/api/calendar' });
 
   return app;
 }
