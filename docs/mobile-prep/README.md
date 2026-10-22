@@ -8,6 +8,10 @@
 > Google, персональних токенів (PAT) і OAuth для MCP-клієнтів. Ці фічі вже в
 > `main` і описані в `CLAUDE.md`; завдання нижче їх враховують.
 
+Ширший контекст — стек мобільного застосунку (Expo, NativeWind, офлайн, графіки),
+план за фазами, чекліст Google Play і ризики — у
+[`research-react-native-google-play.md`](research-react-native-google-play.md).
+
 ## Порядок і стан
 
 | # | Файл | Що | Залежить від | Стан |
