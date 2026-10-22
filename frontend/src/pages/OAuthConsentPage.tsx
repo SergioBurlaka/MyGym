@@ -65,16 +65,25 @@ function ConsentForLoggedInUser({ requestId }: { requestId: string | null }) {
         <li>{t('oauth.consent.canWrite')}</li>
         <li>{t('oauth.consent.cannot')}</li>
       </ul>
+      {/* A self-registered client chose its own name - the redirect host is
+          the one thing that says where the access really goes. */}
+      {!info.verified && (
+        <p role="alert" className="rounded-lg border border-warn/50 bg-warn/10 p-3 text-sm text-warn">
+          {t('oauth.consent.unverified', { client: info.clientName, host: info.redirectHost })}
+        </p>
+      )}
       {/* The MCP spec requires showing where the browser goes back to -
           it's how a user can spot an impostor. */}
       <dl className="space-y-1 rounded-lg border border-surface-border bg-surface p-3 text-sm">
         <div className="flex justify-between gap-3">
           <dt className="text-slate-400">{t('oauth.consent.client')}</dt>
-          <dd className="font-mono text-slate-100">{info.clientHost}</dd>
+          <dd className={info.verified ? 'font-mono text-slate-100' : 'text-warn'}>
+            {info.clientHost ?? t('oauth.consent.unverifiedClient')}
+          </dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-slate-400">{t('oauth.consent.returnsTo')}</dt>
-          <dd className="font-mono text-slate-100">{info.redirectHost}</dd>
+          <dd className={`font-mono ${info.verified ? 'text-slate-100' : 'font-bold text-warn'}`}>{info.redirectHost}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-slate-400">{t('oauth.consent.account')}</dt>
