@@ -69,7 +69,7 @@ server {
         proxy_set_header X-Forwarded-Proto https;
     }
 
-    # MCP-сервер (TASK_MCP_SERVER.md). Заголовок Authorization з токеном
+    # MCP-сервер (mcp-server/). Заголовок Authorization з токеном
     # користувача nginx передає далі без змін.
     # Регекс, а не префікс /mcp: інакше сюди потрапили б і /mcp-foo, /mcpx
     # (зокрема майбутні маршрути SPA).
