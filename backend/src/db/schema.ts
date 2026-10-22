@@ -88,8 +88,23 @@ export const apiTokens = pgTable('api_tokens', {
 }));
 
 // ---------- OAuth (MCP clients signing in: Claude, ChatGPT) ----------
-// MyGym is the authorization server; clients identify themselves with a
-// Client ID Metadata Document URL (CIMD), so there's no clients table.
+// MyGym is the authorization server. Claude and ChatGPT identify themselves
+// with a Client ID Metadata Document URL (CIMD) and need no row here; other
+// clients (Gemini, ...) register themselves via DCR into oauth_clients.
+
+// A dynamically registered client (RFC 7591). Registration is open, so the
+// consent screen marks these as unverified; rows nobody connected expire.
+export const oauthClients = pgTable('oauth_clients', {
+  id: text('id').primaryKey(), // the client_id, mygym_cli_<32 hex>
+  // sha256 of the secret; null for public clients (PKCE only).
+  clientSecretHash: text('client_secret_hash'),
+  // none | client_secret_post | client_secret_basic
+  tokenEndpointAuthMethod: text('token_endpoint_auth_method').notNull(),
+  clientName: text('client_name').notNull(),
+  clientUri: text('client_uri'),
+  redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 // One pending "may <client> access your data?" request, from /authorize
 // until the code is exchanged. Short-lived; only hashes of the code.
