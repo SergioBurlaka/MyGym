@@ -28,7 +28,7 @@ const isLoopback = (u: URL) => u.protocol === 'http:' && (u.hostname === 'localh
 
 // https, or http on loopback (RFC 8252) - never javascript:/data: and the
 // like: the consent page sends the browser to this URI.
-const redirectUriSchema = z
+export const redirectUriSchema = z
   .string()
   .url()
   .refine((s) => {
