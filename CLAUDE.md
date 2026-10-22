@@ -117,7 +117,7 @@ popup GIS погано працює у встановленому PWA, а так
 - Тести (`test/google-auth.test.ts`) мокають `google.client.ts` цілком — без мережі.
 - `/privacy` (`PrivacyPage.tsx`, публічна) — на неї посилається consent screen Google.
 
-## Персональні токени доступу (`modules/apiTokens/`, етап 3 ROADMAP, частина 1)
+## Персональні токени доступу (`modules/apiTokens/`, MCP, частина 1)
 
 Довгоживучий токен `mygym_pat_<64 hex>` для програм, що діють від імені
 користувача (MCP-сервер, Claude Code) — без браузерного refresh-flow.
@@ -145,7 +145,7 @@ popup GIS погано працює у встановленому PWA, а так
   інакше паралельні POST-и проходили б перевірку разом.
 - Тести: `test/api-tokens.test.ts` (зокрема ізоляція двох користувачів через PAT).
 
-## MCP-сервер (`mcp-server/`, етап 3 ROADMAP, частина 2)
+## MCP-сервер (`mcp-server/`, MCP, частина 2)
 
 Окремий пакет (Node 20 + TS, `@modelcontextprotocol/sdk` 1.32, **Fastify** —
 як бекенд, а не Express із прикладів SDK), через який Claude керує MyGym.
@@ -206,7 +206,7 @@ popup GIS погано працює у встановленому PWA, а так
   `workout_exercises.exerciseId` має `restrict`. Тести не ловлять, бо
   `TRUNCATE … CASCADE`. Виправити перед фічею «видалити акаунт».
 
-## OAuth для MCP-клієнтів (`modules/oauth/`, етап 3 ROADMAP, частина 3)
+## OAuth для MCP-клієнтів (`modules/oauth/`, MCP, частина 3)
 
 MyGym — власний OAuth authorization server для MCP (специфікація MCP
 2026-07-28), щоб Claude і ChatGPT підключались через «Sign in» без копіювання
