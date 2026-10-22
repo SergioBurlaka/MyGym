@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict CkCmJs7jLXXDgLKjuJ4jDk2BcthDNEodZ4knQYfgfc6p1FbKf1emP7N3cE8bxgw
+\restrict 7Svef5FgWSyxk3DxbdkxGdpbbziyCTbuIHTDPyWCN4CVeZLGdzxIQ9lf1WSNavf
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -83,6 +83,23 @@ ALTER SEQUENCE drizzle.__drizzle_migrations_id_seq OWNED BY drizzle.__drizzle_mi
 
 
 --
+-- Name: api_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.api_tokens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    name text NOT NULL,
+    token_hash text NOT NULL,
+    last_used_at timestamp with time zone,
+    revoked_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone,
+    grant_id uuid
+);
+
+
+--
 -- Name: exercises; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -96,6 +113,60 @@ CREATE TABLE public.exercises (
     rep_range_max smallint NOT NULL,
     weight_step_kg numeric(5,2) DEFAULT 0.5 NOT NULL,
     archived_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: oauth_authorization_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.oauth_authorization_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    client_id text NOT NULL,
+    client_name text NOT NULL,
+    redirect_uri text NOT NULL,
+    code_challenge text NOT NULL,
+    state text,
+    resource text NOT NULL,
+    scope text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    user_id uuid,
+    code_hash text,
+    code_expires_at timestamp with time zone,
+    used_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    browser_hash text NOT NULL
+);
+
+
+--
+-- Name: oauth_grants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.oauth_grants (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    client_id text NOT NULL,
+    client_name text NOT NULL,
+    resource text NOT NULL,
+    scope text NOT NULL,
+    last_used_at timestamp with time zone,
+    revoked_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: oauth_refresh_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.oauth_refresh_tokens (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    grant_id uuid NOT NULL,
+    token_hash text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -174,9 +245,15 @@ CREATE TABLE public.training_schedule_history (
 CREATE TABLE public.users (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     email text NOT NULL,
-    password_hash text NOT NULL,
+    password_hash text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    training_days jsonb DEFAULT '[1, 3, 5]'::jsonb NOT NULL
+    training_days jsonb DEFAULT '[1, 3, 5]'::jsonb NOT NULL,
+    google_sub text,
+    training_time text DEFAULT '18:00'::text NOT NULL,
+    training_duration_min smallint DEFAULT 60 NOT NULL,
+    timezone text DEFAULT 'Europe/Kyiv'::text NOT NULL,
+    calendar_feed_token_hash text,
+    calendar_feed_created_at timestamp with time zone
 );
 
 
@@ -228,11 +305,43 @@ ALTER TABLE ONLY drizzle.__drizzle_migrations
 
 
 --
+-- Name: api_tokens api_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_tokens
+    ADD CONSTRAINT api_tokens_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: exercises exercises_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.exercises
     ADD CONSTRAINT exercises_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: oauth_authorization_requests oauth_authorization_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_authorization_requests
+    ADD CONSTRAINT oauth_authorization_requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: oauth_grants oauth_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_grants
+    ADD CONSTRAINT oauth_grants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: oauth_refresh_tokens oauth_refresh_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_refresh_tokens
+    ADD CONSTRAINT oauth_refresh_tokens_pkey PRIMARY KEY (id);
 
 
 --
@@ -300,10 +409,59 @@ ALTER TABLE ONLY public.workouts
 
 
 --
+-- Name: api_tokens_grant_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX api_tokens_grant_idx ON public.api_tokens USING btree (grant_id);
+
+
+--
+-- Name: api_tokens_token_hash_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX api_tokens_token_hash_idx ON public.api_tokens USING btree (token_hash);
+
+
+--
+-- Name: api_tokens_user_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX api_tokens_user_idx ON public.api_tokens USING btree (user_id);
+
+
+--
 -- Name: exercises_user_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX exercises_user_idx ON public.exercises USING btree (user_id);
+
+
+--
+-- Name: oauth_authorization_requests_code_hash_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX oauth_authorization_requests_code_hash_idx ON public.oauth_authorization_requests USING btree (code_hash);
+
+
+--
+-- Name: oauth_grants_user_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX oauth_grants_user_idx ON public.oauth_grants USING btree (user_id);
+
+
+--
+-- Name: oauth_refresh_tokens_grant_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX oauth_refresh_tokens_grant_idx ON public.oauth_refresh_tokens USING btree (grant_id);
+
+
+--
+-- Name: oauth_refresh_tokens_token_hash_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX oauth_refresh_tokens_token_hash_idx ON public.oauth_refresh_tokens USING btree (token_hash);
 
 
 --
@@ -356,10 +514,24 @@ CREATE INDEX training_schedule_history_user_idx ON public.training_schedule_hist
 
 
 --
+-- Name: users_calendar_feed_token_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX users_calendar_feed_token_idx ON public.users USING btree (calendar_feed_token_hash);
+
+
+--
 -- Name: users_email_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX users_email_idx ON public.users USING btree (lower(email));
+
+
+--
+-- Name: users_google_sub_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX users_google_sub_idx ON public.users USING btree (google_sub);
 
 
 --
@@ -391,11 +563,51 @@ CREATE INDEX workouts_user_label_idx ON public.workouts USING btree (user_id, pr
 
 
 --
+-- Name: api_tokens api_tokens_grant_id_oauth_grants_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_tokens
+    ADD CONSTRAINT api_tokens_grant_id_oauth_grants_id_fk FOREIGN KEY (grant_id) REFERENCES public.oauth_grants(id) ON DELETE CASCADE;
+
+
+--
+-- Name: api_tokens api_tokens_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.api_tokens
+    ADD CONSTRAINT api_tokens_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: exercises exercises_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.exercises
     ADD CONSTRAINT exercises_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: oauth_authorization_requests oauth_authorization_requests_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_authorization_requests
+    ADD CONSTRAINT oauth_authorization_requests_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: oauth_grants oauth_grants_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_grants
+    ADD CONSTRAINT oauth_grants_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: oauth_refresh_tokens oauth_refresh_tokens_grant_id_oauth_grants_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.oauth_refresh_tokens
+    ADD CONSTRAINT oauth_refresh_tokens_grant_id_oauth_grants_id_fk FOREIGN KEY (grant_id) REFERENCES public.oauth_grants(id) ON DELETE CASCADE;
 
 
 --
@@ -482,5 +694,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict CkCmJs7jLXXDgLKjuJ4jDk2BcthDNEodZ4knQYfgfc6p1FbKf1emP7N3cE8bxgw
+\unrestrict 7Svef5FgWSyxk3DxbdkxGdpbbziyCTbuIHTDPyWCN4CVeZLGdzxIQ9lf1WSNavf
 

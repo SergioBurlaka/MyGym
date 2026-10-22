@@ -37,10 +37,21 @@ export const users = pgTable('users', {
   // ISO weekday numbers (1=Mon..7=Sun) the user plans to train on. Drives the
   // consistency calendar's "missed a planned day" detection.
   trainingDays: jsonb('training_days').$type<number[]>().notNull().default([1, 3, 5]),
+  // When a planned workout starts ("HH:MM", local to `timezone`) and how long
+  // it lasts - only used to place events in the calendar feed.
+  trainingTime: text('training_time').notNull().default('18:00'),
+  trainingDurationMin: smallint('training_duration_min').notNull().default(60),
+  // IANA zone, so recurring calendar events keep their local time across DST.
+  timezone: text('timezone').notNull().default('Europe/Kyiv'),
+  // SHA-256 of the secret calendar feed token ("mygym_cal_..."); null = no
+  // calendar connected. One feed per user: regenerating replaces the hash.
+  calendarFeedTokenHash: text('calendar_feed_token_hash'),
+  calendarFeedCreatedAt: timestamp('calendar_feed_created_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   emailIdx: uniqueIndex('users_email_idx').on(sql`lower(${table.email})`),
   googleSubIdx: uniqueIndex('users_google_sub_idx').on(table.googleSub),
+  calendarFeedTokenIdx: uniqueIndex('users_calendar_feed_token_idx').on(table.calendarFeedTokenHash),
 }));
 
 export const refreshTokens = pgTable('refresh_tokens', {
