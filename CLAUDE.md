@@ -41,7 +41,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 - `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" нижче)
 - `refresh_tokens` — хеші refresh-токенів. Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
 - `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
-- `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. Див. "OAuth для MCP-клієнтів" нижче
+- `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. `client_logo_uri` (nullable, лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`. Див. "OAuth для MCP-клієнтів" нижче
 - `exercises` — вправи користувача (кожен юзер має свій список, сідиться 13 вправами при реєстрації, можна додавати свої через UI)
 - `workouts` — одне тренування (дата, timeStart/timeEnd — виставляються **автоматично**, не вручну). `programLabel` — довільний текст (напр. «А»/«Б»), яким користувач сам позначає тренування для чергування програм (див. "Шаблони тренувань" нижче). `programId` — nullable FK на `programs` (`onDelete: 'set null'`) — яка саме Програма (не мітка-текст) стартувала це тренування; видалення програми обнуляє лише це поле, саме тренування й підходи не чіпає
 - `workout_exercises` — вправа в межах тренування. **Вага фіксується один раз на всю вправу** (не змінюється між підходами — підтверджено користувачем), зберігається як `weightPerUnitKg` + `weightUnits` (зазвичай 2 — по обидва боки штанги / обидві гантелі)
@@ -142,6 +142,13 @@ popup GIS погано працює у встановленому PWA, а так
   кеші TanStack: мутація створення з `gcTime: 0` + `reset()` на «Готово».
   Картка нового токена показує готову команду `claude mcp add --transport http
   mygym <origin>/mcp --header …` (див. "MCP-сервер" нижче).
+  Сторінка (редизайн за макетом «MyGym — Інтеграції», 2026-10-22): картка з
+  адресою `<origin>/mcp` → вкладки інструкцій Claude / ChatGPT / Claude Code
+  (кількість кроків і порад — константа `GUIDES`, тексти — `integrations.guide.*`
+  у словниках, розмітка через `<Trans>`) → «Підключені застосунки» → «Токени
+  доступу». **Gotcha:** `<Trans>` розбирає `<ТОКЕН>` у тексті як тег і мовчки
+  його з'їдає — плейсхолдер і адреса сервера передаються окремими компонентами
+  (`<token/>`, `<url/>`), не текстом словника.
 - Ліміт 20 рахується в транзакції з `SELECT … FOR UPDATE` рядка `users` —
   інакше паралельні POST-и проходили б перевірку разом.
 - Тести: `test/api-tokens.test.ts` (зокрема ізоляція двох користувачів через PAT).
@@ -259,6 +266,21 @@ grace-вікна** — повтор старого refresh відкликає в
   production → попередження в лозі.
 - «Інтеграції» → «Підключені застосунки»: список grant-ів, «Відключити»
   відкликає grant і всі його токени одразу.
+- **Іконка застосунку** (`ClientIcon` в `IntegrationsPage.tsx`, логотипів у
+  бандлі нема): `logoUri` grant-а (браузер вантажить напряму, `no-referrer`) →
+  favicon через проксі → перша літера `clientName`. `logo_uri` з CIMD
+  (`safeLogoUri`: лише https без credentials, ≤2048; битий тихо стає `null`, не
+  ламає клієнта); grant-и, створені до 2026-10-22, його не мають до перепідключення.
+  Проксі `GET /api/oauth/client-icon?client_id=` (`clientIcon.client.ts` +
+  `clientIcon.service.ts`): **публічний** (`<img>` не шле Bearer), лише хости з
+  `OAUTH_CLIENT_HOSTS` через `parseClientIdUrl` (SSRF), лише
+  `https://<host>/favicon.ico` без редиректів, лише растрові типи — **SVG ні**
+  (відкритий напряму з нашого origin виконав би скрипти), ≤100 КБ з обривом
+  читання, `nosniff` + CSP `default-src 'none'`; кеш у пам'яті за хостом 24 год,
+  промах 1 год. Logo_uri через сервер свідомо не проксіюється — його хост
+  довільний. **Gotcha:** chatgpt.com відповідає 403 на будь-який серверний
+  запит (Cloudflare, від User-Agent не залежить) — для ChatGPT працює лише його
+  `logo_uri`; обходити не треба.
 - Тести: `test/oauth.test.ts` (повний потік, PKCE, повтор refresh, прив'язка до
   браузера), `test/oauth-cimd.test.ts`.
 
@@ -268,8 +290,9 @@ grace-вікна** — повтор старого refresh відкликає в
   (10/хв), `/api/auth/register` (5/15 хв) і обидва Google-роути (20/хв) на IP —
   константи `LOGIN_RATE_LIMIT`/`REGISTER_RATE_LIMIT`/`GOOGLE_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
   смикає кожна відкрита вкладка (таймер, `visibilitychange`). OAuth:
-  `/api/oauth/authorize` 30/хв і `/api/oauth/token` 60/хв на IP
-  (`AUTHORIZE_RATE_LIMIT`/`TOKEN_RATE_LIMIT` в `oauth.routes.ts`).
+  `/api/oauth/authorize` 30/хв, `/api/oauth/token` і `/api/oauth/client-icon`
+  60/хв на IP (`AUTHORIZE_RATE_LIMIT`/`TOKEN_RATE_LIMIT`/`CLIENT_ICON_RATE_LIMIT`
+  в `oauth.routes.ts`).
 - **`trustProxy` = рівно один хоп** (`(addr, hop) => hop === 0` в `app.ts`), а не
   `true`: з `true` Fastify брав би крайню ліву, клієнтську адресу з
   `X-Forwarded-For`, і rate limit обходився б підробленим заголовком. Протокол
@@ -420,6 +443,11 @@ grace-вікна** — повтор старого refresh відкликає в
   лише для читання і містить тільки розклад.
 - Обмеження Google (показані підказкою в UI): оновлює підписки із затримкою до
   доби і ігнорує `VALARM` (бере свої налаштування нагадувань).
+- Фід віддає зміни розкладу одразу, але календарі тягнуть його за своїм
+  розкладом — повторне «Додати в Google Calendar» з тим самим посиланням
+  показує кешовану Google копію (скарга користувача 2026-10-22, не баг). Тому
+  при підключеному календарі успішна зміна днів/часу/тривалості показує під
+  полями `exercises.calendar.updateDelay` (Google — до доби, Apple/Outlook — кілька годин).
 
 ## CSV-імпорт (backend/src/modules/import/)
 
