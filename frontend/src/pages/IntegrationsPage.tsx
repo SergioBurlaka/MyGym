@@ -83,14 +83,19 @@ function SetupGuides() {
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const guide = GUIDES.find((g) => g.id === tab)!;
 
-  // WAI-ARIA tabs: arrows move between tabs, only the selected one is in
-  // the Tab order.
+  // WAI-ARIA tabs: arrows move between tabs, Home/End jump to the ends,
+  // only the selected one is in the Tab order.
   function onKeyDown(e: KeyboardEvent) {
-    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-    if (!step) return;
-    e.preventDefault();
     const index = GUIDES.findIndex((g) => g.id === tab);
-    const next = GUIDES[(index + step + GUIDES.length) % GUIDES.length].id;
+    const target =
+      e.key === 'ArrowRight' ? index + 1
+      : e.key === 'ArrowLeft' ? index - 1
+      : e.key === 'Home' ? 0
+      : e.key === 'End' ? GUIDES.length - 1
+      : null;
+    if (target === null) return;
+    e.preventDefault();
+    const next = GUIDES[(target + GUIDES.length) % GUIDES.length].id;
     setTab(next);
     tabRefs.current[next]?.focus();
   }
@@ -218,7 +223,7 @@ function GrantRow({ grant }: { grant: OAuthGrant }) {
       <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-accent-muted/30 text-accent">
         <AppIcon />
       </span>
-      <div className="min-w-0 flex-1 basis-64">
+      <div className="min-w-0 flex-1 basis-40">
         {revokeMutation.isError && (
           <p className="text-sm text-red-400">{translateApiError(revokeMutation.error, t, 'integrations.revokeError')}</p>
         )}
@@ -238,16 +243,18 @@ function GrantRow({ grant }: { grant: OAuthGrant }) {
           {grant.lastUsedAt ? t('integrations.lastUsed', { date: formatDateTime(grant.lastUsedAt) }) : t('integrations.neverUsed')}
         </p>
       </div>
-      <Popconfirm
-        title={t('integrations.disconnectConfirmTitle')}
-        description={t('integrations.disconnectConfirmDescription', { name: grant.clientName })}
-        confirmText={t('integrations.disconnect')}
-        onConfirm={() => revokeMutation.mutate(grant.id)}
-      >
-        <button type="button" className="btn min-h-11 shrink-0 border border-red-900 text-red-400 hover:bg-red-950/40" disabled={revokeMutation.isPending}>
-          {t('integrations.disconnect')}
-        </button>
-      </Popconfirm>
+      <div className="ml-auto">
+        <Popconfirm
+          title={t('integrations.disconnectConfirmTitle')}
+          description={t('integrations.disconnectConfirmDescription', { name: grant.clientName })}
+          confirmText={t('integrations.disconnect')}
+          onConfirm={() => revokeMutation.mutate(grant.id)}
+        >
+          <button type="button" className="btn min-h-11 shrink-0 border border-red-900 text-red-400 hover:bg-red-950/40" disabled={revokeMutation.isPending}>
+            {t('integrations.disconnect')}
+          </button>
+        </Popconfirm>
+      </div>
     </div>
   );
 }
@@ -323,7 +330,7 @@ function TokenRow({ id, name, createdAt, lastUsedAt }: { id: string; name: strin
       <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-surface text-slate-400">
         <KeyIcon />
       </span>
-      <div className="min-w-0 flex-1 basis-64">
+      <div className="min-w-0 flex-1 basis-40">
         {/* Revoking is the security action - a failure must not pass silently. */}
         {revokeMutation.isError && (
           <p className="text-sm text-red-400">{translateApiError(revokeMutation.error, t, 'integrations.revokeError')}</p>
@@ -337,16 +344,18 @@ function TokenRow({ id, name, createdAt, lastUsedAt }: { id: string; name: strin
           {lastUsedAt ? t('integrations.lastUsed', { date: formatDateTime(lastUsedAt) }) : t('integrations.neverUsed')}
         </p>
       </div>
-      <Popconfirm
-        title={t('integrations.revokeConfirmTitle')}
-        description={t('integrations.revokeConfirmDescription', { name })}
-        confirmText={t('integrations.revoke')}
-        onConfirm={() => revokeMutation.mutate(id)}
-      >
-        <button type="button" className="btn min-h-11 shrink-0 border border-red-900 text-red-400 hover:bg-red-950/40" disabled={revokeMutation.isPending}>
-          {t('integrations.revoke')}
-        </button>
-      </Popconfirm>
+      <div className="ml-auto">
+        <Popconfirm
+          title={t('integrations.revokeConfirmTitle')}
+          description={t('integrations.revokeConfirmDescription', { name })}
+          confirmText={t('integrations.revoke')}
+          onConfirm={() => revokeMutation.mutate(id)}
+        >
+          <button type="button" className="btn min-h-11 shrink-0 border border-red-900 text-red-400 hover:bg-red-950/40" disabled={revokeMutation.isPending}>
+            {t('integrations.revoke')}
+          </button>
+        </Popconfirm>
+      </div>
     </div>
   );
 }
