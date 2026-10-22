@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { and, eq, lt, notExists } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../../db/client.js';
-import { oauthClients, oauthGrants } from '../../db/schema.js';
+import { oauthAuthorizationRequests, oauthClients, oauthGrants } from '../../db/schema.js';
 import { hashRefreshToken } from '../../utils/tokens.js';
 import { redirectUriSchema, type OAuthClient } from './cimd.client.js';
 
@@ -14,7 +14,9 @@ import { redirectUriSchema, type OAuthClient } from './cimd.client.js';
 export const CLIENT_ID_PREFIX = 'mygym_cli_';
 const CLIENT_SECRET_PREFIX = 'mygym_cls_';
 // Registered but never connected by anyone - a probe or an abandoned try.
-const UNUSED_CLIENT_TTL_MS = 7 * 24 * 60 * 60_000;
+// Long enough that a client which registers once and connects later
+// still finds itself.
+const UNUSED_CLIENT_TTL_MS = 30 * 24 * 60 * 60_000;
 
 // CIMD client ids are https URLs; everything else can only be ours.
 export const isRegisteredClientId = (clientId: string) => !clientId.startsWith('https://');
@@ -41,18 +43,21 @@ const metadataSchema = z.object({
     .max(10),
   // RFC 7591 default when omitted.
   token_endpoint_auth_method: z.enum(AUTH_METHODS).default('client_secret_basic'),
+  // Grants we don't do (client_credentials...) are ignored, not refused:
+  // clients list everything they can do, the response says what we support.
   grant_types: z
-    .array(z.enum(['authorization_code', 'refresh_token']))
+    .array(z.string())
     // We always issue a refresh token along, so say so by default.
     .default(['authorization_code', 'refresh_token'])
+    .transform((g) => g.filter((t) => t === 'authorization_code' || t === 'refresh_token'))
     .refine((g) => g.includes('authorization_code')),
   response_types: z.array(z.literal('code')).default(['code']),
   client_name: z.string().trim().min(1).max(200).optional(),
-  client_uri: z.string().optional(),
+  client_uri: z.unknown(), // informational - anything but https is dropped
 });
 
-function httpsOrNull(value: string | undefined): string | null {
-  if (!value || value.length > 2048) return null;
+function httpsOrNull(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048) return null;
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && !url.username && !url.password ? url.href : null;
@@ -73,12 +78,20 @@ export async function registerClient(body: unknown) {
 
   // Housekeeping, like expired tokens on issue: drop old clients nobody
   // ever connected, so open registration can't grow the table forever.
+  // Not one somebody is connecting right now (a pending authorization
+  // request) - its consent and code exchange would fail midway.
   await db
     .delete(oauthClients)
     .where(
       and(
         lt(oauthClients.createdAt, new Date(Date.now() - UNUSED_CLIENT_TTL_MS)),
         notExists(db.select({ id: oauthGrants.id }).from(oauthGrants).where(eq(oauthGrants.clientId, oauthClients.id))),
+        notExists(
+          db
+            .select({ id: oauthAuthorizationRequests.id })
+            .from(oauthAuthorizationRequests)
+            .where(eq(oauthAuthorizationRequests.clientId, oauthClients.id)),
+        ),
       ),
     );
 

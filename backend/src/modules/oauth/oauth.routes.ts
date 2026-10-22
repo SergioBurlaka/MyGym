@@ -17,7 +17,7 @@ import {
 } from './oauth.service.js';
 import { OAuthClientError } from './cimd.client.js';
 import { getClientFavicon } from './clientIcon.service.js';
-import { RegistrationError, registerClient } from './dcr.service.js';
+import { RegistrationError, isRegisteredClientId, registerClient } from './dcr.service.js';
 
 export const AUTHORIZE_RATE_LIMIT = { max: 30, timeWindow: '1 minute' };
 export const TOKEN_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
@@ -91,8 +91,11 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
     } catch (err) {
       if (!(err instanceof OAuthError)) throw err;
       // Unknown client / unregistered redirect: never redirect to it - show
-      // the error on our own page instead.
-      if (!err.redirect) {
+      // the error on our own page instead. Same for a self-registered client:
+      // anyone can register any https redirect, so redirecting its errors
+      // (a broken response_type, before any login) would make our domain an
+      // open redirect.
+      if (!err.redirect || isRegisteredClientId(params.client_id ?? '')) {
         request.log.warn({ code: err.code, description: err.description }, 'OAuth authorize rejected');
         return reply.redirect(`${CONSENT_PAGE}?error=${err.code}`);
       }
@@ -152,9 +155,9 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
   });
 
   // RFC 7591 Dynamic Client Registration - open, for MCP clients that don't
-  // do CIMD (Gemini...). Called server-side or from a browser, hence CORS.
+  // do CIMD (Gemini...). Called server-side, so no CORS.
   fastify.post('/register', { config: { rateLimit: REGISTER_RATE_LIMIT } }, async (request, reply) => {
-    reply.header('cache-control', 'no-store').header('access-control-allow-origin', '*');
+    reply.header('cache-control', 'no-store');
     try {
       const client = await registerClient(request.body);
       // Who registers how is still unknown for some clients (Gemini) - keep
@@ -192,7 +195,11 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
       throw new OAuthError('unsupported_grant_type', 'Only authorization_code and refresh_token are supported');
     } catch (err) {
       if (!(err instanceof OAuthError)) throw err;
-      // invalid_client is 401 (RFC 6749 5.2).
+      // invalid_client is 401 (RFC 6749 5.2), with a challenge when the
+      // client tried Basic.
+      if (err.code === 'invalid_client' && request.headers.authorization?.toLowerCase().startsWith('basic ')) {
+        reply.header('www-authenticate', 'Basic realm="mygym"');
+      }
       return reply.code(err.code === 'invalid_client' ? 401 : 400).send({ error: err.code, error_description: err.description });
     }
   });

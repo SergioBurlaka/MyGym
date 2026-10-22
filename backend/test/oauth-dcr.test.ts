@@ -163,9 +163,17 @@ describe('registration', () => {
     expect(res.json().error).toBe('invalid_client_metadata');
   });
 
-  it('drops a non-https client_uri instead of storing it', async () => {
-    const client = await registerOk({ client_uri: 'javascript:alert(1)' });
+  it.each([
+    ['a non-https', 'javascript:alert(1)'],
+    ['a non-string', { href: 'https://x.example' }],
+  ])('drops %s client_uri instead of storing it', async (_label, clientUri) => {
+    const client = await registerOk({ client_uri: clientUri });
     expect(client.client_uri).toBeUndefined();
+  });
+
+  it("ignores grant types it doesn't do instead of refusing the client", async () => {
+    const client = await registerOk({ grant_types: ['authorization_code', 'refresh_token', 'client_credentials'] });
+    expect(client.grant_types).toEqual(['authorization_code', 'refresh_token']);
   });
 
   it('is rate limited per IP', async () => {
@@ -174,19 +182,21 @@ describe('registration', () => {
     expect(res.statusCode).toBe(429);
   });
 
-  it('expires old clients nobody connected, keeps connected and recent ones', async () => {
+  it('expires old clients nobody connected, keeps connected, connecting and recent ones', async () => {
     const user = await registerUser(app);
     const unused = await registerOk();
     const connected = await registerOk();
+    const connecting = await registerOk();
     const fresh = await registerOk();
     await db.insert(oauthGrants).values({ userId: user.user.id, clientId: connected.client_id, clientName: 'Gemini', resource: MCP_RESOURCE, scope: 'mygym' });
-    const old = new Date(Date.now() - 8 * 24 * 60 * 60_000);
-    for (const c of [unused, connected]) await db.update(oauthClients).set({ createdAt: old }).where(eq(oauthClients.id, c.client_id));
+    await requestId(connecting.client_id); // on the consent screen right now
+    const old = new Date(Date.now() - 31 * 24 * 60 * 60_000);
+    for (const c of [unused, connected, connecting]) await db.update(oauthClients).set({ createdAt: old }).where(eq(oauthClients.id, c.client_id));
 
     await registerOk(); // registration does the housekeeping
     const ids = (await db.select({ id: oauthClients.id }).from(oauthClients)).map((r) => r.id);
     expect(ids).not.toContain(unused.client_id);
-    expect(ids).toEqual(expect.arrayContaining([connected.client_id, fresh.client_id]));
+    expect(ids).toEqual(expect.arrayContaining([connected.client_id, connecting.client_id, fresh.client_id]));
   });
 });
 
@@ -213,6 +223,26 @@ describe('signing in with a registered client', () => {
     }
   });
 
+  it('never redirects its request errors to the registered redirect: anyone can register any https URL', async () => {
+    const client = await registerOk({ redirect_uris: ['https://evil.example/cb'] });
+    for (const bad of [{ response_type: 'token' }, { code_challenge_method: 'plain' }, { scope: 'admin' }, { resource: 'https://x.example/mcp' }]) {
+      const qs = new URLSearchParams({
+        response_type: 'code',
+        client_id: client.client_id,
+        redirect_uri: 'https://evil.example/cb',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        resource: MCP_RESOURCE,
+        ...bad,
+      });
+      const res = await app.inject({ method: 'GET', url: `/api/oauth/authorize?${qs}` });
+      expect(res.statusCode).toBe(302);
+      const location = res.headers.location as string;
+      expect(location).toMatch(/^\/oauth\/consent\?error=/);
+      expect(location).not.toContain('evil.example');
+    }
+  });
+
   it('confidential, client_secret_post: tokens that work on the API, refresh with the secret', async () => {
     const user = await registerUser(app);
     const client = await registerOk();
@@ -235,6 +265,12 @@ describe('signing in with a registered client', () => {
     const { client_id: _omit, ...withoutId } = form;
     const res = await token(withoutId, basic(client.client_id, client.client_secret!));
     expect(res.statusCode).toBe(200);
+
+    const refresh = { grant_type: 'refresh_token', refresh_token: res.json().refresh_token };
+    const wrong = await token(refresh, basic(client.client_id, 'mygym_cls_wrong'));
+    expect(wrong.statusCode).toBe(401);
+    expect(wrong.headers['www-authenticate']).toBe('Basic realm="mygym"');
+    expect((await token(refresh, basic(client.client_id, client.client_secret!))).statusCode).toBe(200);
   });
 
   it.each([
