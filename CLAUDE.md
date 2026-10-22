@@ -41,7 +41,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 - `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" нижче)
 - `refresh_tokens` — хеші refresh-токенів. Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
 - `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
-- `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. `client_logo_uri` (nullable, лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`. Див. "OAuth для MCP-клієнтів" нижче
+- `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. `client_logo_uri` (nullable, лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`. `oauth_clients` — клієнти, зареєстровані через DCR (`id` = `mygym_cli_…`, хеш секрету, метод автентифікації, `redirect_uris` jsonb); не FK до grant-ів. Див. "OAuth для MCP-клієнтів" нижче
 - `exercises` — вправи користувача (кожен юзер має свій список, сідиться 13 вправами при реєстрації, можна додавати свої через UI)
 - `workouts` — одне тренування (дата, timeStart/timeEnd — виставляються **автоматично**, не вручну). `programLabel` — довільний текст (напр. «А»/«Б»), яким користувач сам позначає тренування для чергування програм (див. "Шаблони тренувань" нижче). `programId` — nullable FK на `programs` (`onDelete: 'set null'`) — яка саме Програма (не мітка-текст) стартувала це тренування; видалення програми обнуляє лише це поле, саме тренування й підходи не чіпає
 - `workout_exercises` — вправа в межах тренування. **Вага фіксується один раз на всю вправу** (не змінюється між підходами — підтверджено користувачем), зберігається як `weightPerUnitKg` + `weightUnits` (зазвичай 2 — по обидва боки штанги / обидві гантелі)
@@ -195,7 +195,7 @@ popup GIS погано працює у встановленому PWA, а так
   Claude's published identity», client ID не потрібен). Claude Code — `claude mcp
   add --transport http mygym https://<домен>/mcp --header "Authorization: Bearer
   mygym_pat_…"` (OAuth без `--header` спрацює, лише якщо Claude Code
-  представляється через CIMD, а не DCR — не перевірено). PAT у полі
+  проходить CIMD або DCR — не перевірено). Gemini — через «Sign in» (DCR). PAT у полі
   Request headers конектора (Authentication **No sign-in**) теж працює. Значення
   заголовка форма не показує повторно — при «токен відхилено» перевірити токен
   окремо (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`);
@@ -219,8 +219,9 @@ popup GIS погано працює у встановленому PWA, а так
 MyGym — власний OAuth authorization server для MCP (специфікація MCP
 2026-07-28), щоб Claude і ChatGPT підключались через «Sign in» без копіювання
 токена. Рішення користувача (2026-10-21): MCP і REST API — **один ресурс**
-(OAuth-токен для `<PUBLIC_URL>/mcp` приймає й API); клієнти **лише через CIMD**
-з allow-list хостів (без DCR); access 1 год, refresh 30 днів з ротацією **без
+(OAuth-токен для `<PUBLIC_URL>/mcp` приймає й API); клієнти — через CIMD
+з allow-list хостів (Claude, ChatGPT) **або DCR** (з 2026-10-22, для Gemini й
+інших без CIMD, див. нижче); access 1 год, refresh 30 днів з ротацією **без
 grace-вікна** — повтор старого refresh відкликає весь grant (на відміну від
 сесійного refresh вище; ціна — рідкісне «відключилось само» після загубленої
 відповіді).
@@ -239,6 +240,27 @@ grace-вікна** — повтор старого refresh відкликає в
   збіг, для loopback (Claude Code) порт ігнорується (RFC 8252). Claude:
   `https://claude.ai/oauth/mcp-oauth-client-metadata`, ChatGPT:
   `https://chatgpt.com/oauth/client.json`. Тести мокають лише `resolveClient`.
+- **DCR** (RFC 7591, `dcr.service.ts`, `POST /api/oauth/register`, у discovery
+  `registration_endpoint`): реєстрація **відкрита** (рішення користувача
+  2026-10-22) — `redirect_uris` будь-які https або loopback http (як у CIMD,
+  плюс без `#` і `*`), 10/год на IP. Видає `client_id` = `mygym_cli_<32 hex>`
+  (так CIMD і DCR розрізняються: `isRegisteredClientId` = не `https://`) і, крім
+  `token_endpoint_auth_method: none`, секрет `mygym_cls_…` — показується раз, у
+  `oauth_clients` лише sha256. Default методу — `client_secret_basic` (RFC 7591).
+  `/token` перевіряє секрет із тіла або Basic (обидва разом → `invalid_request`;
+  невірний → 401 `invalid_client`, з Basic — ще `WWW-Authenticate`), до
+  транзакції — невдала спроба код не спалює. Невідомі `grant_types` ігноруються.
+  Клієнти, що 30 днів ні разу не підключились (нема grant-а й запиту на
+  згоду), видаляються при наступній реєстрації.
+  Зареєстрований клієнт **нічого не доводить про себе**: згода показує його як
+  неперевірений (`verified: false`, `clientHost: null`, жовте попередження під
+  назвою + хост redirect-а), `logo_uri` не береться, favicon не проксіюється
+  (лише літера). **Помилки `/authorize` для нього — завжди на НАШІЙ сторінці**,
+  навіть після успішної валідації redirect-а: інакше будь-хто реєструє свій
+  redirect і має відкритий редирект з нашого домену без входу (знахідка рев'ю).
+  **Gotcha:** код, що розбирає `clientId` як URL (`new URL(grant.clientId)`),
+  на DCR-клієнті кидає виняток — так після підключення Gemini «Інтеграції»
+  рендерились порожніми (2026-10-22, PR #25). Перевіряти `startsWith('https://')`.
 - `GET /api/oauth/authorize` → запит у БД → 302 на `/oauth/consent?request=<id>`
   (SPA, `OAuthConsentPage.tsx`, сама веде на login з `?next=`). PKCE S256
   обов'язковий, `resource` = `<PUBLIC_URL>/mcp`, scope лише `mygym`, кожен
@@ -282,7 +304,7 @@ grace-вікна** — повтор старого refresh відкликає в
   запит (Cloudflare, від User-Agent не залежить) — для ChatGPT працює лише його
   `logo_uri`; обходити не треба.
 - Тести: `test/oauth.test.ts` (повний потік, PKCE, повтор refresh, прив'язка до
-  браузера), `test/oauth-cimd.test.ts`.
+  браузера), `test/oauth-cimd.test.ts`, `test/oauth-dcr.test.ts`.
 
 ## Захист API та тести
 
@@ -290,7 +312,7 @@ grace-вікна** — повтор старого refresh відкликає в
   (10/хв), `/api/auth/register` (5/15 хв) і обидва Google-роути (20/хв) на IP —
   константи `LOGIN_RATE_LIMIT`/`REGISTER_RATE_LIMIT`/`GOOGLE_RATE_LIMIT` в `auth.routes.ts`. `/refresh` свідомо без ліміту — його
   смикає кожна відкрита вкладка (таймер, `visibilitychange`). OAuth:
-  `/api/oauth/authorize` 30/хв, `/api/oauth/token` і `/api/oauth/client-icon`
+  `/api/oauth/register` 10/год, `/api/oauth/authorize` 30/хв, `/api/oauth/token` і `/api/oauth/client-icon`
   60/хв на IP (`AUTHORIZE_RATE_LIMIT`/`TOKEN_RATE_LIMIT`/`CLIENT_ICON_RATE_LIMIT`
   в `oauth.routes.ts`).
 - **`trustProxy` = рівно один хоп** (`(addr, hop) => hop === 0` в `app.ts`), а не
