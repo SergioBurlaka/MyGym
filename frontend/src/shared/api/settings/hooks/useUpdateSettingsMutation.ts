@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
-import type { UserSettings } from '../settings.types.js';
+import type { UpdateSettingsInput, UserSettings } from '../settings.types.js';
 import { SettingsApi } from '../settings.api.js';
 import { settingsKeys } from '../settings.keys.js';
 
-export const useUpdateSettingsMutation = (): UseMutationResult<UserSettings, Error, number[]> => {
+export const useUpdateSettingsMutation = (): UseMutationResult<UserSettings, Error, UpdateSettingsInput> => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: settingsKeys.update.queryKey,
-    mutationFn: async (trainingDays) => {
-      const { data } = await SettingsApi.update(trainingDays);
+    mutationFn: async (input) => {
+      const { data } = await SettingsApi.update(input);
       return data;
     },
     onSuccess: async (data) => {
