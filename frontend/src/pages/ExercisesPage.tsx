@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isAxiosError } from 'axios';
 import {
   useArchiveExerciseMutation,
   useCreateExerciseMutation,
@@ -419,8 +420,18 @@ function TrainingScheduleCard() {
   // zone along if it differs, so calendar events land at the local time.
   async function save(input: UpdateSettingsInput) {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const payload = timezone && timezone !== settings?.timezone ? { ...input, timezone } : input;
-    if (Object.keys(payload).length > 0) await updateMutation.mutateAsync(payload);
+    if (!timezone || timezone === settings?.timezone) {
+      if (Object.keys(input).length > 0) await updateMutation.mutateAsync(input);
+      return;
+    }
+    try {
+      await updateMutation.mutateAsync({ ...input, timezone });
+    } catch (err) {
+      // A browser with newer tz data than the server can report a zone the
+      // server rejects - that must not block saving the schedule itself.
+      if (Object.keys(input).length === 0 || !isAxiosError(err) || err.response?.status !== 400) throw err;
+      await updateMutation.mutateAsync(input);
+    }
   }
 
   function toggleDay(day: number) {
@@ -432,7 +443,9 @@ function TrainingScheduleCard() {
 
   function saveTime() {
     if (!/^\d{2}:\d{2}$/.test(time) || time === settings?.trainingTime) return;
-    save({ trainingTime: time }).catch(() => {});
+    // On failure put the saved value back, so the field never looks saved
+    // when it isn't.
+    save({ trainingTime: time }).catch(() => setTime(settings?.trainingTime ?? ''));
   }
 
   async function syncTimezone() {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { db } from '../src/db/client.js';
-import { trainingScheduleHistory } from '../src/db/schema.js';
+import { trainingScheduleHistory, users } from '../src/db/schema.js';
 import { createTestApp, registerUser, resetDb } from './helpers.js';
 
 let app: FastifyInstance;
@@ -52,7 +52,22 @@ describe('settings', () => {
     expect((await patch(auth, { timezone: 'Europe/Kiev' })).statusCode).toBe(200);
   });
 
+  it('stores the timezone in the runtime spelling', async () => {
+    const { auth } = await registerUser(app);
+    const res = await patch(auth, { timezone: 'america/new_york' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().timezone).toBe('America/New_York');
+  });
+
+  it('returns 404, not 500, when the user behind a valid token is gone', async () => {
+    const { auth, user } = await registerUser(app);
+    await db.delete(users).where(eq(users.id, user.id));
+    expect((await app.inject({ method: 'GET', url: '/api/settings', headers: auth })).statusCode).toBe(404);
+    expect((await patch(auth, { trainingTime: '07:00' })).statusCode).toBe(404);
+  });
+
   it.each([
+    [{ timezone: '+05:00' }],
     [{ trainingTime: '24:00' }],
     [{ trainingTime: '7:30' }],
     [{ trainingDurationMin: 10 }],

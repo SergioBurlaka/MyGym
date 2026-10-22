@@ -5,8 +5,10 @@ import { getScheduleHistory, getSettings, updateSettings } from './settings.serv
 export default async function settingsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', fastify.authenticate);
 
-  fastify.get('/', async (request) => {
-    return getSettings(request.userId);
+  fastify.get('/', async (request, reply) => {
+    const settings = await getSettings(request.userId);
+    if (!settings) return reply.code(404).send({ error: 'not_found' });
+    return settings;
   });
 
   fastify.get('/history', async (request) => {
@@ -18,6 +20,8 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: 'validation_error', issues: parsed.error.issues });
     }
-    return updateSettings(request.userId, parsed.data);
+    const settings = await updateSettings(request.userId, parsed.data);
+    if (!settings) return reply.code(404).send({ error: 'not_found' });
+    return settings;
   });
 }

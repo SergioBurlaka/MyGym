@@ -39,6 +39,18 @@ export function buildApp(opts: BuildAppOptions = {}) {
         : {
             level: env.NODE_ENV === 'production' ? 'info' : 'debug',
             transport: env.NODE_ENV === 'production' ? undefined : { target: 'pino-pretty' },
+            // The calendar feed's secret is in the URL path - keep it out of
+            // request logs (nginx's access log still has it; see CLAUDE.md).
+            serializers: {
+              req(req) {
+                return {
+                  method: req.method,
+                  url: req.url.replace(/mygym_cal_[a-f0-9]+/, 'mygym_cal_<redacted>'),
+                  hostname: req.hostname,
+                  remoteAddress: req.ip,
+                };
+              },
+            },
           },
   });
 

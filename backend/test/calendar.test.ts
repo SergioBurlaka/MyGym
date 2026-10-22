@@ -89,9 +89,21 @@ describe('buildCalendarFeed', () => {
     expect(evs.map((e) => e.uid)).toEqual([`schedule-2026-08-06-${baseFeed.userId}@mygym`]);
   });
 
-  it('falls back to a bare TZID for a zone without VTIMEZONE data', () => {
+  it('uses a bare TZID for Etc/GMT zones (their packaged VTIMEZONE has the sign flipped)', () => {
+    // POSIX sign: Etc/GMT-3 is UTC+3.
     const ics = buildCalendarFeed({ ...baseFeed, timezone: 'Etc/GMT-3' });
-    expect(events(ics)).toHaveLength(1);
+    expect(ics).not.toContain('BEGIN:VTIMEZONE');
+    expect(events(ics)[0].start.toISOString()).toBe('2026-07-01T16:30:00.000Z');
+  });
+
+  it('skips a first day whose start time falls into the spring-forward gap', () => {
+    // 2026-03-29 (Sunday): Kyiv clocks jump 03:00 -> 04:00, so 03:30 doesn't exist.
+    const ics = buildCalendarFeed({
+      ...baseFeed,
+      trainingTime: '03:30',
+      history: [{ trainingDays: [7], effectiveFrom: '2026-03-29' }],
+    });
+    expect(ics).toContain('DTSTART;TZID=Europe/Kiev:20260405T033000');
   });
 });
 
@@ -222,6 +234,20 @@ describe('calendar feed API', () => {
     expect(aliceFeed.body).not.toContain(bob.user.id);
     expect(bobFeed.body).toContain(bob.user.id);
     expect(bobFeed.body).not.toContain(alice.user.id);
+  });
+
+  it('rate-limits the feed per file, not per client', async () => {
+    const alice = await registerUser(app);
+    const bob = await registerUser(app);
+    const alicePath = feedPath((await connect(alice.auth)).feedUrl);
+    const bobPath = feedPath((await connect(bob.auth)).feedUrl);
+
+    for (let i = 0; i < 60; i++) {
+      expect((await app.inject({ method: 'GET', url: alicePath })).statusCode).toBe(200);
+    }
+    expect((await app.inject({ method: 'GET', url: alicePath })).statusCode).toBe(429);
+    // Same client address, another feed - Google fetches every feed from shared IPs.
+    expect((await app.inject({ method: 'GET', url: bobPath })).statusCode).toBe(200);
   });
 
   it('falls back to English for an unknown lang', async () => {

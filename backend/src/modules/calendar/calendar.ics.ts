@@ -27,6 +27,10 @@ const REFRESH_SECONDS = 6 * 60 * 60;
 const VTIMEZONE_ALIASES: Record<string, string> = { 'Europe/Kyiv': 'Europe/Kiev' };
 
 function resolveTzid(tz: string): { tzid: string; hasVtimezone: boolean } {
+  // The package's Etc/GMT±N data has the POSIX sign the wrong way round
+  // (Etc/GMT+5 comes out as +05:00, it is UTC-5) - a client trusting that
+  // VTIMEZONE would move every event by 2N hours. Bare TZID instead.
+  if (tz.startsWith('Etc/')) return { tzid: tz, hasVtimezone: false };
   for (const candidate of [tz, VTIMEZONE_ALIASES[tz]]) {
     if (candidate && getVtimezoneComponent(candidate)) return { tzid: candidate, hasVtimezone: true };
   }
@@ -35,11 +39,19 @@ function resolveTzid(tz: string): { tzid: string; hasVtimezone: boolean } {
   return { tzid: tz, hasVtimezone: false };
 }
 
-// First date on or after `from` that falls on one of the ISO weekdays `days`.
-function firstTrainingDate(from: DateTime, days: number[]): DateTime {
+// First training day on or after `from` (ISO weekdays `days`) on which the
+// wall clock actually shows `hour:minute`. DTSTART fixes the wall time for the
+// whole RRULE, so a start inside a spring-forward gap (Luxon moves 03:30 to
+// 04:30) would shift every later event too - such a day is skipped.
+function firstStart(from: DateTime, days: number[], hour: number, minute: number): DateTime {
   let date = from;
-  while (!days.includes(date.weekday)) date = date.plus({ days: 1 });
-  return date;
+  for (;;) {
+    if (days.includes(date.weekday)) {
+      const start = date.set({ hour, minute });
+      if (start.hour === hour && start.minute === minute) return start;
+    }
+    date = date.plus({ days: 1 });
+  }
 }
 
 // One weekly series per schedule history row, so past weeks show the schedule
@@ -66,11 +78,10 @@ export function buildCalendarFeed(input: FeedInput): string {
     if (row.trainingDays.length === 0) return;
     const next = input.history[i + 1];
     const nextFrom = next ? DateTime.fromISO(next.effectiveFrom, { zone }) : null;
-    const firstDate = firstTrainingDate(DateTime.fromISO(row.effectiveFrom, { zone }), row.trainingDays);
+    const start = firstStart(DateTime.fromISO(row.effectiveFrom, { zone }), row.trainingDays, hour, minute);
     // Schedule replaced before its first training day - nothing to show.
-    if (nextFrom && firstDate >= nextFrom) return;
+    if (nextFrom && start >= nextFrom) return;
 
-    const start = firstDate.set({ hour, minute });
     let rrule = `FREQ=WEEKLY;BYDAY=${row.trainingDays.map((d) => ICAL_WEEKDAYS[d - 1]).join(',')}`;
     if (nextFrom) {
       // Last second of the day before the next schedule takes over (RFC 5545:

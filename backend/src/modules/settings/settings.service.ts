@@ -27,7 +27,9 @@ type SettingsRow = {
 
 // The token hash itself never leaves the backend - the client only needs to
 // know whether a calendar is connected.
-function toSettings(row: SettingsRow) {
+function toSettings(row: SettingsRow | undefined) {
+  // No row: the access token outlived its user.
+  if (!row) return null;
   return {
     trainingDays: row.trainingDays,
     trainingTime: row.trainingTime,

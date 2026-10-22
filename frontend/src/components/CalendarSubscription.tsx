@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/index.js';
 import Popconfirm from './Popconfirm.js';
@@ -26,13 +27,23 @@ export default function CalendarSubscription({
   const { t } = useTranslation();
   const createMutation = useCreateCalendarTokenMutation();
   const deleteMutation = useDeleteCalendarTokenMutation();
+  // Covers the beforeConnect() await too: createMutation isn't pending yet
+  // then, and a second click would mint a second token - the first response
+  // shown would be a link already replaced in the database.
+  const [connecting, setConnecting] = useState(false);
   const links = createMutation.data;
-  const busy = createMutation.isPending || deleteMutation.isPending;
+  const busy = connecting || createMutation.isPending || deleteMutation.isPending;
 
   async function connect() {
-    await beforeConnect();
-    const lang: CalendarFeedLang = i18n.language?.startsWith('uk') ? 'uk' : 'en';
-    createMutation.mutate(lang);
+    if (connecting) return;
+    setConnecting(true);
+    try {
+      await beforeConnect();
+      const lang: CalendarFeedLang = i18n.language?.startsWith('uk') ? 'uk' : 'en';
+      await createMutation.mutateAsync(lang).catch(() => {});
+    } finally {
+      setConnecting(false);
+    }
   }
 
   const error = createMutation.error ?? deleteMutation.error;
