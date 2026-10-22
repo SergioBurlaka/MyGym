@@ -59,19 +59,20 @@ function ConsentForLoggedInUser({ requestId }: { requestId: string | null }) {
   return (
     <ConsentShell>
       <h1 className="text-2xl text-slate-100">{t('oauth.consent.title', { client: info.clientName })}</h1>
+      {/* A self-registered client chose its own name (the heading above) -
+          the redirect host is the one thing that says where the access
+          really goes, so the warning sits right under the name. */}
+      {!info.verified && (
+        <p role="alert" className="rounded-lg border border-warn/50 bg-warn/10 p-3 text-sm text-warn">
+          {t('oauth.consent.unverified', { client: info.clientName, host: info.redirectHost })}
+        </p>
+      )}
       <p className="text-slate-300">{t('oauth.consent.access')}</p>
       <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">
         <li>{t('oauth.consent.canRead')}</li>
         <li>{t('oauth.consent.canWrite')}</li>
         <li>{t('oauth.consent.cannot')}</li>
       </ul>
-      {/* A self-registered client chose its own name - the redirect host is
-          the one thing that says where the access really goes. */}
-      {!info.verified && (
-        <p role="alert" className="rounded-lg border border-warn/50 bg-warn/10 p-3 text-sm text-warn">
-          {t('oauth.consent.unverified', { client: info.clientName, host: info.redirectHost })}
-        </p>
-      )}
       {/* The MCP spec requires showing where the browser goes back to -
           it's how a user can spot an impostor. */}
       <dl className="space-y-1 rounded-lg border border-surface-border bg-surface p-3 text-sm">
