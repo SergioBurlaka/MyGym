@@ -8,6 +8,7 @@ import type { CreatedApiToken } from '../shared/api/tokens/tokens.types.js';
 import { useGrantsQuery, useRevokeGrantMutation } from '../shared/api/oauth/index.js';
 import type { OAuthGrant } from '../shared/api/oauth/oauth.types.js';
 import { translateApiError } from '../utils/apiError.js';
+import { baseURL } from '../api/client.js';
 
 // formatDate in utils/weight.ts is for date-only values; tokens carry
 // full timestamps and "last used" is more useful with the time.
@@ -221,9 +222,7 @@ function GrantRow({ grant }: { grant: OAuthGrant }) {
 
   return (
     <div className="card flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-5">
-      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-accent-muted/30 text-accent">
-        <AppIcon />
-      </span>
+      <ClientIcon grant={grant} />
       <div className="min-w-0 flex-1 basis-40">
         {revokeMutation.isError && (
           <p className="text-sm text-red-400">{translateApiError(revokeMutation.error, t, 'integrations.revokeError')}</p>
@@ -387,11 +386,34 @@ function CopyIcon() {
   );
 }
 
-function AppIcon() {
+// The client's own logo (logo_uri), else its favicon through our proxy,
+// else the first letter of its name - no per-service logos in the bundle.
+function ClientIcon({ grant }: { grant: OAuthGrant }) {
+  const sources = [
+    grant.logoUri,
+    `${baseURL}/oauth/client-icon?${new URLSearchParams({ client_id: grant.clientId })}`,
+  ].filter((s): s is string => Boolean(s));
+  const [failed, setFailed] = useState(0);
+  const src = sources[failed];
+
+  if (!src) {
+    return (
+      <span aria-hidden="true" className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-accent-muted/30 text-lg font-bold text-accent">
+        {[...grant.clientName.trim()][0]?.toUpperCase() ?? '?'}
+      </span>
+    );
+  }
+  // Light tile: logos and favicons are mostly drawn for light backgrounds.
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4" />
-    </svg>
+    <span className="flex h-11 w-11 flex-none items-center justify-center overflow-hidden rounded-xl bg-white p-2">
+      <img
+        src={src}
+        alt=""
+        className="h-full w-full object-contain"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed((n) => n + 1)}
+      />
+    </span>
   );
 }
 
