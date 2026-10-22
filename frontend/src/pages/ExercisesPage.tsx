@@ -415,10 +415,19 @@ function TrainingScheduleCard() {
   useEffect(() => {
     if (settings) setTime(settings.trainingTime);
   }, [settings?.trainingTime]);
+  // Calendar apps poll the feed on their own schedule (Google - up to a day),
+  // so after a change the subscribed calendar keeps the old times for a
+  // while; say so instead of letting it look broken.
+  const [calendarLagging, setCalendarLagging] = useState(false);
+
+  async function save(input: UpdateSettingsInput) {
+    await saveSettings(input);
+    if (settings?.calendarConnectedAt && Object.keys(input).length > 0) setCalendarLagging(true);
+  }
 
   // The timezone isn't a field in the form: every save carries the browser's
   // zone along if it differs, so calendar events land at the local time.
-  async function save(input: UpdateSettingsInput) {
+  async function saveSettings(input: UpdateSettingsInput) {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!timezone || timezone === settings?.timezone) {
       if (Object.keys(input).length > 0) await updateMutation.mutateAsync(input);
@@ -514,6 +523,9 @@ function TrainingScheduleCard() {
       </div>
       {updateMutation.isError && (
         <p className="text-sm text-red-400">{translateApiError(updateMutation.error, t, 'exercises.schedule.saveError')}</p>
+      )}
+      {calendarLagging && settings?.calendarConnectedAt && (
+        <p role="status" className="text-[13px] text-warn">{t('exercises.calendar.updateDelay')}</p>
       )}
       <CalendarSubscription connectedAt={settings?.calendarConnectedAt ?? null} beforeConnect={syncTimezone} />
       <div className="flex items-start gap-2 border-t border-surface-border pt-2.5 text-[13px] text-slate-400">

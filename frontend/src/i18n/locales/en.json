@@ -242,7 +242,8 @@
       "linkLabel": "Subscription link",
       "done": "Done",
       "error": "Couldn't update the calendar link",
-      "hint": "Google Calendar refreshes subscriptions slowly (up to a day) and uses your Google reminder settings instead of the 30-minute reminder. Apple Calendar and Outlook keep it."
+      "hint": "Google Calendar refreshes subscriptions slowly (up to a day) and uses your Google reminder settings instead of the 30-minute reminder. Apple Calendar and Outlook keep it.",
+      "updateDelay": "Saved. Your subscribed calendar picks up the change on its own: Google Calendar within a day, Apple Calendar and Outlook within a few hours."
     }
   },
   "import": {
