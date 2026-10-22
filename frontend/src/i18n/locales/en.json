@@ -410,33 +410,41 @@
       "chatgpt": {
         "tab": "ChatGPT",
         "title": "ChatGPT",
-        "badge": "Developer mode required",
+        "badge": "Sign in with MyGym · no token",
         "steps": {
           "1": {
-            "title": "Turn on Developer mode",
-            "body": "On <a>chatgpt.com</a>: <b>Settings → Apps & Connectors → Advanced</b> → turn on <b>Developer mode</b>."
+            "title": "Open ChatGPT",
+            "body": "Go to <a>chatgpt.com</a> and sign in to your account."
           },
           "2": {
-            "title": "Create a connector",
-            "body": "Go back to <b>Apps & Connectors</b> and click <b>Create</b>. Name - <code>MyGym</code>, description - \"My workouts, programs and progress\", URL - the MCP server URL above, authentication - <b>OAuth</b>."
+            "title": "Open Plugins",
+            "body": "In ChatGPT settings open the <b>Plugins</b> section, or go straight to the plugins page."
           },
           "3": {
-            "title": "Sign in to MyGym",
-            "body": "Confirm that you trust the app, click <b>Create</b> and sign in to your MyGym account on the page that opens."
+            "title": "Add an MCP server",
+            "body": "Click <b>Add → Add custom MCP server</b>."
           },
           "4": {
-            "title": "Pick MyGym in a chat",
-            "body": "In a new chat click <b>+</b> and choose MyGym. It works best when you name it: \"Using MyGym, show my latest workouts\"."
+            "title": "Enter the server URL",
+            "body": "Enter the MCP server URL: <url/>"
+          },
+          "5": {
+            "title": "Sign in to MyGym",
+            "body": "If ChatGPT asks you to authorize, the MyGym sign-in page opens - sign in to your account and approve access."
+          },
+          "6": {
+            "title": "Check the connection",
+            "body": "Once connected, MyGym shows up among the installed plugins. Open a chat and ask ChatGPT to show your workouts."
           }
         },
         "tips": {
           "plan": {
             "title": "Your plan matters",
-            "body": "Developer mode is not available on every ChatGPT plan, and on some it is read-only. If there is no Create button, check your plan."
+            "body": "Custom MCP servers are not available on every ChatGPT plan. If there is no Plugins section, check your plan."
           },
           "browser": {
             "title": "Start in the browser",
-            "body": "Add the connector on chatgpt.com; the mobile and desktop apps pick it up after a restart."
+            "body": "Add the plugin on chatgpt.com; the mobile and desktop apps pick it up after a restart."
           }
         }
       },

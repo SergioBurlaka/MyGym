@@ -25,7 +25,7 @@ function mcpUrl() {
 // integrations.guide.<id>.* - steps.<n>.{title,body}, tips.<tip>.{title,body}.
 const GUIDES = [
   { id: 'claude', steps: 4, tips: ['everywhere', 'team'], link: 'https://claude.ai/settings/connectors' },
-  { id: 'chatgpt', steps: 4, tips: ['plan', 'browser'], link: 'https://chatgpt.com' },
+  { id: 'chatgpt', steps: 6, tips: ['plan', 'browser'], link: 'https://chatgpt.com' },
   { id: 'code', steps: 3, tips: ['secret'], link: null },
 ] as const;
 type GuideId = (typeof GUIDES)[number]['id'];
@@ -106,6 +106,7 @@ function SetupGuides() {
     // "<TOKEN>" can't sit in the dictionary text itself - Trans would parse
     // it as a tag - so the placeholder comes in as its own element.
     token: <code className="font-mono text-slate-200">{t('integrations.tokenPlaceholder')}</code>,
+    url: <code className="break-all font-mono text-slate-200">{mcpUrl()}</code>,
     ...(guide.link ? { a: <a className="text-accent hover:text-accent-hover" href={guide.link} target="_blank" rel="noopener noreferrer" /> } : {}),
   };
 
