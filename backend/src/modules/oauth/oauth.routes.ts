@@ -17,10 +17,12 @@ import {
 } from './oauth.service.js';
 import { OAuthClientError } from './cimd.client.js';
 import { getClientFavicon } from './clientIcon.service.js';
+import { RegistrationError, isRegisteredClientId, registerClient } from './dcr.service.js';
 
 export const AUTHORIZE_RATE_LIMIT = { max: 30, timeWindow: '1 minute' };
 export const TOKEN_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
 export const CLIENT_ICON_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
+export const REGISTER_RATE_LIMIT = { max: 10, timeWindow: '1 hour' };
 
 const CONSENT_PAGE = '/oauth/consent';
 
@@ -57,6 +59,20 @@ function onlyStrings(input: unknown): Record<string, string | undefined> | null 
   return out;
 }
 
+// RFC 6749 2.3.1 client_secret_basic: base64(urlencode(id):urlencode(secret)).
+// undefined = no Basic header; null = a malformed one.
+function basicCredentials(header: string | undefined): { clientId: string; secret: string } | null | undefined {
+  if (!header?.toLowerCase().startsWith('basic ')) return undefined;
+  const decoded = Buffer.from(header.slice(6).trim(), 'base64').toString('utf8');
+  const colon = decoded.indexOf(':');
+  if (colon < 1) return null;
+  try {
+    return { clientId: decodeURIComponent(decoded.slice(0, colon)), secret: decodeURIComponent(decoded.slice(colon + 1)) };
+  } catch {
+    return null;
+  }
+}
+
 // MyGym as an OAuth authorization server for MCP clients (Claude, ChatGPT).
 // Flow: /authorize (browser) -> consent page in the SPA -> decision (API,
 // logged-in session) -> back to the client with a code -> /token.
@@ -75,8 +91,11 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
     } catch (err) {
       if (!(err instanceof OAuthError)) throw err;
       // Unknown client / unregistered redirect: never redirect to it - show
-      // the error on our own page instead.
-      if (!err.redirect) {
+      // the error on our own page instead. Same for a self-registered client:
+      // anyone can register any https redirect, so redirecting its errors
+      // (a broken response_type, before any login) would make our domain an
+      // open redirect.
+      if (!err.redirect || isRegisteredClientId(params.client_id ?? '')) {
         request.log.warn({ code: err.code, description: err.description }, 'OAuth authorize rejected');
         return reply.redirect(`${CONSENT_PAGE}?error=${err.code}`);
       }
@@ -135,6 +154,25 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
     return reply.header('cache-control', 'public, max-age=86400').type(icon.contentType).send(icon.body);
   });
 
+  // RFC 7591 Dynamic Client Registration - open, for MCP clients that don't
+  // do CIMD (Gemini...). Called server-side, so no CORS.
+  fastify.post('/register', { config: { rateLimit: REGISTER_RATE_LIMIT } }, async (request, reply) => {
+    reply.header('cache-control', 'no-store');
+    try {
+      const client = await registerClient(request.body);
+      // Who registers how is still unknown for some clients (Gemini) - keep
+      // it in the log. Never the secret.
+      request.log.info(
+        { clientId: client.client_id, clientName: client.client_name, redirectUris: client.redirect_uris, authMethod: client.token_endpoint_auth_method },
+        'oauth client registered',
+      );
+      return reply.code(201).send(client);
+    } catch (err) {
+      if (!(err instanceof RegistrationError)) throw err;
+      return reply.code(400).send({ error: err.code, error_description: err.description });
+    }
+  });
+
   // RFC 6749 token endpoint: JSON errors {error, error_description}, never
   // cached. Clients call it server-side; CORS only for browser-based ones.
   fastify.post('/token', { config: { rateLimit: TOKEN_RATE_LIMIT } }, async (request, reply) => {
@@ -142,12 +180,27 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
     const body = onlyStrings(request.body);
     try {
       if (!body) throw new OAuthError('invalid_request', 'Every parameter must be a single string');
+      const basic = basicCredentials(request.headers.authorization);
+      if (basic === null) throw new OAuthError('invalid_client', 'Malformed Basic credentials');
+      if (basic) {
+        // One authentication method per request (RFC 6749 2.3).
+        if (body.client_secret || (body.client_id && body.client_id !== basic.clientId)) {
+          throw new OAuthError('invalid_request', 'Use either Basic credentials or client_secret in the body');
+        }
+        body.client_id = basic.clientId;
+        body.client_secret = basic.secret;
+      }
       if (body.grant_type === 'authorization_code') return await exchangeCode(body);
       if (body.grant_type === 'refresh_token') return await refresh(body);
       throw new OAuthError('unsupported_grant_type', 'Only authorization_code and refresh_token are supported');
     } catch (err) {
       if (!(err instanceof OAuthError)) throw err;
-      return reply.code(400).send({ error: err.code, error_description: err.description });
+      // invalid_client is 401 (RFC 6749 5.2), with a challenge when the
+      // client tried Basic.
+      if (err.code === 'invalid_client' && request.headers.authorization?.toLowerCase().startsWith('basic ')) {
+        reply.header('www-authenticate', 'Basic realm="mygym"');
+      }
+      return reply.code(err.code === 'invalid_client' ? 401 : 400).send({ error: err.code, error_description: err.description });
     }
   });
 }

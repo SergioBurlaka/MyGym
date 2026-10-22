@@ -59,6 +59,14 @@ function ConsentForLoggedInUser({ requestId }: { requestId: string | null }) {
   return (
     <ConsentShell>
       <h1 className="text-2xl text-slate-100">{t('oauth.consent.title', { client: info.clientName })}</h1>
+      {/* A self-registered client chose its own name (the heading above) -
+          the redirect host is the one thing that says where the access
+          really goes, so the warning sits right under the name. */}
+      {!info.verified && (
+        <p role="alert" className="rounded-lg border border-warn/50 bg-warn/10 p-3 text-sm text-warn">
+          {t('oauth.consent.unverified', { client: info.clientName, host: info.redirectHost })}
+        </p>
+      )}
       <p className="text-slate-300">{t('oauth.consent.access')}</p>
       <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">
         <li>{t('oauth.consent.canRead')}</li>
@@ -70,11 +78,13 @@ function ConsentForLoggedInUser({ requestId }: { requestId: string | null }) {
       <dl className="space-y-1 rounded-lg border border-surface-border bg-surface p-3 text-sm">
         <div className="flex justify-between gap-3">
           <dt className="text-slate-400">{t('oauth.consent.client')}</dt>
-          <dd className="font-mono text-slate-100">{info.clientHost}</dd>
+          <dd className={info.verified ? 'font-mono text-slate-100' : 'text-warn'}>
+            {info.clientHost ?? t('oauth.consent.unverifiedClient')}
+          </dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-slate-400">{t('oauth.consent.returnsTo')}</dt>
-          <dd className="font-mono text-slate-100">{info.redirectHost}</dd>
+          <dd className={`font-mono ${info.verified ? 'text-slate-100' : 'font-bold text-warn'}`}>{info.redirectHost}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-slate-400">{t('oauth.consent.account')}</dt>

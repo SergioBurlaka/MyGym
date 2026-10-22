@@ -391,7 +391,11 @@ function CopyIcon() {
 function ClientIcon({ grant }: { grant: OAuthGrant }) {
   const sources = [
     grant.logoUri,
-    `${baseURL}/oauth/client-icon?${new URLSearchParams({ client_id: grant.clientId })}`,
+    // Only CIMD clients have a host to take a favicon from; registered
+    // (DCR) ones get the letter.
+    grant.clientId.startsWith('https://')
+      ? `${baseURL}/oauth/client-icon?${new URLSearchParams({ client_id: grant.clientId })}`
+      : null,
   ].filter((s): s is string => Boolean(s));
   const [failed, setFailed] = useState(0);
   const src = sources[failed];

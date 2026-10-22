@@ -24,12 +24,14 @@ export function authorizationServerMetadata() {
     issuer: ISSUER,
     authorization_endpoint: `${ISSUER}/api/oauth/authorize`,
     token_endpoint: `${ISSUER}/api/oauth/token`,
+    // RFC 7591, for clients without CIMD (Gemini...).
+    registration_endpoint: `${ISSUER}/api/oauth/register`,
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
-    // Public clients only; together with the next flag this is what makes
-    // Claude (and ChatGPT) use CIMD instead of dynamic registration.
-    token_endpoint_auth_methods_supported: ['none'],
+    // "none" together with the next flag is what makes Claude (and ChatGPT)
+    // use CIMD; the secret methods are for registered confidential clients.
+    token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
     client_id_metadata_document_supported: true,
     // RFC 9207: `iss` on every authorization response - ChatGPT only uses
     // its stable redirect URI when this is there.

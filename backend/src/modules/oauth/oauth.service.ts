@@ -3,7 +3,8 @@ import { and, desc, eq, gt, isNull, lt } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { apiTokens, oauthAuthorizationRequests, oauthGrants, oauthRefreshTokens } from '../../db/schema.js';
 import { hashRefreshToken } from '../../utils/tokens.js';
-import { OAuthClientError, redirectUriAllowed, resolveClient } from './cimd.client.js';
+import { OAuthClientError, redirectUriAllowed, resolveClient, type OAuthClient } from './cimd.client.js';
+import { clientAuthenticates, findRegisteredClient, isRegisteredClientId } from './dcr.service.js';
 import {
   ACCESS_TOKEN_TTL_MS,
   AUTHORIZATION_CODE_TTL_MS,
@@ -44,6 +45,21 @@ export type AuthorizeParams = {
   resource?: string;
 };
 
+// A client_id is either a CIMD document URL (Claude, ChatGPT) or one we
+// handed out at /register.
+async function lookupClient(clientId: string): Promise<OAuthClient> {
+  if (!isRegisteredClientId(clientId)) return resolveClient(clientId);
+  const client = await findRegisteredClient(clientId);
+  if (!client) throw new OAuthClientError('unknown client');
+  return client;
+}
+
+async function authenticateClient(clientId: string, secret: string | undefined) {
+  if (!(await clientAuthenticates(clientId, secret))) {
+    throw new OAuthError('invalid_client', 'Client authentication failed');
+  }
+}
+
 // Validates the client and redirect first: until both are trusted no error
 // may be redirected anywhere (open-redirect / phishing via our domain).
 export async function validateClientAndRedirect(params: AuthorizeParams) {
@@ -52,7 +68,7 @@ export async function validateClientAndRedirect(params: AuthorizeParams) {
   }
   let client;
   try {
-    client = await resolveClient(params.client_id);
+    client = await lookupClient(params.client_id);
   } catch (err) {
     const why = err instanceof OAuthClientError ? err.message : 'unknown client';
     throw new OAuthError('invalid_client', why, false);
@@ -145,7 +161,10 @@ export async function getConsentInfo(id: string, browserSecret: string | undefin
   return {
     clientName: req.clientName,
     clientId: req.clientId,
-    clientHost: new URL(req.clientId).hostname,
+    // A registered client named itself - nothing vouches for it, and its
+    // client_id has no host. CIMD ids are URLs on allow-listed hosts.
+    verified: !isRegisteredClientId(req.clientId),
+    clientHost: isRegisteredClientId(req.clientId) ? null : new URL(req.clientId).hostname,
     redirectHost: new URL(req.redirectUri).host,
     scope: req.scope,
   };
@@ -215,11 +234,13 @@ export async function exchangeCode(params: {
   redirect_uri?: string;
   code_verifier?: string;
   client_id?: string;
+  client_secret?: string;
   resource?: string;
 }) {
   if (!params.code || !params.redirect_uri || !params.code_verifier || !params.client_id) {
     throw new OAuthError('invalid_request', 'code, redirect_uri, code_verifier and client_id are required');
   }
+  await authenticateClient(params.client_id, params.client_secret);
   return db.transaction(async (tx) => {
     // Single use: claim the code atomically; a replay finds nothing.
     const [req] = await tx
@@ -260,10 +281,11 @@ export async function exchangeCode(params: {
   });
 }
 
-export async function refresh(params: { refresh_token?: string; client_id?: string; resource?: string }) {
+export async function refresh(params: { refresh_token?: string; client_id?: string; client_secret?: string; resource?: string }) {
   if (!params.refresh_token || !params.client_id) {
     throw new OAuthError('invalid_request', 'refresh_token and client_id are required');
   }
+  await authenticateClient(params.client_id, params.client_secret);
   const tokenHash = hashRefreshToken(params.refresh_token);
 
   // Outcome of the transaction; reuse handling runs after it, so a thrown

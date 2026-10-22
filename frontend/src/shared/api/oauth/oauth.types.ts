@@ -2,7 +2,9 @@
 export type OAuthConsentInfo = {
   clientName: string;
   clientId: string;
-  clientHost: string;
+  // false = the client registered itself (DCR): its name proves nothing.
+  verified: boolean;
+  clientHost: string | null;
   redirectHost: string;
   scope: string;
 };
