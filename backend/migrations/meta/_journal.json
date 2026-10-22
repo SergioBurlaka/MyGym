@@ -99,6 +99,13 @@
       "when": 1792672287940,
       "tag": "0013_calendar_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792691004744,
+      "tag": "0014_oauth_client_logo",
+      "breakpoints": true
     }
   ]
 }

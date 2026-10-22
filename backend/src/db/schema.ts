@@ -97,6 +97,7 @@ export const oauthAuthorizationRequests = pgTable('oauth_authorization_requests'
   id: uuid('id').primaryKey().defaultRandom(),
   clientId: text('client_id').notNull(), // the CIMD URL
   clientName: text('client_name').notNull(),
+  clientLogoUri: text('client_logo_uri'), // https only, from the metadata document
   redirectUri: text('redirect_uri').notNull(),
   codeChallenge: text('code_challenge').notNull(), // PKCE S256
   state: text('state'),
@@ -123,6 +124,7 @@ export const oauthGrants = pgTable('oauth_grants', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   clientId: text('client_id').notNull(),
   clientName: text('client_name').notNull(),
+  clientLogoUri: text('client_logo_uri'),
   resource: text('resource').notNull(),
   scope: text('scope').notNull(),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
