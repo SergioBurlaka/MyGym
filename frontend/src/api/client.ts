@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL ?? '/api';
+export const baseURL = import.meta.env.VITE_API_URL ?? '/api';
 
 export const api = axios.create({
   baseURL,

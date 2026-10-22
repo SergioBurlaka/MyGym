@@ -15,9 +15,12 @@ import {
   revokeGrant,
   type AuthorizeParams,
 } from './oauth.service.js';
+import { OAuthClientError } from './cimd.client.js';
+import { getClientFavicon } from './clientIcon.service.js';
 
 export const AUTHORIZE_RATE_LIMIT = { max: 30, timeWindow: '1 minute' };
 export const TOKEN_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
+export const CLIENT_ICON_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
 
 const CONSENT_PAGE = '/oauth/consent';
 
@@ -112,6 +115,24 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
       if (!revoked) return reply.code(404).send({ error: 'not_found' });
       return { ok: true };
     });
+  });
+
+  // Favicon of a connected app's host, for apps without a logo_uri. Public:
+  // an <img> can't send the Bearer token, and the icon is no user data.
+  // Only allow-listed client hosts, so this is no general-purpose proxy.
+  fastify.get('/client-icon', { config: { rateLimit: CLIENT_ICON_RATE_LIMIT } }, async (request, reply) => {
+    const parsed = z.object({ client_id: z.string().max(2048) }).safeParse(request.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'validation_error', issues: parsed.error.issues });
+    let icon;
+    try {
+      icon = await getClientFavicon(parsed.data.client_id);
+    } catch (err) {
+      if (err instanceof OAuthClientError) return reply.code(400).send({ error: 'invalid_client' });
+      throw err;
+    }
+    reply.header('x-content-type-options', 'nosniff').header('content-security-policy', "default-src 'none'");
+    if (!icon) return reply.code(404).header('cache-control', 'public, max-age=3600').send({ error: 'not_found' });
+    return reply.header('cache-control', 'public, max-age=86400').type(icon.contentType).send(icon.body);
   });
 
   // RFC 6749 token endpoint: JSON errors {error, error_description}, never

@@ -46,11 +46,38 @@ describe('which client ids are even considered', () => {
   });
 });
 
+describe('logo_uri', () => {
+  it('keeps an https logo', async () => {
+    stubFetch(doc({ logo_uri: 'https://persistent.oaistatic.com/logo.png' }));
+    expect((await resolveClient(CLIENT_ID)).logoUri).toBe('https://persistent.oaistatic.com/logo.png');
+  });
+
+  it.each([
+    ['http', 'http://claude.ai/logo.png'],
+    ['javascript:', 'javascript:alert(1)'],
+    ['data:', 'data:image/png;base64,AAAA'],
+    ['credentials', 'https://user:pw@claude.ai/logo.png'],
+    ['not a URL', 'logo.png'],
+    ['not a string', { url: 'https://claude.ai/logo.png' }],
+    ['too long', `https://claude.ai/${'a'.repeat(2048)}`],
+  ])('drops a %s logo but still accepts the client', async (_label, logo) => {
+    stubFetch(doc({ logo_uri: logo }));
+    const client = await resolveClient(CLIENT_ID);
+    expect(client.clientName).toBe('Claude');
+    expect(client.logoUri).toBeNull();
+  });
+});
+
 describe('resolving a metadata document', () => {
   it('returns name and redirect URIs, without following redirects', async () => {
     const fetchMock = stubFetch(doc());
     const client = await resolveClient(CLIENT_ID);
-    expect(client).toEqual({ clientId: CLIENT_ID, clientName: 'Claude', redirectUris: ['https://claude.ai/api/mcp/auth_callback'] });
+    expect(client).toEqual({
+      clientId: CLIENT_ID,
+      clientName: 'Claude',
+      logoUri: null,
+      redirectUris: ['https://claude.ai/api/mcp/auth_callback'],
+    });
     const calls = fetchMock.mock.calls as unknown as [URL, RequestInit][];
     expect(calls[0][1].redirect).toBe('manual');
   });

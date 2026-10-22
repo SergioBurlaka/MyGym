@@ -15,6 +15,7 @@ export class OAuthClientError extends Error {
 export type OAuthClient = {
   clientId: string;
   clientName: string;
+  logoUri: string | null;
   redirectUris: string[];
 };
 
@@ -40,7 +41,23 @@ const documentSchema = z.object({
   client_name: z.string().min(1).max(200),
   redirect_uris: z.array(redirectUriSchema).min(1),
   token_endpoint_auth_method: z.string().optional(),
+  logo_uri: z.unknown().optional(),
 });
+
+// The browser loads the logo straight from this URL, so only plain https -
+// never http (mixed content) or javascript:/data:. A bad logo is dropped
+// rather than failing the whole client: it is decoration, not identity.
+export function safeLogoUri(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) return null;
+  return url.href;
+}
 
 const cache = new Map<string, { client: OAuthClient; until: number }>();
 
@@ -115,7 +132,7 @@ export async function resolveClient(clientId: string): Promise<OAuthClient> {
     throw new OAuthClientError('client metadata document uses a shared secret');
   }
 
-  const client = { clientId, clientName: doc.client_name, redirectUris: doc.redirect_uris };
+  const client = { clientId, clientName: doc.client_name, logoUri: safeLogoUri(doc.logo_uri), redirectUris: doc.redirect_uris };
   const ttl = cacheMs(res.headers.get('cache-control'));
   if (ttl > 0) cache.set(clientId, { client, until: Date.now() + ttl });
   return client;
