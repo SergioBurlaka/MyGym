@@ -18,6 +18,7 @@ vi.mock('../src/modules/oauth/cimd.client.js', async (importOriginal) => ({
 const CLIENT = {
   clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata',
   clientName: 'Claude',
+  logoUri: 'https://claude.ai/logo.png',
   redirectUris: ['https://claude.ai/api/mcp/auth_callback', 'http://localhost/callback'],
 };
 const REDIRECT = CLIENT.redirectUris[0];
@@ -431,7 +432,9 @@ describe('connected apps', () => {
     const { access_token, refresh_token } = await signIn(user);
 
     const list = await app.inject({ method: 'GET', url: '/api/oauth/grants', headers: user.auth });
-    expect(list.json()).toEqual([expect.objectContaining({ clientName: 'Claude', clientId: CLIENT.clientId })]);
+    expect(list.json()).toEqual([
+      expect.objectContaining({ clientName: 'Claude', clientId: CLIENT.clientId, logoUri: CLIENT.logoUri }),
+    ]);
 
     const del = await app.inject({ method: 'DELETE', url: `/api/oauth/grants/${list.json()[0].id}`, headers: user.auth });
     expect(del.statusCode).toBe(200);
