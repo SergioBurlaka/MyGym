@@ -100,6 +100,7 @@ export async function createAuthorizationRequest(params: AuthorizeParams, browse
     .values({
       clientId: client.clientId,
       clientName: client.clientName,
+      clientLogoUri: client.logoUri,
       redirectUri: params.redirect_uri!,
       codeChallenge: params.code_challenge,
       state: params.state ?? null,
@@ -249,6 +250,7 @@ export async function exchangeCode(params: {
         userId: req.userId,
         clientId: req.clientId,
         clientName: req.clientName,
+        clientLogoUri: req.clientLogoUri,
         resource: req.resource,
         scope: req.scope,
         lastUsedAt: new Date(),
@@ -309,6 +311,7 @@ export async function listGrants(userId: string) {
       id: oauthGrants.id,
       clientName: oauthGrants.clientName,
       clientId: oauthGrants.clientId,
+      logoUri: oauthGrants.clientLogoUri,
       createdAt: oauthGrants.createdAt,
       lastUsedAt: oauthGrants.lastUsedAt,
     })
