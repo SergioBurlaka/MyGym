@@ -236,7 +236,14 @@ function GrantRow({ grant }: { grant: OAuthGrant }) {
           </span>
         </div>
         <p className="text-sm text-slate-400">
-          <span className="font-mono">{new URL(grant.clientId).hostname}</span>
+          {/* A CIMD client_id is a URL; a self-registered one (Gemini) is an
+              opaque mygym_cli_... id - new URL() on it would throw and blank
+              the whole page. */}
+          {grant.clientId.startsWith('https://') ? (
+            <span className="font-mono">{new URL(grant.clientId).hostname}</span>
+          ) : (
+            <span className="text-warn">{t('oauth.consent.unverifiedClient')}</span>
+          )}
           {' · '}
           {t('integrations.connectedAt', { date: formatDateTime(grant.createdAt) })}
           {' · '}
