@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 7Svef5FgWSyxk3DxbdkxGdpbbziyCTbuIHTDPyWCN4CVeZLGdzxIQ9lf1WSNavf
+\restrict KV2bkgMWGwunKOcuXYrLLlz9AOSCKpd8044ug3YXgM02myIz76gCKSiyz3OE2TK
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -136,7 +136,8 @@ CREATE TABLE public.oauth_authorization_requests (
     code_expires_at timestamp with time zone,
     used_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    browser_hash text NOT NULL
+    browser_hash text NOT NULL,
+    client_logo_uri text
 );
 
 
@@ -153,7 +154,8 @@ CREATE TABLE public.oauth_grants (
     scope text NOT NULL,
     last_used_at timestamp with time zone,
     revoked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    client_logo_uri text
 );
 
 
@@ -694,5 +696,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 7Svef5FgWSyxk3DxbdkxGdpbbziyCTbuIHTDPyWCN4CVeZLGdzxIQ9lf1WSNavf
+\unrestrict KV2bkgMWGwunKOcuXYrLLlz9AOSCKpd8044ug3YXgM02myIz76gCKSiyz3OE2TK
 
