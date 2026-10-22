@@ -17,6 +17,7 @@ import settingsRoutes from './modules/settings/settings.routes.js';
 import apiTokensRoutes from './modules/apiTokens/apiTokens.routes.js';
 import wellKnownRoutes from './modules/oauth/wellKnown.routes.js';
 import oauthRoutes from './modules/oauth/oauth.routes.js';
+import calendarRoutes from './modules/calendar/calendar.routes.js';
 
 export type BuildAppOptions = {
   // Tests pass `false` to keep the pino output quiet.
@@ -69,6 +70,7 @@ export function buildApp(opts: BuildAppOptions = {}) {
   app.register(apiTokensRoutes, { prefix: '/api/tokens' });
   app.register(wellKnownRoutes);
   app.register(oauthRoutes, { prefix: '/api/oauth' });
+  app.register(calendarRoutes, { prefix: '/api/calendar' });
 
   return app;
 }
