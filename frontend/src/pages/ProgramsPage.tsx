@@ -459,6 +459,7 @@ function ProgramForm({
                   value={block.tryMoreAfterWorkouts}
                   programValue={parseThreshold(tryMoreAfterWorkouts)}
                   defaultValue={defaultThresholdOf(block.exerciseId)}
+                  categoryLabel={CATEGORY_LABEL[exercise.category] ?? ''}
                   progression={progressionById?.get(block.exerciseId)}
                   progressionLoaded={progressionById != null}
                   sessionsDone={block.sessionsDone}
@@ -494,6 +495,14 @@ function ProgramForm({
           value={tryMoreAfterWorkouts}
           onChange={(e) => setTryMoreAfterWorkouts(e.target.value)}
         />
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-slate-400">{t('programs.form.tryMoreRecommendedLabel')}</span>
+          {(['large', 'small', 'bodyweight'] as const).map((c) => (
+            <span key={c} className="badge bg-surface-border text-slate-300">
+              {CATEGORY_LABEL[c]} — {DEFAULT_TRY_MORE_AFTER_WORKOUTS[c]}
+            </span>
+          ))}
+        </div>
         <p className="mt-1 text-xs text-slate-500">{t('programs.form.tryMoreAfterWorkoutsHint')}</p>
       </div>
 
@@ -515,6 +524,7 @@ function ExerciseTryMoreField({
   value,
   programValue,
   defaultValue,
+  categoryLabel,
   progression,
   progressionLoaded,
   sessionsDone,
@@ -525,6 +535,7 @@ function ExerciseTryMoreField({
   programValue: number | null;
   // Category default (DEFAULT_TRY_MORE_AFTER_WORKOUTS) when neither is set.
   defaultValue: number;
+  categoryLabel: string;
   progression: ExerciseProgression | undefined;
   progressionLoaded: boolean;
   // Where the slider was dragged in this form; null = untouched.
@@ -577,6 +588,9 @@ function ExerciseTryMoreField({
           />
           <span className="text-sm text-slate-300">{summary}</span>
         </div>
+        <p className="mt-1 text-xs text-slate-400">
+          {t('programs.form.exerciseTryMoreRecommended', { count: defaultValue, category: categoryLabel })}
+        </p>
       </div>
 
       <div>
