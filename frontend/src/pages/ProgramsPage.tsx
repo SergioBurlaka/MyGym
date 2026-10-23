@@ -7,24 +7,48 @@ import {
   useProgramsQuery,
   useUpdateProgramMutation,
 } from '../shared/api/programs/index.js';
-import type { Program } from '../types/index.js';
+import { useProgressionQuery } from '../shared/api/progression/index.js';
+import type { ExerciseProgression, Program } from '../types/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
+import { tryMoreStatus } from '../utils/tryMoreCountdown.js';
+
+// Slider range for the per-exercise "try more" workout count; 0 = inherit
+// the program's value. The text field next to it accepts up to the
+// backend's max of 60.
+const TRY_MORE_SLIDER_MAX = 20;
+const TRY_MORE_MAX = 60;
 
 type EditableExercise = {
   exerciseId: string;
   targetSets: string;
+  // '' or '0' = inherit the program's value.
+  tryMoreAfterWorkouts: string;
 };
+
+type ProgressionById = Map<string, ExerciseProgression>;
+
+// '' / '0' / junk -> null (inherit), otherwise the positive integer.
+function parseThreshold(value: string): number | null {
+  const n = Number(value.trim());
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
 
 export default function ProgramsPage() {
   const { t } = useTranslation();
   const programsQuery = useProgramsQuery();
   const exercisesQuery = useExercisesQuery();
+  // Optional - the countdowns just don't show while it loads or if it fails.
+  const progressionQuery = useProgressionQuery();
 
   const programs = programsQuery.data ?? [];
   const exercises = exercisesQuery.data ?? [];
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
+  const progressionById: ProgressionById | null = useMemo(
+    () => (progressionQuery.data ? new Map(progressionQuery.data.map((p) => [p.exerciseId, p])) : null),
+    [progressionQuery.data],
+  );
 
   const [editingId, setEditingId] = useState<string | 'new' | null>(null);
 
@@ -47,6 +71,7 @@ export default function ProgramsPage() {
       {editingId === 'new' && (
         <ProgramForm
           exercises={exercises}
+          progressionById={progressionById}
           onDone={() => setEditingId(null)}
         />
       )}
@@ -62,6 +87,7 @@ export default function ProgramsPage() {
               key={program.id}
               program={program}
               exercises={exercises}
+              progressionById={progressionById}
               onDone={() => setEditingId(null)}
             />
           ) : (
@@ -69,6 +95,7 @@ export default function ProgramsPage() {
               key={program.id}
               program={program}
               exerciseById={exerciseById}
+              progressionById={progressionById}
               onEdit={() => setEditingId(program.id)}
             />
           ),
@@ -81,10 +108,12 @@ export default function ProgramsPage() {
 function ProgramCard({
   program,
   exerciseById,
+  progressionById,
   onEdit,
 }: {
   program: Program;
   exerciseById: Map<string, { name: string }>;
+  progressionById: ProgressionById | null;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
@@ -167,12 +196,23 @@ function ProgramCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="divide-y divide-surface-border">
         {program.programExercises.map((pe) => (
-          <span key={pe.id} className="rounded-lg bg-surface-border px-2.5 py-1.5 text-sm text-slate-200">
-            {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
-            <span className="text-slate-400">×{pe.targetSets}</span>
-          </span>
+          <div
+            key={pe.id}
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm first:pt-0 last:pb-0"
+          >
+            <span className="text-slate-200">
+              {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
+              <span className="text-slate-400">×{pe.targetSets}</span>
+            </span>
+            {progressionById && (
+              <TryMoreCountdown
+                progression={progressionById.get(pe.exerciseId)}
+                threshold={pe.tryMoreAfterWorkouts ?? program.tryMoreAfterWorkouts}
+              />
+            )}
+          </div>
         ))}
       </div>
 
@@ -189,13 +229,53 @@ function ProgramCard({
   );
 }
 
+function TryMoreCountdown({
+  progression,
+  threshold,
+}: {
+  progression: ExerciseProgression | undefined;
+  threshold: number | null;
+}) {
+  const { t } = useTranslation();
+  const status = tryMoreStatus(progression, threshold);
+
+  if (status.kind === 'no_data') {
+    return <span className="text-xs text-slate-500">{t('programs.countdown.noData')}</span>;
+  }
+  if (status.kind === 'add_weight') {
+    return <span className="text-xs font-semibold text-good">{t('programs.countdown.addWeight')}</span>;
+  }
+
+  const due = status.kind === 'due';
+  const percent = Math.min(100, Math.round((status.done / status.total) * 100));
+  return (
+    <span
+      className="flex items-center gap-2"
+      title={t('programs.countdown.progressTitle', { done: status.done, total: status.total })}
+    >
+      <span className={`text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>
+        {due
+          ? t('programs.countdown.due')
+          : t(status.unit === 'sessions' ? 'programs.countdown.sessionsLeft' : 'programs.countdown.daysLeft', {
+              count: status.left,
+            })}
+      </span>
+      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-border" aria-hidden="true">
+        <span className={`block h-full rounded-full ${due ? 'bg-warn' : 'bg-accent'}`} style={{ width: `${percent}%` }} />
+      </span>
+    </span>
+  );
+}
+
 function ProgramForm({
   program,
   exercises,
+  progressionById,
   onDone,
 }: {
   program?: Program;
   exercises: { id: string; name: string; category: string; repRangeMin: number; repRangeMax: number }[];
+  progressionById: ProgressionById | null;
   onDone: () => void;
 }) {
   const { t } = useTranslation();
@@ -216,6 +296,7 @@ function ProgramForm({
       ? program.programExercises.map((pe) => ({
           exerciseId: pe.exerciseId,
           targetSets: String(pe.targetSets),
+          tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts != null ? String(pe.tryMoreAfterWorkouts) : '',
         }))
       : [],
   );
@@ -230,6 +311,7 @@ function ProgramForm({
         ? program.programExercises.map((pe) => ({
             exerciseId: pe.exerciseId,
             targetSets: String(pe.targetSets),
+            tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts != null ? String(pe.tryMoreAfterWorkouts) : '',
           }))
         : [],
     );
@@ -242,7 +324,7 @@ function ProgramForm({
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3' }]);
+    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3', tryMoreAfterWorkouts: '' }]);
     setAddExerciseId('');
   }
 
@@ -280,6 +362,16 @@ function ProgramForm({
       setError(t('programs.form.errorTargetSets'));
       return;
     }
+    if (
+      blocks.some((b) => {
+        const v = b.tryMoreAfterWorkouts.trim();
+        const n = Number(v);
+        return v !== '' && !(Number.isInteger(n) && n >= 0 && n <= TRY_MORE_MAX);
+      })
+    ) {
+      setError(t('programs.form.errorExerciseTryMore'));
+      return;
+    }
     const trimmedTryMore = tryMoreAfterWorkouts.trim();
     if (trimmedTryMore !== '' && Number(trimmedTryMore) < 1) {
       setError(t('programs.form.errorTryMoreAfterWorkouts'));
@@ -291,6 +383,7 @@ function ProgramForm({
       exercises: blocks.map((b) => ({
         exerciseId: b.exerciseId,
         targetSets: Number(b.targetSets),
+        tryMoreAfterWorkouts: parseThreshold(b.tryMoreAfterWorkouts),
       })),
       tryMoreAfterWorkouts: trimmedTryMore === '' ? null : Number(trimmedTryMore),
     };
@@ -358,14 +451,22 @@ function ProgramForm({
                   {t('programs.form.remove')}
                 </button>
               </div>
-              <div>
-                <label className="label">{t('programs.form.targetSetsLabel')}</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="input w-32"
-                  value={block.targetSets}
-                  onChange={(e) => updateBlock(block.exerciseId, { targetSets: e.target.value })}
+              <div className="flex flex-wrap gap-x-6 gap-y-3">
+                <div>
+                  <label className="label">{t('programs.form.targetSetsLabel')}</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="input w-32"
+                    value={block.targetSets}
+                    onChange={(e) => updateBlock(block.exerciseId, { targetSets: e.target.value })}
+                  />
+                </div>
+                <ExerciseTryMoreField
+                  value={block.tryMoreAfterWorkouts}
+                  programValue={parseThreshold(tryMoreAfterWorkouts)}
+                  progression={progressionById?.get(block.exerciseId)}
+                  onChange={(v) => updateBlock(block.exerciseId, { tryMoreAfterWorkouts: v })}
                 />
               </div>
             </div>
@@ -409,6 +510,62 @@ function ProgramForm({
           {t('common.cancel')}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ExerciseTryMoreField({
+  value,
+  programValue,
+  progression,
+  onChange,
+}: {
+  value: string;
+  programValue: number | null;
+  progression: ExerciseProgression | undefined;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const own = parseThreshold(value);
+  const threshold = own ?? programValue;
+  const sessionsSince = progression?.sessionsSinceProgress;
+
+  let summary: string;
+  if (own != null) summary = t('programs.form.exerciseTryMoreSessions', { count: own });
+  else if (programValue != null) summary = t('programs.form.exerciseTryMoreInheritProgram', { count: programValue });
+  else summary = t('programs.form.exerciseTryMoreInheritDefault');
+
+  return (
+    <div className="min-w-[14rem] flex-1">
+      <label className="label">
+        {t('programs.form.exerciseTryMoreLabel')} <span className="text-slate-200">{summary}</span>
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={TRY_MORE_SLIDER_MAX}
+          step={1}
+          className="h-2 flex-1 cursor-pointer accent-accent"
+          aria-label={t('programs.form.exerciseTryMoreLabel')}
+          value={own != null ? Math.min(own, TRY_MORE_SLIDER_MAX) : 0}
+          onChange={(e) => onChange(e.target.value === '0' ? '' : e.target.value)}
+        />
+        <input
+          type="text"
+          inputMode="numeric"
+          className="input w-16 text-center"
+          placeholder="0"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+      {threshold != null && sessionsSince != null && (
+        <p className={`mt-1 text-xs ${sessionsSince >= threshold ? 'text-warn' : 'text-slate-400'}`}>
+          {t('programs.form.exerciseTryMoreNow', { count: sessionsSince })}
+        </p>
+      )}
+      <p className="mt-1 text-xs text-slate-500">{t('programs.form.exerciseTryMoreHint')}</p>
     </div>
   );
 }

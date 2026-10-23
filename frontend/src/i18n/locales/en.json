@@ -101,16 +101,36 @@
       "remove": "Remove",
       "addExercisePlaceholder": "Choose an exercise…",
       "addExerciseButton": "+ Add exercise",
-      "tryMoreAfterWorkoutsLabel": "\"Try more\" after N workouts without progress",
+      "tryMoreAfterWorkoutsLabel": "\"Try more\" after N workouts without progress (default for all exercises)",
       "tryMoreAfterWorkoutsPlaceholder": "e.g. 6",
-      "tryMoreAfterWorkoutsHint": "Only actually-logged workouts with this exercise count - skipped days don't add to the count, but don't reset it either. Leave blank to keep the default rule (14 calendar days without progress).",
+      "tryMoreAfterWorkoutsHint": "Used for exercises whose own value is 0. Only actually-logged workouts with the exercise count - skipped days don't add to the count, but don't reset it either. Leave blank to keep the default rule (14 calendar days without progress).",
       "saveButton": "Save program",
       "saving": "Saving…",
       "errorNameRequired": "Enter a program name.",
       "errorExerciseRequired": "Add at least one exercise.",
       "errorTargetSets": "Set the target number of sets (at least 1) for every exercise.",
       "errorTryMoreAfterWorkouts": "The workout count must be at least 1 (or leave it blank).",
-      "errorGeneric": "Couldn't save the program"
+      "errorGeneric": "Couldn't save the program",
+      "exerciseTryMoreLabel": "\"Try more\" after",
+      "exerciseTryMoreSessions_one": "{{count}} workout",
+      "exerciseTryMoreSessions_other": "{{count}} workouts",
+      "exerciseTryMoreInheritProgram_one": "as in the program ({{count}} workout)",
+      "exerciseTryMoreInheritProgram_other": "as in the program ({{count}} workouts)",
+      "exerciseTryMoreInheritDefault": "default (14 days)",
+      "exerciseTryMoreHint": "Workouts with this exercise without progress. Progress = more volume (weight × reps of all sets: add a set, reps or weight) or a heavier weight - it restarts the count. 0 = use the program value below.",
+      "exerciseTryMoreNow_one": "Now: {{count}} workout without progress",
+      "exerciseTryMoreNow_other": "Now: {{count}} workouts without progress",
+      "errorExerciseTryMore": "The \"Try more\" workout count must be from 0 to 60."
+    },
+    "countdown": {
+      "sessionsLeft_one": "{{count}} workout to \"Try more\"",
+      "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
+      "daysLeft_one": "{{count}} day to \"Try more\"",
+      "daysLeft_other": "{{count}} days to \"Try more\"",
+      "due": "Time to try more",
+      "addWeight": "Time to add weight",
+      "noData": "No workouts yet",
+      "progressTitle": "{{done}} of {{total}} without progress"
     }
   },
   "workout": {
@@ -284,8 +304,8 @@
       "no_data": "No entries for this exercise yet.",
       "start_adding_weight": "Reached {{repRangeMax}} reps with no weight — time to start adding some.",
       "increase_weight": "Reached the top of the range ({{repRangeMax}} reps) — add +{{weightStep}} kg per side.",
-      "try_more": "No progress for {{days}} days — try more reps or weight.",
-      "try_more_sessions": "No progress for {{sessions}} workouts — try more reps or weight.",
+      "try_more": "No progress for {{days}} days - try one more set, more reps or more weight.",
+      "try_more_sessions": "No progress for {{sessions}} workouts - try one more set, more reps or more weight.",
       "ok": "On track."
     }
   },
