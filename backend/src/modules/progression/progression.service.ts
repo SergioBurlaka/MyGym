@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, asc, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises, workoutExercises, workouts, sets, programs, programExercises } from '../../db/schema.js';
 
@@ -168,6 +168,11 @@ async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<st
   return byExercise;
 }
 
+// Deterministic row order for history queries: buildHistoryPoints takes a
+// day's weight from its first row, so two workouts on one date must come in
+// the same order for the overview and the journal.
+const HISTORY_ORDER = [asc(workouts.date), asc(workouts.createdAt), asc(workoutExercises.id)] as const;
+
 // `executor` lets a caller inside a transaction read through it (`tx`)
 // instead of taking a second pool connection.
 type Executor = Pick<typeof db, 'select'>;
@@ -184,7 +189,7 @@ async function buildHistory(exerciseId: string, executor: Executor = db): Promis
     .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
     .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
     .where(eq(workoutExercises.exerciseId, exerciseId))
-    .orderBy(asc(workouts.date));
+    .orderBy(...HISTORY_ORDER);
 
   return buildHistoryPoints(rows);
 }
@@ -273,46 +278,47 @@ type JournalWorkout = {
 // the Programs page while older cards show plain history.
 export async function attachProgressAt<W extends JournalWorkout>(userId: string, rows: W[]) {
   const exerciseIds = [...new Set(rows.flatMap((w) => w.workoutExercises.map((we) => we.exerciseId)))];
-  const historyRows = await db
-    .select({
-      exerciseId: workoutExercises.exerciseId,
-      date: workouts.date,
-      weightPerUnitKg: workoutExercises.weightPerUnitKg,
-      weightUnits: workoutExercises.weightUnits,
-      reps: sets.reps,
-    })
-    .from(workoutExercises)
-    .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
-    .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
-    // inArray with [] would be invalid SQL - a page of empty workouts has
-    // nothing to look up.
-    .where(
-      exerciseIds.length > 0
-        ? and(eq(workouts.userId, userId), inArray(workoutExercises.exerciseId, exerciseIds))
-        : sql`false`,
-    );
+  const programIds = [...new Set(rows.map((w) => w.programId).filter((id): id is string => id != null))];
+  if (exerciseIds.length === 0) {
+    return rows.map((w) => ({ ...w, workoutExercises: w.workoutExercises.map((we) => ({ ...we, progressAt: null })) }));
+  }
+
+  const [historyRows, peRows, smallestThresholds] = await Promise.all([
+    db
+      .select({
+        exerciseId: workoutExercises.exerciseId,
+        date: workouts.date,
+        weightPerUnitKg: workoutExercises.weightPerUnitKg,
+        weightUnits: workoutExercises.weightUnits,
+        reps: sets.reps,
+      })
+      .from(workoutExercises)
+      .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+      .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
+      .where(and(eq(workouts.userId, userId), inArray(workoutExercises.exerciseId, exerciseIds)))
+      .orderBy(...HISTORY_ORDER),
+    programIds.length > 0
+      ? db
+          .select({
+            programId: programExercises.programId,
+            exerciseId: programExercises.exerciseId,
+            exerciseValue: programExercises.tryMoreAfterWorkouts,
+            programValue: programs.tryMoreAfterWorkouts,
+          })
+          .from(programExercises)
+          .innerJoin(programs, eq(programExercises.programId, programs.id))
+          .where(and(eq(programs.userId, userId), inArray(programExercises.programId, programIds)))
+      : Promise.resolve([]),
+    getTryMoreAfterWorkoutsByExercise(userId),
+  ]);
+
   const rowsByExercise = new Map<string, HistoryRow[]>();
   for (const row of historyRows) {
     if (!rowsByExercise.has(row.exerciseId)) rowsByExercise.set(row.exerciseId, []);
     rowsByExercise.get(row.exerciseId)!.push(row);
   }
-
-  const programIds = [...new Set(rows.map((w) => w.programId).filter((id): id is string => id != null))];
   const programThresholds = new Map<string, number | null>();
-  if (programIds.length > 0) {
-    const peRows = await db
-      .select({
-        programId: programExercises.programId,
-        exerciseId: programExercises.exerciseId,
-        exerciseValue: programExercises.tryMoreAfterWorkouts,
-        programValue: programs.tryMoreAfterWorkouts,
-      })
-      .from(programExercises)
-      .innerJoin(programs, eq(programExercises.programId, programs.id))
-      .where(and(eq(programs.userId, userId), inArray(programExercises.programId, programIds)));
-    for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.exerciseValue ?? r.programValue);
-  }
-  const smallestThresholds = await getTryMoreAfterWorkoutsByExercise(userId);
+  for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.exerciseValue ?? r.programValue);
 
   const timelines = new Map<string, Map<string, TimelinePoint>>();
   function timelineOf(we: JournalWorkout['workoutExercises'][number]) {
@@ -323,10 +329,17 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
       const lastProgress = findLastProgress(history);
       if (lastProgress && points.length > 0) {
         const last = points[points.length - 1];
-        last.sessionsSinceProgress = applyCounterShift(lastProgress, {
+        const shifted = applyCounterShift(lastProgress, {
           adjust: we.exercise.tryMoreCounterAdjust,
           anchor: we.exercise.tryMoreCounterAnchor,
         });
+        // Slider moved off a progress/first session: show the count, as the
+        // Programs page does, not "progress".
+        if (shifted !== last.sessionsSinceProgress && shifted > 0) {
+          last.isProgress = false;
+          last.isFirst = false;
+        }
+        last.sessionsSinceProgress = shifted;
       }
       byDate = new Map(points.map((p) => [p.date, p]));
       timelines.set(we.exerciseId, byDate);

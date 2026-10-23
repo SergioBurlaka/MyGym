@@ -281,6 +281,23 @@ describe('journal progressAt', () => {
     expect(shifted.get('2026-10-03')).toMatchObject({ sessionsSinceProgress: 0 });
   });
 
+  it('shows the count, not "first time", once the slider moved the latest session', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    await logWorkout(auth, '2026-10-01', a, [8, 8]);
+    await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 4, sessionsDone: 3 }] },
+    });
+    expect((await journal(auth)).get('2026-10-01')).toMatchObject({
+      isFirst: false,
+      isProgress: false,
+      sessionsSinceProgress: 3,
+    });
+  });
+
   it('handles a page with an empty workout', async () => {
     const { auth } = await registerUser(app);
     expect((await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: {} })).statusCode).toBe(201);
