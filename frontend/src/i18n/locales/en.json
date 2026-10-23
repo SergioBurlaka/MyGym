@@ -73,6 +73,7 @@
     "calendarTitle": "Consistency calendar",
     "emptyJournal": "No workouts yet. Click \"New workout\" to start.",
     "inProgress": "in progress…",
+    "autoFinished": "auto-finished",
     "emptyWorkout": "Empty — add exercises",
     "setsSummary": "{{count}} sets × {{weight}}",
     "setsOnly": "{{count}} sets",
@@ -134,6 +135,8 @@
   "workout": {
     "dateLabel": "Workout date",
     "finishedDuration": "Finished · {{duration}}",
+    "autoFinishedDuration": "Finished automatically · {{duration}}",
+    "autoFinishedHint": "The workout wasn't finished by hand, so it closed itself after an hour without changes. The end time is the last save.",
     "inProgress": "Workout in progress…",
     "nameLabel": "Name",
     "namePlaceholder": "Program A / Program B…",
