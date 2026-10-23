@@ -113,6 +113,20 @@
       "when": 1792694994462,
       "tag": "0015_oauth_clients",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792759674515,
+      "tag": "0016_program_exercise_try_more",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792762471059,
+      "tag": "0017_exercise_try_more_counter",
+      "breakpoints": true
     }
   ]
 }

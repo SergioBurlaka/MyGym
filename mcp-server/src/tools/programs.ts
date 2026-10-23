@@ -24,7 +24,20 @@ export function registerProgramTools(server: McpServer, api: ApiClient) {
       inputSchema: {
         name: z.string().min(1).max(50),
         exercises: z
-          .array(z.object({ exerciseId: z.string().uuid(), targetSets: z.coerce.number().int().min(1).max(20) }))
+          .array(
+            z.object({
+              exerciseId: z.string().uuid(),
+              targetSets: z.coerce.number().int().min(1).max(20),
+              tryMoreAfterWorkouts: z.coerce
+                .number()
+                .int()
+                .min(1)
+                .max(60)
+                .nullable()
+                .optional()
+                .describe("Per-exercise override of the program's tryMoreAfterWorkouts"),
+            }),
+          )
           .min(1),
         tryMoreAfterWorkouts: z.coerce
           .number()

@@ -3,6 +3,7 @@ import type { Workout } from '../../../../types/index.js';
 import { WorkoutsApi } from '../workouts.api.js';
 import { workoutsKeys } from '../workouts.keys.js';
 import type { SaveWorkoutExercisesBody } from '../workouts.types.js';
+import { progressionKeys } from '../../progression/progression.keys.js';
 
 export const useSaveWorkoutExercisesMutation = (
   id: string,
@@ -18,6 +19,8 @@ export const useSaveWorkoutExercisesMutation = (
     onSuccess: async (data) => {
       queryClient.setQueryData(workoutsKeys.detail(id).queryKey, data);
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      // The try-more countdowns on the Programs page come from here.
+      await queryClient.invalidateQueries({ queryKey: progressionKeys._def });
     },
   });
 };

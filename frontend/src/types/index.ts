@@ -62,6 +62,8 @@ export type ProgramExercise = {
   id: string;
   exerciseId: string;
   targetSets: number;
+  // Overrides Program.tryMoreAfterWorkouts for this exercise; null inherits it.
+  tryMoreAfterWorkouts: number | null;
   orderIndex: number;
   exercise: Exercise;
 };

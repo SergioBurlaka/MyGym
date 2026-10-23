@@ -1,6 +1,8 @@
 export type SaveProgramExerciseBody = {
   exerciseId: string;
   targetSets: number;
+  tryMoreAfterWorkouts?: number | null;
+  sessionsDone?: number;
 };
 
 export type SaveProgramBody = {

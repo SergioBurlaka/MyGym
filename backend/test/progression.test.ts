@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyCounterShift,
   buildHistoryPoints,
   findLastProgress,
   suggestProgression,
@@ -85,6 +86,54 @@ describe('findLastProgress', () => {
     expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 2 });
   });
 
+  it('counts an added set as progress (more volume at the same weight)', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [10, 10]),
+      ...session('2026-10-03', 20, [10, 10, 8]), // progress (sets)
+      ...session('2026-10-05', 20, [10, 10, 8]),
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
+  });
+
+  it('counts a heavier weight as progress even when the volume drops', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [12, 12, 12]), // 40 kg x 36 = 1440
+      ...session('2026-10-03', 22.5, [8, 8, 8]), // 45 kg x 24 = 1080, but heavier
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
+  });
+
+  it('does not count a higher top set when the total volume did not grow', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [10, 10, 10]),
+      ...session('2026-10-03', 20, [12, 9, 8]), // max reps up, total reps down
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
+  });
+
+  it('uses total reps as the volume of a bodyweight exercise', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', null, [20, 20]),
+      ...session('2026-10-03', null, [20, 20, 15]), // progress (sets)
+      ...session('2026-10-05', null, [20, 18]),
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
+  });
+
+  it('treats a logged weight of 0 like no weight (total reps as volume)', () => {
+    const history = buildHistoryPoints([...session('2026-10-01', 0, [20, 20]), ...session('2026-10-03', 0, [25, 25])]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
+  });
+
+  it('counts starting to add weight as progress, but not dropping it', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', null, [30, 30, 30]),
+      ...session('2026-10-03', 1.25, [10, 10, 10]), // progress: weight appeared, tiny kg volume
+      ...session('2026-10-05', null, [30, 30, 30, 30]), // weight forgotten: reps vs kg not compared
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
+  });
+
   it('falls back to the first session when nothing ever improved', () => {
     const history = buildHistoryPoints([...session('2026-10-01', 20, [8]), ...session('2026-10-03', 20, [8])]);
     expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
@@ -95,7 +144,36 @@ describe('findLastProgress', () => {
   });
 });
 
+describe('applyCounterShift', () => {
+  const lastProgress = { date: '2026-10-03', sessionsSince: 4 };
+
+  it('shifts the counter while the anchor is the last progress', () => {
+    expect(applyCounterShift(lastProgress, { adjust: -2, anchor: '2026-10-03' })).toBe(2);
+    expect(applyCounterShift(lastProgress, { adjust: 3, anchor: '2026-10-03' })).toBe(7);
+  });
+
+  it('never goes below zero', () => {
+    expect(applyCounterShift(lastProgress, { adjust: -9, anchor: '2026-10-03' })).toBe(0);
+  });
+
+  it('lapses once a newer progress moved the anchor', () => {
+    expect(applyCounterShift(lastProgress, { adjust: -2, anchor: '2026-09-20' })).toBe(4);
+    expect(applyCounterShift(lastProgress, undefined)).toBe(4);
+  });
+});
+
 describe('suggestProgression', () => {
+  it('a postponed counter holds off try_more', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [8]),
+      ...session('2026-10-03', 20, [8]),
+      ...session('2026-10-05', 20, [8]),
+    ]);
+    const shifted = suggest(history, { tryMoreAfterWorkouts: 2, counterShift: { adjust: -1, anchor: '2026-10-01' } });
+    expect(shifted).toMatchObject({ sessionsSinceProgress: 1, suggestion: 'ok' });
+    expect(suggest(history, { tryMoreAfterWorkouts: 2 }).suggestion).toBe('try_more');
+  });
+
   it('increase_weight once the top of the rep range is reached', () => {
     const history = buildHistoryPoints(session('2026-10-18', 20, [15, 15, 15]));
     expect(suggest(history).suggestion).toBe('increase_weight');

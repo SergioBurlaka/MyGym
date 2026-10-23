@@ -1,0 +1,1 @@
+ALTER TABLE "program_exercises" ADD COLUMN "try_more_after_workouts" smallint;

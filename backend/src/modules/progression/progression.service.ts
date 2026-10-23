@@ -27,8 +27,8 @@ export type ExerciseProgression = {
   // one that showed progress - unlike daysSinceProgress, skipped/missed
   // schedule days simply don't add to this count (see tryMoreAfterWorkouts).
   sessionsSinceProgress: number | null;
-  // Set (from the owning Program, the smallest value across programs if the
-  // exercise is in more than one) when this exercise uses the workout-count
+  // Set (from the owning Program - the exercise's own value there, else the
+  // program's; the smallest across programs if the exercise is in more than one) when this exercise uses the workout-count
   // rule instead of the default 14-calendar-day one for the `try_more`
   // suggestion. Null means the day-based rule applies.
   tryMoreAfterWorkouts: number | null;
@@ -66,9 +66,26 @@ function totalWeight(weightPerUnitKg: string | null, weightUnits: number | null)
   return Number(weightPerUnitKg) * units;
 }
 
+// Weight of a session, with "no weight logged" and a logged 0 both as 0.
+function sessionWeight(point: HistoryPoint): number {
+  return point.totalWeightKg ?? 0;
+}
+
+// Session "volume" used to detect progress: weight * total reps of all
+// sets, or just total reps when the exercise was done without weight (or
+// with 0 - otherwise 0 * reps would never grow). More sets, more reps or
+// more weight all raise it.
+function sessionVolume(point: HistoryPoint): number {
+  return sessionWeight(point) > 0 ? sessionWeight(point) * point.totalReps : point.totalReps;
+}
+
 // Walks a chronological history and returns the date of the most recent
-// entry where either the working weight or the max reps for that session
-// improved on the one before it, plus how many sessions have happened since
+// entry that progressed on the one before it - a bigger session volume, or
+// a heavier working weight (heavier weight often means fewer reps, so the
+// volume alone could even drop; going from no weight to some counts too).
+// Volumes are only compared between two weighted or two unweighted sessions:
+// kg * reps vs plain reps would be meaningless. Returns that date plus how
+// many sessions have happened since
 // (0 if the progress was the latest session). Falls back to the earliest
 // entry when no improvement has ever been recorded (nothing to compare
 // against yet, but also nothing "stalled").
@@ -78,39 +95,49 @@ export function findLastProgress(history: HistoryPoint[]): { date: string; sessi
   for (let i = 1; i < history.length; i++) {
     const prev = history[i - 1];
     const cur = history[i];
-    const weightImproved =
-      cur.totalWeightKg != null && prev.totalWeightKg != null && cur.totalWeightKg > prev.totalWeightKg;
-    const repsImproved = cur.maxReps > prev.maxReps;
-    if (weightImproved || repsImproved) {
+    const weightImproved = sessionWeight(cur) > sessionWeight(prev);
+    const sameKind = sessionWeight(cur) > 0 === sessionWeight(prev) > 0;
+    const volumeImproved = sameKind && sessionVolume(cur) > sessionVolume(prev);
+    if (weightImproved || volumeImproved) {
       lastProgressIndex = i;
     }
   }
   return { date: history[lastProgressIndex].date, sessionsSince: history.length - 1 - lastProgressIndex };
 }
 
-// Smallest tryMoreAfterWorkouts across all of the user's programs that
-// include a given exercise (null if none set it, or the exercise isn't in
-// any program) - see programs.tryMoreAfterWorkouts.
+// Smallest effective tryMoreAfterWorkouts across all of the user's programs
+// that include a given exercise - the exercise's own value in that program
+// (programExercises.tryMoreAfterWorkouts), else the program's. Exercises in
+// no program, or with neither value set, are absent (14-day rule applies).
 async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<string, number>> {
   const rows = await db
-    .select({ exerciseId: programExercises.exerciseId, tryMoreAfterWorkouts: programs.tryMoreAfterWorkouts })
+    .select({
+      exerciseId: programExercises.exerciseId,
+      exerciseValue: programExercises.tryMoreAfterWorkouts,
+      programValue: programs.tryMoreAfterWorkouts,
+    })
     .from(programExercises)
     .innerJoin(programs, eq(programExercises.programId, programs.id))
-    .where(and(eq(programs.userId, userId), gte(programs.tryMoreAfterWorkouts, 1)));
+    .where(eq(programs.userId, userId));
 
   const byExercise = new Map<string, number>();
   for (const row of rows) {
-    if (row.tryMoreAfterWorkouts == null) continue;
+    const value = row.exerciseValue ?? row.programValue;
+    if (value == null || value < 1) continue;
     const current = byExercise.get(row.exerciseId);
-    if (current == null || row.tryMoreAfterWorkouts < current) {
-      byExercise.set(row.exerciseId, row.tryMoreAfterWorkouts);
+    if (current == null || value < current) {
+      byExercise.set(row.exerciseId, value);
     }
   }
   return byExercise;
 }
 
-async function buildHistory(exerciseId: string): Promise<HistoryPoint[]> {
-  const rows = await db
+// `executor` lets a caller inside a transaction read through it (`tx`)
+// instead of taking a second pool connection.
+type Executor = Pick<typeof db, 'select'>;
+
+async function buildHistory(exerciseId: string, executor: Executor = db): Promise<HistoryPoint[]> {
+  const rows = await executor
     .select({
       date: workouts.date,
       weightPerUnitKg: workoutExercises.weightPerUnitKg,
@@ -238,6 +265,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       category: ex.category,
       repRangeMax: ex.repRangeMax,
       tryMoreAfterWorkouts,
+      counterShift: { adjust: ex.tryMoreCounterAdjust, anchor: ex.tryMoreCounterAnchor },
       now,
     });
 
@@ -267,17 +295,46 @@ export type SuggestProgressionInput = {
   category: ExerciseProgression['category'];
   repRangeMax: number;
   tryMoreAfterWorkouts: number | null;
+  // exercises.tryMoreCounterAdjust/Anchor - see applyCounterShift.
+  counterShift?: CounterShift;
   now: Date;
 };
+
+export type CounterShift = { adjust: number; anchor: string | null };
+
+// The user's manual shift of the sessions-without-progress counter (the
+// try-more slider): applies only while the last progress is still the one
+// it was set against, so the next real progress restarts the count clean.
+export function applyCounterShift(
+  lastProgress: { date: string; sessionsSince: number },
+  shift: CounterShift | undefined,
+): number {
+  if (!shift || shift.adjust === 0 || shift.anchor !== lastProgress.date) return lastProgress.sessionsSince;
+  return Math.max(0, lastProgress.sessionsSince + shift.adjust);
+}
+
+// The shift that makes the counter read `sessionsDone` right now (what the
+// slider was dragged to), or null if the exercise has no history yet.
+export async function computeCounterShift(
+  exerciseId: string,
+  sessionsDone: number,
+  executor: Executor = db,
+): Promise<CounterShift | null> {
+  const lastProgress = findLastProgress(await buildHistory(exerciseId, executor));
+  if (!lastProgress) return null;
+  const adjust = sessionsDone - lastProgress.sessionsSince;
+  return adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date };
+}
 
 // The progression rules (see README "Progression logic"), DB-free:
 // 1. top of the rep range reached -> add weight (or, for a bodyweight
 //    exercise done without weight, start adding some);
-// 2. otherwise no progress for 14+ days - or for N workouts when the owning
-//    program sets tryMoreAfterWorkouts - -> a soft "try more" nudge;
+// 2. otherwise no progress (see findLastProgress) for 14+ days - or for N
+//    workouts when the owning program sets tryMoreAfterWorkouts for this
+//    exercise - -> a soft "try more" nudge;
 // 3. otherwise ok.
 export function suggestProgression(input: SuggestProgressionInput) {
-  const { history, category, repRangeMax, tryMoreAfterWorkouts, now } = input;
+  const { history, category, repRangeMax, tryMoreAfterWorkouts, counterShift, now } = input;
   const last = history[history.length - 1];
   const lastDate = new Date(`${last.date}T00:00:00Z`);
   const daysSinceLastWorkout = daysBetween(lastDate, now);
@@ -285,7 +342,7 @@ export function suggestProgression(input: SuggestProgressionInput) {
   const daysSinceProgress = lastProgress
     ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
     : null;
-  const sessionsSinceProgress = lastProgress?.sessionsSince ?? null;
+  const sessionsSinceProgress = lastProgress ? applyCounterShift(lastProgress, counterShift) : null;
 
   const atTopOfRange = last.maxReps >= repRangeMax;
   const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;

@@ -200,6 +200,12 @@ export const exercises = pgTable('exercises', {
   // Weight increment applied to ONE side/unit (e.g. one side of the barbell,
   // or one dumbbell) when the user hits the top of the rep range.
   weightStepKg: numeric('weight_step_kg', { precision: 5, scale: 2 }).notNull().default('0.5'),
+  // Manual shift of the "workouts without progress" counter (the try-more
+  // slider on the Programs page): added to the counted sessions, but only
+  // while the last progress is still the one dated tryMoreCounterAnchor -
+  // the next real progress restarts the count and the shift lapses.
+  tryMoreCounterAdjust: smallint('try_more_counter_adjust').notNull().default(0),
+  tryMoreCounterAnchor: date('try_more_counter_anchor'),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
@@ -240,6 +246,10 @@ export const programExercises = pgTable('program_exercises', {
   // weight (and rep counts) from the most recent time each exercise was
   // actually performed, not a stale "starting weight" set once up front.
   targetSets: smallint('target_sets').notNull().default(3),
+  // Per-exercise override of programs.tryMoreAfterWorkouts (same meaning:
+  // workouts of this exercise without progress before "try_more"). Null
+  // falls back to the program's value, then to the 14-day rule.
+  tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({
   programIdx: index('program_exercises_program_idx').on(table.programId),
