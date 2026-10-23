@@ -239,6 +239,7 @@ function TryMoreCountdown({
   const { t } = useTranslation();
   const status = tryMoreStatus(progression, threshold);
 
+  if (status.kind === 'unknown') return null;
   if (status.kind === 'no_data') {
     return <span className="text-xs text-slate-500">{t('programs.countdown.noData')}</span>;
   }
@@ -373,7 +374,7 @@ function ProgramForm({
       return;
     }
     const trimmedTryMore = tryMoreAfterWorkouts.trim();
-    if (trimmedTryMore !== '' && Number(trimmedTryMore) < 1) {
+    if (trimmedTryMore !== '' && (parseThreshold(trimmedTryMore) == null || Number(trimmedTryMore) > TRY_MORE_MAX)) {
       setError(t('programs.form.errorTryMoreAfterWorkouts'));
       return;
     }

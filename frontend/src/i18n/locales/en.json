@@ -109,7 +109,7 @@
       "errorNameRequired": "Enter a program name.",
       "errorExerciseRequired": "Add at least one exercise.",
       "errorTargetSets": "Set the target number of sets (at least 1) for every exercise.",
-      "errorTryMoreAfterWorkouts": "The workout count must be at least 1 (or leave it blank).",
+      "errorTryMoreAfterWorkouts": "The workout count must be from 1 to 60 (or leave it blank).",
       "errorGeneric": "Couldn't save the program",
       "exerciseTryMoreLabel": "\"Try more\" after",
       "exerciseTryMoreSessions_one": "{{count}} workout",

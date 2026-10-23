@@ -111,7 +111,7 @@
       "errorNameRequired": "Вкажи назву програми.",
       "errorExerciseRequired": "Додай хоча б одну вправу.",
       "errorTargetSets": "Вкажи цільову кількість підходів (мінімум 1) для кожної вправи.",
-      "errorTryMoreAfterWorkouts": "Кількість тренувань має бути не менше 1 (або залиш поле порожнім).",
+      "errorTryMoreAfterWorkouts": "Кількість тренувань — від 1 до 60 (або залиш порожнім).",
       "errorGeneric": "Не вдалося зберегти програму",
       "exerciseTryMoreLabel": "«Спробуй більше» після",
       "exerciseTryMoreSessions_one": "{{count}} тренування",
