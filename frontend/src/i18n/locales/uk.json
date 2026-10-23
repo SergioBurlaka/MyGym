@@ -569,7 +569,7 @@
     "progressTitle": "{{done}} з {{total}} без прогресу",
     "first": "Перше виконання",
     "progress": "✓ Прогрес",
-    "fractionSessions": "{{done}} / {{total}} без прогресу",
-    "fractionDays": "{{done}} / {{total}} дн. без прогресу"
+    "fractionSessions": "{{done}} / {{total}} до збільшення ваги чи повторень",
+    "fractionDays": "{{done}} / {{total}} дн. до збільшення ваги чи повторень"
   }
 }
