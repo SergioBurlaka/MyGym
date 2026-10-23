@@ -251,6 +251,30 @@ describe('refresh token rotation', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("drops the user's dead rows on rotation instead of piling them up", async () => {
+    const { cookie: firstCookie, user } = await registerUser(app);
+    const other = await registerUser(app);
+    let cookie = firstCookie;
+    for (let i = 0; i < 5; i++) {
+      const res = await app.inject({ method: 'POST', url: '/api/auth/refresh', headers: { cookie } });
+      expect(res.statusCode).toBe(200);
+      cookie = refreshCookie(res);
+      // Age every rotated row past the grace window.
+      await db
+        .update(refreshTokens)
+        .set({ revokedAt: sql`now() - interval '2 minutes'` })
+        .where(sql`${refreshTokens.userId} = ${user.id} and ${refreshTokens.revokedAt} is not null`);
+    }
+    const rows = await db.select().from(refreshTokens).where(eq(refreshTokens.userId, user.id));
+    // The live token plus at most the one rotated by the last refresh.
+    expect(rows.length).toBeLessThanOrEqual(2);
+    expect(rows.filter((r) => r.revokedAt == null)).toHaveLength(1);
+
+    // Another user's token is untouched and still works.
+    const otherRes = await app.inject({ method: 'POST', url: '/api/auth/refresh', headers: { cookie: other.cookie } });
+    expect(otherRes.statusCode).toBe(200);
+  });
+
   it('returns 401 without a cookie', async () => {
     const res = await app.inject({ method: 'POST', url: '/api/auth/refresh' });
     expect(res.statusCode).toBe(401);

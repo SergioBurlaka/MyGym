@@ -1,4 +1,4 @@
-import { eq, or, sql } from 'drizzle-orm';
+import { and, eq, lt, or, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
 import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
@@ -153,6 +153,8 @@ export async function validateCredentials(email: string, password: string) {
   return user;
 }
 
+const ROTATION_GRACE_MS = 60_000;
+
 export async function issueTokenPair(user: { id: string; email: string }) {
   const accessToken = signAccessToken({ sub: user.id, email: user.email });
   const refreshToken = generateRefreshToken();
@@ -165,10 +167,23 @@ export async function issueTokenPair(user: { id: string; email: string }) {
     expiresAt,
   });
 
+  // Rotation keeps the old row (revokedAt) for the grace window below, so
+  // without this every refresh would leave a row behind forever. Only rows
+  // that could no longer be accepted anyway are dropped.
+  await db
+    .delete(refreshTokens)
+    .where(
+      and(
+        eq(refreshTokens.userId, user.id),
+        or(
+          lt(refreshTokens.expiresAt, new Date()),
+          lt(refreshTokens.revokedAt, new Date(Date.now() - ROTATION_GRACE_MS)),
+        ),
+      ),
+    );
+
   return { accessToken, refreshToken };
 }
-
-const ROTATION_GRACE_MS = 60_000;
 
 export async function rotateRefreshToken(rawToken: string) {
   const tokenHash = hashRefreshToken(rawToken);
