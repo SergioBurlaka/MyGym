@@ -201,3 +201,91 @@ describe('try-more slider (sessionsDone)', () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe('journal progressAt', () => {
+  async function logWorkout(
+    auth: Record<string, string>,
+    date: string,
+    exerciseId: string,
+    reps: number[],
+    programId?: string,
+  ) {
+    const started = await app.inject({
+      method: 'POST',
+      url: '/api/workouts',
+      headers: auth,
+      payload: programId ? { date, programId } : { date },
+    });
+    expect(started.statusCode).toBe(201);
+    await app.inject({
+      method: 'PUT',
+      url: `/api/workouts/${started.json().id}/exercises`,
+      headers: auth,
+      payload: {
+        exercises: [
+          { exerciseId, weightPerUnitKg: 20, weightUnits: 2, sets: reps.map((r, i) => ({ setNumber: i + 1, reps: r })) },
+        ],
+      },
+    });
+  }
+
+  type ListedWorkout = {
+    date: string;
+    workoutExercises: {
+      progressAt: {
+        isFirst: boolean;
+        isProgress: boolean;
+        sessionsSinceProgress: number;
+        tryMoreAfterWorkouts: number | null;
+      } | null;
+    }[];
+  };
+
+  async function journal(auth: Record<string, string>) {
+    const res = await app.inject({ method: 'GET', url: '/api/workouts', headers: auth });
+    expect(res.statusCode).toBe(200);
+    const byDate = new Map<string, ListedWorkout['workoutExercises'][number]['progressAt']>();
+    for (const w of res.json().data as ListedWorkout[]) byDate.set(w.date, w.workoutExercises[0]?.progressAt ?? null);
+    return byDate;
+  }
+
+  it('shows the counter as of each workout, with the program threshold', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 4 }] },
+    });
+    const programId = created.json().id as string;
+    await logWorkout(auth, '2026-10-01', a, [8, 8], programId);
+    await logWorkout(auth, '2026-10-03', a, [8, 8, 8], programId);
+    await logWorkout(auth, '2026-10-05', a, [8, 8, 8]);
+
+    const byDate = await journal(auth);
+    expect(byDate.get('2026-10-01')).toMatchObject({ isFirst: true, sessionsSinceProgress: 0, tryMoreAfterWorkouts: 4 });
+    expect(byDate.get('2026-10-03')).toMatchObject({ isProgress: true, sessionsSinceProgress: 0 });
+    // Not started from the program -> the smallest threshold across programs (also 4).
+    expect(byDate.get('2026-10-05')).toMatchObject({ isProgress: false, sessionsSinceProgress: 1, tryMoreAfterWorkouts: 4 });
+
+    // The slider shift shows on the latest workout only.
+    await app.inject({
+      method: 'PUT',
+      url: `/api/programs/${programId}`,
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 4, sessionsDone: 3 }] },
+    });
+    const shifted = await journal(auth);
+    expect(shifted.get('2026-10-05')).toMatchObject({ sessionsSinceProgress: 3 });
+    expect(shifted.get('2026-10-03')).toMatchObject({ sessionsSinceProgress: 0 });
+  });
+
+  it('handles a page with an empty workout', async () => {
+    const { auth } = await registerUser(app);
+    expect((await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: {} })).statusCode).toBe(201);
+    const res = await app.inject({ method: 'GET', url: '/api/workouts', headers: auth });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data[0].workoutExercises).toEqual([]);
+  });
+});

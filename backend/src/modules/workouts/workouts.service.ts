@@ -2,6 +2,7 @@ import { and, eq, desc, count, isNotNull, gte, lte, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
+import { attachProgressAt } from '../progression/progression.service.js';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -232,7 +233,9 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
   ]);
 
   return {
-    data: rows,
+    // Each exercise also gets progressAt - the try-more counter as of that
+    // workout - for the journal cards.
+    data: await attachProgressAt(userId, rows),
     total,
     page,
     pageSize,
