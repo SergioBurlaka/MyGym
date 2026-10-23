@@ -555,7 +555,7 @@
     "progressTitle": "{{done}} of {{total}} without progress",
     "first": "First time",
     "progress": "✓ Progress",
-    "fractionSessions": "{{done}} / {{total}} to progress",
+    "fractionSessions": "{{done}} / {{total}} sessions to progress",
     "fractionDays": "{{done}} / {{total}} days to progress"
   }
 }
