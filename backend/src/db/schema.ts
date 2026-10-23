@@ -62,6 +62,8 @@ export const refreshTokens = pgTable('refresh_tokens', {
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
+  // Every refresh looks the token up by hash.
+  tokenHashIdx: uniqueIndex('refresh_tokens_token_hash_idx').on(table.tokenHash),
   userIdx: index('refresh_tokens_user_idx').on(table.userId),
 }));
 
