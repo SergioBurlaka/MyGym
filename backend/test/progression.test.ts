@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   applyCounterShift,
   buildHistoryPoints,
+  effectiveTryMoreAfterWorkouts,
   findLastProgress,
+  localDate,
+  longestBreak,
   progressTimeline,
   suggestProgression,
   type HistoryPoint,
@@ -26,7 +29,7 @@ function suggest(history: HistoryPoint[], over: Partial<Parameters<typeof sugges
     history,
     category: 'large',
     repRangeMax: 15,
-    tryMoreAfterWorkouts: null,
+    tryMoreAfterWorkouts: 4,
     now: NOW,
     ...over,
   });
@@ -193,6 +196,76 @@ describe('applyCounterShift', () => {
   });
 });
 
+describe('effectiveTryMoreAfterWorkouts', () => {
+  it('uses the category default unless a program sets a value', () => {
+    expect(effectiveTryMoreAfterWorkouts(null, 'large')).toBe(4);
+    expect(effectiveTryMoreAfterWorkouts(undefined, 'small')).toBe(6);
+    expect(effectiveTryMoreAfterWorkouts(null, 'bodyweight')).toBe(5);
+    expect(effectiveTryMoreAfterWorkouts(0, 'large')).toBe(4);
+    expect(effectiveTryMoreAfterWorkouts(2, 'small')).toBe(2);
+  });
+});
+
+describe('training breaks', () => {
+  // Same weight and reps every time - never progress.
+  const flat = (dates: string[]) => buildHistoryPoints(dates.flatMap((d) => session(d, 20, [10])));
+
+  it('longestBreak spans all workouts, not just this exercise', () => {
+    expect(longestBreak(['2026-10-01', '2026-10-05', '2026-10-12'], '2026-10-01', '2026-10-12')).toBe(7);
+    expect(longestBreak(['2026-10-01', '2026-10-12'], '2026-10-01', '2026-10-12')).toBe(11);
+    // `to` counts even when it is not a workout date (today).
+    expect(longestBreak(['2026-10-01'], '2026-10-01', '2026-10-20')).toBe(19);
+  });
+
+  it('the first session after a 10-13 day break does not add to the counter', () => {
+    const dates = ['2026-10-01', '2026-10-03', '2026-10-15', '2026-10-17'];
+    expect(findLastProgress(flat(dates))).toEqual({ date: '2026-10-01', sessionsSince: 3 });
+    expect(findLastProgress(flat(dates), dates)).toEqual({ date: '2026-10-01', sessionsSince: 2 });
+  });
+
+  it('a 14+ day break restarts the counter from the first session back', () => {
+    const dates = ['2026-09-01', '2026-09-03', '2026-09-05', '2026-09-25', '2026-09-27'];
+    expect(findLastProgress(flat(dates), dates)).toEqual({ date: '2026-09-25', sessionsSince: 1 });
+    const points = progressTimeline(flat(dates), 15, dates);
+    expect(points.map((p) => p.afterBreak)).toEqual([false, false, false, true, false]);
+    expect(points.map((p) => p.sessionsSinceProgress)).toEqual([0, 1, 2, 0, 1]);
+  });
+
+  it('a progress right after a break is still progress', () => {
+    const history = buildHistoryPoints([...session('2026-09-01', 20, [10]), ...session('2026-09-25', 22.5, [10])]);
+    const dates = ['2026-09-01', '2026-09-25'];
+    expect(progressTimeline(history, 15, dates).at(-1)).toMatchObject({ isProgress: true, afterBreak: false });
+  });
+
+  it('a pending reset (break up to today) keeps a stable date that is no session', () => {
+    const dates = ['2026-09-01', '2026-09-03'];
+    const history = flat(dates);
+    const day1 = findLastProgress(history, dates, '2026-09-20');
+    const day2 = findLastProgress(history, dates, '2026-09-25');
+    expect(day1).toEqual({ date: '2026-09-04', sessionsSince: 0 });
+    expect(day2).toEqual(day1);
+    // A shift anchored there survives the days passing; one set before the
+    // break (anchored on a session date) lapses.
+    expect(applyCounterShift(day2!, { adjust: 2, anchor: '2026-09-04' })).toBe(2);
+    expect(applyCounterShift(day2!, { adjust: 2, anchor: '2026-09-01' })).toBe(0);
+    // Under 14 days to today - no reset.
+    expect(findLastProgress(history, dates, '2026-09-16')).toEqual({ date: '2026-09-01', sessionsSince: 1 });
+  });
+
+  it('localDate uses the user time zone', () => {
+    const now = new Date('2026-10-23T22:30:00Z');
+    expect(localDate(now, 'Europe/Kyiv')).toBe('2026-10-24');
+    expect(localDate(now, 'UTC')).toBe('2026-10-23');
+    expect(localDate(now, 'Not/AZone')).toBe('2026-10-23');
+  });
+
+  it('a gap for this exercise alone is not a break when the user kept training', () => {
+    const history = flat(['2026-10-01', '2026-10-20']);
+    const dates = ['2026-10-01', '2026-10-06', '2026-10-11', '2026-10-16', '2026-10-20'];
+    expect(findLastProgress(history, dates)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
+  });
+});
+
 describe('suggestProgression', () => {
   it('a postponed counter holds off try_more', () => {
     const history = buildHistoryPoints([
@@ -220,15 +293,15 @@ describe('suggestProgression', () => {
     expect(suggest(history, { category: 'bodyweight', repRangeMax: 30 }).suggestion).toBe('increase_weight');
   });
 
-  it('try_more after 14 days without progress', () => {
+  it('try_more after N sessions without progress, regardless of days', () => {
     const history = buildHistoryPoints([
-      ...session('2026-10-01', 20, [10]),
+      ...session('2026-10-06', 20, [10]),
       ...session('2026-10-10', 20, [10]),
+      ...session('2026-10-14', 20, [10]),
       ...session('2026-10-18', 20, [10]),
     ]);
-    const result = suggest(history);
-    expect(result.daysSinceProgress).toBe(18);
-    expect(result.suggestion).toBe('try_more');
+    expect(suggest(history, { tryMoreAfterWorkouts: 3 }).suggestion).toBe('try_more');
+    expect(suggest(history, { tryMoreAfterWorkouts: 4 }).suggestion).toBe('ok');
   });
 
   it('ok when progress was recent', () => {
@@ -236,21 +309,23 @@ describe('suggestProgression', () => {
     const result = suggest(history);
     expect(result.daysSinceProgress).toBe(4);
     expect(result.daysSinceLastWorkout).toBe(4);
+    expect(result.sessionsSinceProgress).toBe(0);
     expect(result.suggestion).toBe('ok');
   });
 
-  it("uses the program's workout-count rule instead of days when it is set", () => {
-    // 13 days, so the day rule alone would say "ok" - but 3 stalled sessions
-    // reach the program's threshold of 3.
+  it('a 14+ day break since the last session resets the counter as of today', () => {
     const history = buildHistoryPoints([
-      ...session('2026-10-06', 20, [10]),
-      ...session('2026-10-10', 20, [10]),
-      ...session('2026-10-14', 20, [10]),
-      ...session('2026-10-18', 20, [10]),
+      ...session('2026-09-20', 20, [10]),
+      ...session('2026-09-22', 20, [10]),
+      ...session('2026-09-24', 20, [10]),
+      ...session('2026-09-26', 20, [10]),
+      ...session('2026-09-28', 20, [10]),
     ]);
-    expect(suggest(history).suggestion).toBe('ok');
-    expect(suggest(history, { tryMoreAfterWorkouts: 3 }).suggestion).toBe('try_more');
-    expect(suggest(history, { tryMoreAfterWorkouts: 4 }).suggestion).toBe('ok');
+    const dates = ['2026-09-20', '2026-09-22', '2026-09-24', '2026-09-26', '2026-09-28'];
+    expect(suggest(history).suggestion).toBe('try_more');
+    expect(suggest(history, { workoutDates: dates })).toMatchObject({ sessionsSinceProgress: 0, suggestion: 'ok' });
+    // Training other exercises in between means no break - the count stands.
+    expect(suggest(history, { workoutDates: [...dates, '2026-10-08', '2026-10-17'] }).suggestion).toBe('try_more');
   });
 
   it('a maxed-out set beats the stall reminder', () => {

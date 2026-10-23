@@ -46,7 +46,7 @@ export function registerProgramTools(server: McpServer, api: ApiClient) {
           .max(60)
           .nullable()
           .optional()
-          .describe('Nudge to try more after this many sessions without progress (instead of the default 14 days)'),
+          .describe('Nudge to try more after this many sessions without progress (default: 4 for large, 6 for small, 5 for bodyweight exercises)'),
       },
     },
     async (input) => apiResult(() => api.post('/programs', input)),

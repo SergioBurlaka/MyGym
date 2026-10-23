@@ -8,11 +8,11 @@ import {
   useUpdateProgramMutation,
 } from '../shared/api/programs/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
-import type { ExerciseProgression, Program } from '../types/index.js';
+import type { ExerciseProgression, MuscleCategory, Program } from '../types/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
-import { tryMoreStatus } from '../utils/tryMoreCountdown.js';
+import { DEFAULT_TRY_MORE_AFTER_WORKOUTS, tryMoreStatus } from '../utils/tryMoreCountdown.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 
 // Max per-exercise "try more" workout count (backend's limit); 0 = inherit
@@ -34,9 +34,13 @@ type ProgressionById = Map<string, ExerciseProgression>;
 // The slider position to save, as the user sees it: clamped to the scale,
 // and not sent at all while the slider is untouched or disabled (no
 // threshold) - otherwise an invisible shift would be stored.
-function sessionsDoneToSend(block: EditableExercise, programThreshold: number | null): { sessionsDone?: number } {
-  const threshold = parseThreshold(block.tryMoreAfterWorkouts) ?? programThreshold;
-  if (block.sessionsDone == null || threshold == null) return {};
+function sessionsDoneToSend(
+  block: EditableExercise,
+  programThreshold: number | null,
+  defaultThreshold: number,
+): { sessionsDone?: number } {
+  const threshold = parseThreshold(block.tryMoreAfterWorkouts) ?? programThreshold ?? defaultThreshold;
+  if (block.sessionsDone == null) return {};
   return { sessionsDone: Math.min(block.sessionsDone, threshold) };
 }
 
@@ -304,6 +308,9 @@ function ProgramForm({
   }, [program?.id]);
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
+  const defaultThresholdOf = (exerciseId: string) =>
+    DEFAULT_TRY_MORE_AFTER_WORKOUTS[(exerciseById.get(exerciseId)?.category as MuscleCategory) ?? 'large'] ??
+    DEFAULT_TRY_MORE_AFTER_WORKOUTS.large;
   const usedIds = useMemo(() => new Set(blocks.map((b) => b.exerciseId)), [blocks]);
   const availableExercises = exercises.filter((e) => !usedIds.has(e.id));
 
@@ -369,7 +376,7 @@ function ProgramForm({
         exerciseId: b.exerciseId,
         targetSets: Number(b.targetSets),
         tryMoreAfterWorkouts: parseThreshold(b.tryMoreAfterWorkouts),
-        ...sessionsDoneToSend(b, parseThreshold(trimmedTryMore)),
+        ...sessionsDoneToSend(b, parseThreshold(trimmedTryMore), defaultThresholdOf(b.exerciseId)),
       })),
       tryMoreAfterWorkouts: trimmedTryMore === '' ? null : Number(trimmedTryMore),
     };
@@ -451,6 +458,7 @@ function ProgramForm({
                 <ExerciseTryMoreField
                   value={block.tryMoreAfterWorkouts}
                   programValue={parseThreshold(tryMoreAfterWorkouts)}
+                  defaultValue={defaultThresholdOf(block.exerciseId)}
                   progression={progressionById?.get(block.exerciseId)}
                   progressionLoaded={progressionById != null}
                   sessionsDone={block.sessionsDone}
@@ -506,6 +514,7 @@ function ProgramForm({
 function ExerciseTryMoreField({
   value,
   programValue,
+  defaultValue,
   progression,
   progressionLoaded,
   sessionsDone,
@@ -514,6 +523,8 @@ function ExerciseTryMoreField({
 }: {
   value: string;
   programValue: number | null;
+  // Category default (DEFAULT_TRY_MORE_AFTER_WORKOUTS) when neither is set.
+  defaultValue: number;
   progression: ExerciseProgression | undefined;
   progressionLoaded: boolean;
   // Where the slider was dragged in this form; null = untouched.
@@ -524,27 +535,27 @@ function ExerciseTryMoreField({
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const own = parseThreshold(value);
-  const threshold = own ?? programValue;
+  const threshold = own ?? programValue ?? defaultValue;
+  const inherited = programValue ?? defaultValue;
   const current = progression?.sessionsSinceProgress ?? null;
   const done = sessionsDone ?? current;
 
   let summary: string;
   if (own != null) summary = t('programs.form.exerciseTryMoreSessions', { count: own });
   else if (programValue != null) summary = t('programs.form.exerciseTryMoreInheritProgram', { count: programValue });
-  else summary = t('programs.form.exerciseTryMoreInheritDefault');
+  else summary = t('programs.form.exerciseTryMoreInheritDefault', { count: defaultValue });
 
   // The slider moves the "workouts without progress" counter on a 0..N
-  // scale - only meaningful with a workout count and some history.
+  // scale - only meaningful with some history.
   let disabledHint: string | null = null;
-  if (threshold == null) disabledHint = t('programs.form.exerciseTryMoreNeedsThreshold');
-  else if (!progressionLoaded) disabledHint = t('common.loading');
+  if (!progressionLoaded) disabledHint = t('common.loading');
   // Missing from the overview = archived exercise; no_data = never done.
   else if (done == null) disabledHint = t('programs.form.exerciseTryMoreNoHistory');
-  const due = threshold != null && done != null && done >= threshold;
+  const due = done != null && done >= threshold;
   // The nudge fires at the smallest count across all programs with this
   // exercise - warn when another program's is below this scale.
   const effective = progression?.tryMoreAfterWorkouts ?? null;
-  const earlierElsewhere = threshold != null && effective != null && effective < threshold ? effective : null;
+  const earlierElsewhere = effective != null && effective < threshold ? effective : null;
 
   return (
     <div className="min-w-[14rem] flex-1 space-y-2">
@@ -555,11 +566,11 @@ function ExerciseTryMoreField({
             type="text"
             inputMode="numeric"
             className="input w-16 text-center"
-            placeholder={programValue != null ? String(programValue) : '0'}
+            placeholder={String(inherited)}
             // Without its own value the field shows the count actually in
-            // effect (the program's); focusing it gives an empty field to
-            // type an own value, with the inherited one as the placeholder.
-            value={own == null && !focused && programValue != null ? String(programValue) : value}
+            // effect (the program's, else the default); focusing it gives an
+            // empty field to type an own value, with that as the placeholder.
+            value={own == null && !focused ? String(inherited) : value}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onChange={(e) => onChange(e.target.value)}
@@ -571,7 +582,7 @@ function ExerciseTryMoreField({
       <div>
         <div className="mb-1 flex items-center justify-between gap-2 text-xs">
           <span className={due ? 'font-semibold text-warn' : 'text-slate-400'}>
-            {threshold != null && done != null
+            {done != null
               ? t('programs.form.exerciseTryMoreDone', { done: Math.min(done, threshold), total: threshold })
               : t('programs.form.exerciseTryMoreDoneLabel')}
           </span>
@@ -584,12 +595,12 @@ function ExerciseTryMoreField({
         <input
           type="range"
           min={0}
-          max={threshold ?? 1}
+          max={threshold}
           step={1}
           className="h-2 w-full cursor-pointer accent-accent disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={t('programs.form.exerciseTryMoreDoneLabel')}
           disabled={disabledHint != null}
-          value={threshold != null && done != null ? Math.min(done, threshold) : 0}
+          value={done != null ? Math.min(done, threshold) : 0}
           onChange={(e) => onSessionsDoneChange(Number(e.target.value))}
         />
         <p className="mt-1 text-xs text-slate-500">{disabledHint ?? t('programs.form.exerciseTryMoreSliderHint')}</p>

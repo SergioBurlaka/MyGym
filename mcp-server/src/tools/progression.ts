@@ -9,7 +9,7 @@ export function registerProgressionTools(server: McpServer, api: ApiClient) {
     {
       title: 'Progression overview',
       description:
-        'For every exercise: last weight, max reps, days since progress and a suggestion (increase_weight, start_adding_weight, try_more, ok, no_data) - use for "what should I increase" questions.',
+        'For every exercise: last weight, max reps, sessions since progress (vs tryMoreAfterWorkouts) and a suggestion (increase_weight, start_adding_weight, try_more, ok, no_data) - use for "what should I increase" questions.',
       annotations: { readOnlyHint: true },
     },
     async () => apiResult(() => api.get('/progression')),

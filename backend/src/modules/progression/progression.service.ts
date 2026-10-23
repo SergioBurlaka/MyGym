@@ -1,8 +1,26 @@
 import { and, eq, gte, inArray, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { exercises, workoutExercises, workouts, sets, programs, programExercises } from '../../db/schema.js';
+import { exercises, workoutExercises, workouts, sets, programs, programExercises, users } from '../../db/schema.js';
 
-const PROGRESS_REMINDER_DAYS = 14;
+// Default try_more threshold - sessions of the exercise without progress -
+// when neither its program entry nor the program sets one. Lower for big
+// compound lifts, higher where load steps are relatively coarse (small
+// muscles) or progress is reps-only and noisier (bodyweight). See
+// docs/research/try-more-threshold.md for the reasoning.
+export const DEFAULT_TRY_MORE_AFTER_WORKOUTS = { large: 4, small: 6, bodyweight: 5 } as const;
+
+// Breaks in training (longest gap between any two of the user's workouts):
+// a 10-13 day break pauses the counter for the first session back, 14+ days
+// resets it - performance right after a break is rust, not a plateau.
+export const BREAK_PAUSE_DAYS = 10;
+export const BREAK_RESET_DAYS = 14;
+
+export function effectiveTryMoreAfterWorkouts(
+  explicit: number | null | undefined,
+  category: keyof typeof DEFAULT_TRY_MORE_AFTER_WORKOUTS,
+): number {
+  return explicit != null && explicit >= 1 ? explicit : DEFAULT_TRY_MORE_AFTER_WORKOUTS[category];
+}
 
 export type ProgressionSuggestion =
   | 'no_data'
@@ -27,11 +45,12 @@ export type ExerciseProgression = {
   // one that showed progress - unlike daysSinceProgress, skipped/missed
   // schedule days simply don't add to this count (see tryMoreAfterWorkouts).
   sessionsSinceProgress: number | null;
-  // Set (from the owning Program - the exercise's own value there, else the
-  // program's; the smallest across programs if the exercise is in more than one) when this exercise uses the workout-count
-  // rule instead of the default 14-calendar-day one for the `try_more`
-  // suggestion. Null means the day-based rule applies.
-  tryMoreAfterWorkouts: number | null;
+  // Sessions without progress before `try_more`: from the owning Program
+  // (the exercise's own value there, else the program's; the smallest
+  // across programs), else DEFAULT_TRY_MORE_AFTER_WORKOUTS for the category.
+  tryMoreAfterWorkouts: number;
+  // True when tryMoreAfterWorkouts is the category default, not a program's.
+  tryMoreIsDefault: boolean;
   suggestion: ProgressionSuggestion;
 };
 
@@ -79,27 +98,115 @@ function sessionVolume(point: HistoryPoint): number {
   return sessionWeight(point) > 0 ? sessionWeight(point) * point.totalReps : point.totalReps;
 }
 
-// Walks a chronological history and returns the date of the most recent
-// entry that progressed on the one before it - a bigger session volume, or
-// a heavier working weight (heavier weight often means fewer reps, so the
-// volume alone could even drop; going from no weight to some counts too).
-// Volumes are only compared between two weighted or two unweighted sessions:
-// kg * reps vs plain reps would be meaningless. Returns that date plus how
-// many sessions have happened since
-// (0 if the progress was the latest session). Falls back to the earliest
-// entry when no improvement has ever been recorded (nothing to compare
-// against yet, but also nothing "stalled").
-export function findLastProgress(history: HistoryPoint[]): { date: string; sessionsSince: number } | null {
-  if (history.length === 0) return null;
-  let lastProgressIndex = 0;
-  for (let i = 1; i < history.length; i++) {
-    if (isProgressStep(history[i - 1], history[i])) {
-      lastProgressIndex = i;
-    }
+// Longest gap, in days, between consecutive dates of `workoutDates`
+// (sorted, unique) that fall within [from, to] - how long the user was away
+// from training between two sessions of one exercise. `to` counts as a
+// workout day even if absent (used with "today").
+export function longestBreak(workoutDates: string[], from: string, to: string): number {
+  let longest = 0;
+  let prev = from;
+  for (const d of workoutDates) {
+    if (d <= from) continue;
+    if (d > to) break;
+    longest = Math.max(longest, dayDiff(prev, d));
+    prev = d;
   }
-  return { date: history[lastProgressIndex].date, sessionsSince: history.length - 1 - lastProgressIndex };
+  return Math.max(longest, dayDiff(prev, to));
 }
 
+// Start of the most recent gap of `minDays`+ within [from, to] (same rules
+// as longestBreak), or null if there is none.
+function lastLongBreakStart(workoutDates: string[], from: string, to: string, minDays: number): string | null {
+  let found: string | null = null;
+  let prev = from;
+  for (const d of workoutDates) {
+    if (d <= from) continue;
+    if (d > to) break;
+    if (dayDiff(prev, d) >= minDays) found = prev;
+    prev = d;
+  }
+  if (dayDiff(prev, to) >= minDays) found = prev;
+  return found;
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function dayDiff(from: string, to: string): number {
+  return daysBetween(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`));
+}
+
+type CounterStep = {
+  isProgress: boolean;
+  // Counter restarted after a 14+ day break (not a progress).
+  afterBreak: boolean;
+  // Index of the session the counter counts from (last progress or reset).
+  baselineIndex: number;
+  sessionsSinceProgress: number;
+};
+
+// The sessions-without-progress counter after each session of a
+// chronological history. Progress (see isProgressStep) restarts it; a
+// 14+ day training break restarts it too; the first session after a 10-13
+// day break doesn't add to it. Without `workoutDates` breaks are ignored.
+function walkCounter(history: HistoryPoint[], workoutDates: string[] = []): CounterStep[] {
+  const steps: CounterStep[] = [];
+  let baselineIndex = 0;
+  let counter = 0;
+  history.forEach((cur, i) => {
+    let isProgress = false;
+    let afterBreak = false;
+    if (i > 0) {
+      const brk = workoutDates.length > 0 ? longestBreak(workoutDates, history[i - 1].date, cur.date) : 0;
+      // A real progress right after a break is still shown as progress.
+      if (isProgressStep(history[i - 1], cur)) {
+        isProgress = true;
+        baselineIndex = i;
+        counter = 0;
+      } else if (brk >= BREAK_RESET_DAYS) {
+        afterBreak = true;
+        baselineIndex = i;
+        counter = 0;
+      } else if (brk < BREAK_PAUSE_DAYS) {
+        counter++;
+      }
+    }
+    steps.push({ isProgress, afterBreak, baselineIndex, sessionsSinceProgress: counter });
+  });
+  return steps;
+}
+
+// Where the counter stands now: the date it counts from (last progress, a
+// reset after a break, or the first session if neither) and how many
+// sessions have added to it since. With `asOf` (today), a 14+ day break
+// since the last session already resets it - the count is stale. The date
+// returned then is the day after the break began: stable as days pass (the
+// slider's anchor keeps matching) and never a session date (an anchor set
+// before the break no longer matches).
+// Progress = a bigger session volume or a heavier working weight than the
+// session before (see isProgressStep).
+export function findLastProgress(
+  history: HistoryPoint[],
+  workoutDates: string[] = [],
+  asOf?: string,
+): { date: string; sessionsSince: number } | null {
+  if (history.length === 0) return null;
+  const last = history[history.length - 1];
+  if (asOf && workoutDates.length > 0) {
+    const breakStart = lastLongBreakStart(workoutDates, last.date, asOf, BREAK_RESET_DAYS);
+    if (breakStart) return { date: addDays(breakStart, 1), sessionsSince: 0 };
+  }
+  const step = walkCounter(history, workoutDates).at(-1)!;
+  return { date: history[step.baselineIndex].date, sessionsSince: step.sessionsSinceProgress };
+}
+
+// Weight going up always counts (heavier weight often means fewer reps, so
+// the volume alone could even drop; going from no weight to some counts
+// too). Volumes are only compared between two weighted or two unweighted
+// sessions: kg * reps vs plain reps would be meaningless.
 function isProgressStep(prev: HistoryPoint, cur: HistoryPoint): boolean {
   const weightImproved = sessionWeight(cur) > sessionWeight(prev);
   const sameKind = sessionWeight(cur) > 0 === sessionWeight(prev) > 0;
@@ -112,6 +219,8 @@ export type TimelinePoint = {
   // The exercise's first session - nothing to compare against.
   isFirst: boolean;
   isProgress: boolean;
+  // First session after a 14+ day break - the counter restarted here.
+  afterBreak: boolean;
   atTopOfRange: boolean;
   // As of this session (0 when it progressed), same meaning as in
   // ExerciseProgression but frozen at that date.
@@ -120,31 +229,60 @@ export type TimelinePoint = {
 };
 
 // Where the progress counter stood after each session of a chronological
-// history - the journal shows it per workout. Uses the same progress step
-// as findLastProgress, so the last point agrees with it.
-export function progressTimeline(history: HistoryPoint[], repRangeMax: number): TimelinePoint[] {
-  let lastProgressIndex = 0;
-  return history.map((cur, i) => {
-    const isProgress = i > 0 && isProgressStep(history[i - 1], cur);
-    if (isProgress) lastProgressIndex = i;
-    return {
-      date: cur.date,
-      isFirst: i === 0,
-      isProgress,
-      atTopOfRange: cur.maxReps >= repRangeMax,
-      sessionsSinceProgress: i - lastProgressIndex,
-      daysSinceProgress: daysBetween(
-        new Date(`${history[lastProgressIndex].date}T00:00:00Z`),
-        new Date(`${cur.date}T00:00:00Z`),
-      ),
-    };
-  });
+// history - the journal shows it per workout. Same walk as findLastProgress,
+// so the last point agrees with it.
+export function progressTimeline(
+  history: HistoryPoint[],
+  repRangeMax: number,
+  workoutDates: string[] = [],
+): TimelinePoint[] {
+  const steps = walkCounter(history, workoutDates);
+  return history.map((cur, i) => ({
+    date: cur.date,
+    isFirst: i === 0,
+    isProgress: steps[i].isProgress,
+    afterBreak: steps[i].afterBreak,
+    atTopOfRange: cur.maxReps >= repRangeMax,
+    sessionsSinceProgress: steps[i].sessionsSinceProgress,
+    daysSinceProgress: dayDiff(history[steps[i].baselineIndex].date, cur.date),
+  }));
+}
+
+// All dates the user trained on (sorted, unique) - breaks are measured
+// across every workout, not per exercise: with an A/B split an exercise
+// naturally skips a week.
+export async function getWorkoutDates(userId: string, executor: Executor = db): Promise<string[]> {
+  // Only workouts with at least one logged set - an empty, abandoned one
+  // in the middle of a break shouldn't hide the break.
+  const rows = await executor
+    .selectDistinct({ date: workouts.date })
+    .from(workouts)
+    .innerJoin(workoutExercises, eq(workoutExercises.workoutId, workouts.id))
+    .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
+    .where(eq(workouts.userId, userId))
+    .orderBy(asc(workouts.date));
+  return rows.map((r) => r.date);
+}
+
+// Today's date in the user's time zone - workout dates are local, so the
+// break test must be too (UTC would be a day off around midnight).
+export async function getUserToday(userId: string, executor: Executor = db, now = new Date()): Promise<string> {
+  const [user] = await executor.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId));
+  return localDate(now, user?.timezone);
+}
+
+export function localDate(now: Date, timezone: string | null | undefined): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone ?? 'UTC' }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
 }
 
 // Smallest effective tryMoreAfterWorkouts across all of the user's programs
 // that include a given exercise - the exercise's own value in that program
 // (programExercises.tryMoreAfterWorkouts), else the program's. Exercises in
-// no program, or with neither value set, are absent (14-day rule applies).
+// no program, or with neither value set, are absent (category default applies).
 async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<string, number>> {
   const rows = await db
     .select({
@@ -175,7 +313,7 @@ const HISTORY_ORDER = [asc(workouts.date), asc(workouts.createdAt), asc(workoutE
 
 // `executor` lets a caller inside a transaction read through it (`tx`)
 // instead of taking a second pool connection.
-type Executor = Pick<typeof db, 'select'>;
+type Executor = Pick<typeof db, 'select' | 'selectDistinct'>;
 
 async function buildHistory(exerciseId: string, executor: Executor = db): Promise<HistoryPoint[]> {
   const rows = await executor
@@ -258,8 +396,8 @@ export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
 
 export type WorkoutProgressAt = TimelinePoint & {
   // Workout-count threshold to judge this session against (the workout's
-  // program, else the smallest across programs); null = 14-day rule.
-  tryMoreAfterWorkouts: number | null;
+  // program, else the smallest across programs, else the category default).
+  tryMoreAfterWorkouts: number;
 };
 
 type JournalWorkout = {
@@ -267,7 +405,12 @@ type JournalWorkout = {
   programId: string | null;
   workoutExercises: {
     exerciseId: string;
-    exercise: { repRangeMax: number; tryMoreCounterAdjust: number; tryMoreCounterAnchor: string | null };
+    exercise: {
+      category: ExerciseProgression['category'];
+      repRangeMax: number;
+      tryMoreCounterAdjust: number;
+      tryMoreCounterAnchor: string | null;
+    };
   }[];
 };
 
@@ -283,7 +426,7 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
     return rows.map((w) => ({ ...w, workoutExercises: w.workoutExercises.map((we) => ({ ...we, progressAt: null })) }));
   }
 
-  const [historyRows, peRows, smallestThresholds] = await Promise.all([
+  const [historyRows, peRows, smallestThresholds, workoutDates, today] = await Promise.all([
     db
       .select({
         exerciseId: workoutExercises.exerciseId,
@@ -310,6 +453,8 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
           .where(and(eq(programs.userId, userId), inArray(programExercises.programId, programIds)))
       : Promise.resolve([]),
     getTryMoreAfterWorkoutsByExercise(userId),
+    getWorkoutDates(userId),
+    getUserToday(userId),
   ]);
 
   const rowsByExercise = new Map<string, HistoryRow[]>();
@@ -325,8 +470,10 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
     let byDate = timelines.get(we.exerciseId);
     if (!byDate) {
       const history = buildHistoryPoints(rowsByExercise.get(we.exerciseId) ?? []);
-      const points = progressTimeline(history, we.exercise.repRangeMax);
-      const lastProgress = findLastProgress(history);
+      const points = progressTimeline(history, we.exercise.repRangeMax, workoutDates);
+      // With today, as the overview does: after a long break the slider's
+      // anchor is the break, not this session, so the shift stays off here.
+      const lastProgress = findLastProgress(history, workoutDates, today);
       if (lastProgress && points.length > 0) {
         const last = points[points.length - 1];
         const shifted = applyCounterShift(lastProgress, {
@@ -338,6 +485,7 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
         if (shifted !== last.sessionsSinceProgress && shifted > 0) {
           last.isProgress = false;
           last.isFirst = false;
+          last.afterBreak = false;
         }
         last.sessionsSinceProgress = shifted;
       }
@@ -353,7 +501,13 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
       const point = timelineOf(we).get(w.date);
       const fromProgram = w.programId != null ? programThresholds.get(`${w.programId}:${we.exerciseId}`) : null;
       const progressAt: WorkoutProgressAt | null = point
-        ? { ...point, tryMoreAfterWorkouts: fromProgram ?? smallestThresholds.get(we.exerciseId) ?? null }
+        ? {
+            ...point,
+            tryMoreAfterWorkouts: effectiveTryMoreAfterWorkouts(
+              fromProgram ?? smallestThresholds.get(we.exerciseId),
+              we.exercise.category,
+            ),
+          }
         : null;
       return { ...we, progressAt };
     }),
@@ -374,7 +528,11 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     orderBy: (ex, { asc: ascOrder }) => [ascOrder(ex.name)],
   });
 
-  const tryMoreAfterWorkoutsByExercise = await getTryMoreAfterWorkoutsByExercise(userId);
+  const [tryMoreAfterWorkoutsByExercise, workoutDates, today] = await Promise.all([
+    getTryMoreAfterWorkoutsByExercise(userId),
+    getWorkoutDates(userId),
+    getUserToday(userId),
+  ]);
 
   const now = new Date();
   const results: ExerciseProgression[] = [];
@@ -382,7 +540,9 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
   for (const ex of userExercises) {
     const history = await buildHistory(ex.id);
     const weightStepKg = Number(ex.weightStepKg);
-    const tryMoreAfterWorkouts = tryMoreAfterWorkoutsByExercise.get(ex.id) ?? null;
+    const fromPrograms = tryMoreAfterWorkoutsByExercise.get(ex.id);
+    const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(fromPrograms, ex.category);
+    const tryMoreIsDefault = fromPrograms == null;
 
     if (history.length === 0) {
       results.push({
@@ -399,6 +559,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
         daysSinceProgress: null,
         sessionsSinceProgress: null,
         tryMoreAfterWorkouts,
+        tryMoreIsDefault,
         suggestion: 'no_data',
       });
       continue;
@@ -411,6 +572,8 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       repRangeMax: ex.repRangeMax,
       tryMoreAfterWorkouts,
       counterShift: { adjust: ex.tryMoreCounterAdjust, anchor: ex.tryMoreCounterAnchor },
+      workoutDates,
+      today,
       now,
     });
 
@@ -428,6 +591,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       daysSinceProgress,
       sessionsSinceProgress,
       tryMoreAfterWorkouts,
+      tryMoreIsDefault,
       suggestion,
     });
   }
@@ -439,9 +603,14 @@ export type SuggestProgressionInput = {
   history: HistoryPoint[]; // non-empty, chronological
   category: ExerciseProgression['category'];
   repRangeMax: number;
-  tryMoreAfterWorkouts: number | null;
+  // Effective threshold (see effectiveTryMoreAfterWorkouts).
+  tryMoreAfterWorkouts: number;
   // exercises.tryMoreCounterAdjust/Anchor - see applyCounterShift.
   counterShift?: CounterShift;
+  // All the user's workout dates, for break handling (see walkCounter).
+  workoutDates?: string[];
+  // Today in the user's time zone (defaults to now's UTC date).
+  today?: string;
   now: Date;
 };
 
@@ -465,7 +634,15 @@ export async function computeCounterShift(
   sessionsDone: number,
   executor: Executor = db,
 ): Promise<CounterShift | null> {
-  const lastProgress = findLastProgress(await buildHistory(exerciseId, executor));
+  const [exercise] = await executor
+    .select({ userId: exercises.userId })
+    .from(exercises)
+    .where(eq(exercises.id, exerciseId));
+  if (!exercise) return null;
+  // Sequential: `executor` may be a transaction (one connection).
+  const workoutDates = await getWorkoutDates(exercise.userId, executor);
+  const today = await getUserToday(exercise.userId, executor);
+  const lastProgress = findLastProgress(await buildHistory(exerciseId, executor), workoutDates, today);
   if (!lastProgress) return null;
   const adjust = sessionsDone - lastProgress.sessionsSince;
   return adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date };
@@ -474,16 +651,17 @@ export async function computeCounterShift(
 // The progression rules (see README "Progression logic"), DB-free:
 // 1. top of the rep range reached -> add weight (or, for a bodyweight
 //    exercise done without weight, start adding some);
-// 2. otherwise no progress (see findLastProgress) for 14+ days - or for N
-//    workouts when the owning program sets tryMoreAfterWorkouts for this
-//    exercise - -> a soft "try more" nudge;
+// 2. otherwise N sessions of the exercise without progress (see
+//    findLastProgress; N from the program or the category default) -> a
+//    soft "try more" nudge;
 // 3. otherwise ok.
 export function suggestProgression(input: SuggestProgressionInput) {
-  const { history, category, repRangeMax, tryMoreAfterWorkouts, counterShift, now } = input;
+  const { history, category, repRangeMax, tryMoreAfterWorkouts, counterShift, workoutDates = [], now } = input;
+  const today = input.today ?? now.toISOString().slice(0, 10);
   const last = history[history.length - 1];
   const lastDate = new Date(`${last.date}T00:00:00Z`);
   const daysSinceLastWorkout = daysBetween(lastDate, now);
-  const lastProgress = findLastProgress(history);
+  const lastProgress = findLastProgress(history, workoutDates, today);
   const daysSinceProgress = lastProgress
     ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
     : null;
@@ -492,10 +670,7 @@ export function suggestProgression(input: SuggestProgressionInput) {
   const atTopOfRange = last.maxReps >= repRangeMax;
   const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;
 
-  const stalled =
-    tryMoreAfterWorkouts != null
-      ? sessionsSinceProgress != null && sessionsSinceProgress >= tryMoreAfterWorkouts
-      : daysSinceProgress != null && daysSinceProgress >= PROGRESS_REMINDER_DAYS;
+  const stalled = sessionsSinceProgress != null && sessionsSinceProgress >= tryMoreAfterWorkouts;
 
   let suggestion: ProgressionSuggestion;
 

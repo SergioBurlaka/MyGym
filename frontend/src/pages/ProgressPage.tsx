@@ -100,8 +100,12 @@ export default function ProgressPage() {
                 <dd className="text-slate-200">{selected.lastMaxReps ?? '—'}</dd>
               </div>
               <div>
-                <dt className="label">{t('progress.stats.daysWithoutProgress')}</dt>
-                <dd className="text-slate-200">{selected.daysSinceProgress ?? '—'}</dd>
+                <dt className="label">{t('progress.stats.sessionsWithoutProgress')}</dt>
+                <dd className="text-slate-200">
+                  {selected.sessionsSinceProgress != null
+                    ? `${selected.sessionsSinceProgress} / ${selected.tryMoreAfterWorkouts}`
+                    : '—'}
+                </dd>
               </div>
             </dl>
           </div>

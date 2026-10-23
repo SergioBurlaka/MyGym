@@ -41,8 +41,10 @@ export type WorkoutProgressAt = {
   atTopOfRange: boolean;
   sessionsSinceProgress: number;
   daysSinceProgress: number;
-  // null = the 14-day rule applies.
-  tryMoreAfterWorkouts: number | null;
+  // First session after a 14+ day training break - the counter restarted.
+  afterBreak: boolean;
+  // Program's threshold, else the category default.
+  tryMoreAfterWorkouts: number;
 };
 
 export type Workout = {
@@ -87,8 +89,8 @@ export type Program = {
   userId: string;
   name: string;
   orderIndex: number;
-  // Overrides the default 14-day "try_more" rule for this program's
-  // exercises with a workout-count-based one; null keeps the default.
+  // Workouts without progress before "try_more" for this program's
+  // exercises; null keeps the category default.
   tryMoreAfterWorkouts: number | null;
   createdAt: string;
   programExercises: ProgramExercise[];
@@ -109,7 +111,9 @@ export type ExerciseProgression = {
   daysSinceLastWorkout: number | null;
   daysSinceProgress: number | null;
   sessionsSinceProgress: number | null;
-  tryMoreAfterWorkouts: number | null;
+  // Smallest across the exercise's programs, else the category default.
+  tryMoreAfterWorkouts: number;
+  tryMoreIsDefault: boolean;
   suggestion: ProgressionSuggestion;
 };
 
