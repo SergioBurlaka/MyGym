@@ -123,12 +123,14 @@
       "exerciseTryMoreInheritProgram_many": "як у програмі ({{count}} тренувань)",
       "exerciseTryMoreInheritProgram_other": "як у програмі ({{count}} тренування)",
       "exerciseTryMoreInheritDefault": "стандартно (14 днів)",
-      "exerciseTryMoreHint": "Тренування з цією вправою без прогресу. Прогрес = більший обсяг (вага × повторення всіх підходів: додай підхід, повторення чи вагу) або більша вага — тоді відлік починається знову. 0 = значення програми нижче.",
-      "exerciseTryMoreNow_one": "Зараз: {{count}} тренування без прогресу",
-      "exerciseTryMoreNow_few": "Зараз: {{count}} тренування без прогресу",
-      "exerciseTryMoreNow_many": "Зараз: {{count}} тренувань без прогресу",
-      "exerciseTryMoreNow_other": "Зараз: {{count}} тренування без прогресу",
-      "errorExerciseTryMore": "Кількість тренувань для «Спробуй більше» — від 0 до 60."
+      "exerciseTryMoreHint": "Прогрес = більший обсяг (вага × повторення всіх підходів: додай підхід, повторення чи вагу) або більша вага. Порожньо чи 0 = значення програми нижче.",
+      "errorExerciseTryMore": "Кількість тренувань для «Спробуй більше» — від 0 до 60.",
+      "exerciseTryMoreDone": "Вже пройшло без прогресу: {{done}} / {{total}}",
+      "exerciseTryMoreDoneLabel": "Тренувань без прогресу",
+      "exerciseTryMoreSliderHint": "Потягни назад, щоб відкласти «Спробуй більше», вперед — щоб наблизити. Наступний справжній прогрес почне відлік з нуля.",
+      "exerciseTryMoreNeedsThreshold": "Вкажи кількість тренувань (тут або для програми), щоб користуватись повзунком.",
+      "exerciseTryMoreNoHistory": "Ще не було тренувань із цією вправою.",
+      "exerciseTryMoreUndo": "Скасувати"
     },
     "countdown": {
       "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",

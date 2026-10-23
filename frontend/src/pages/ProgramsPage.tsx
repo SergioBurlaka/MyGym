@@ -14,10 +14,8 @@ import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
 import { tryMoreStatus } from '../utils/tryMoreCountdown.js';
 
-// Slider range for the per-exercise "try more" workout count; 0 = inherit
-// the program's value. The text field next to it accepts up to the
-// backend's max of 60.
-const TRY_MORE_SLIDER_MAX = 20;
+// Max per-exercise "try more" workout count (backend's limit); 0 = inherit
+// the program's value.
 const TRY_MORE_MAX = 60;
 
 type EditableExercise = {
@@ -25,6 +23,9 @@ type EditableExercise = {
   targetSets: string;
   // '' or '0' = inherit the program's value.
   tryMoreAfterWorkouts: string;
+  // Try-more slider position (workouts without progress); null = untouched,
+  // not sent, so saving the program leaves the counter as it is.
+  sessionsDone: number | null;
 };
 
 type ProgressionById = Map<string, ExerciseProgression>;
@@ -298,6 +299,7 @@ function ProgramForm({
           exerciseId: pe.exerciseId,
           targetSets: String(pe.targetSets),
           tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts != null ? String(pe.tryMoreAfterWorkouts) : '',
+          sessionsDone: null,
         }))
       : [],
   );
@@ -313,6 +315,7 @@ function ProgramForm({
             exerciseId: pe.exerciseId,
             targetSets: String(pe.targetSets),
             tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts != null ? String(pe.tryMoreAfterWorkouts) : '',
+          sessionsDone: null,
           }))
         : [],
     );
@@ -325,7 +328,7 @@ function ProgramForm({
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3', tryMoreAfterWorkouts: '' }]);
+    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3', tryMoreAfterWorkouts: '', sessionsDone: null }]);
     setAddExerciseId('');
   }
 
@@ -385,6 +388,7 @@ function ProgramForm({
         exerciseId: b.exerciseId,
         targetSets: Number(b.targetSets),
         tryMoreAfterWorkouts: parseThreshold(b.tryMoreAfterWorkouts),
+        ...(b.sessionsDone != null ? { sessionsDone: b.sessionsDone } : {}),
       })),
       tryMoreAfterWorkouts: trimmedTryMore === '' ? null : Number(trimmedTryMore),
     };
@@ -467,7 +471,9 @@ function ProgramForm({
                   value={block.tryMoreAfterWorkouts}
                   programValue={parseThreshold(tryMoreAfterWorkouts)}
                   progression={progressionById?.get(block.exerciseId)}
+                  sessionsDone={block.sessionsDone}
                   onChange={(v) => updateBlock(block.exerciseId, { tryMoreAfterWorkouts: v })}
+                  onSessionsDoneChange={(v) => updateBlock(block.exerciseId, { sessionsDone: v })}
                 />
               </div>
             </div>
@@ -519,54 +525,80 @@ function ExerciseTryMoreField({
   value,
   programValue,
   progression,
+  sessionsDone,
   onChange,
+  onSessionsDoneChange,
 }: {
   value: string;
   programValue: number | null;
   progression: ExerciseProgression | undefined;
+  // Where the slider was dragged in this form; null = untouched.
+  sessionsDone: number | null;
   onChange: (value: string) => void;
+  onSessionsDoneChange: (value: number | null) => void;
 }) {
   const { t } = useTranslation();
   const own = parseThreshold(value);
   const threshold = own ?? programValue;
-  const sessionsSince = progression?.sessionsSinceProgress;
+  const current = progression?.sessionsSinceProgress ?? null;
+  const done = sessionsDone ?? current;
 
   let summary: string;
   if (own != null) summary = t('programs.form.exerciseTryMoreSessions', { count: own });
   else if (programValue != null) summary = t('programs.form.exerciseTryMoreInheritProgram', { count: programValue });
   else summary = t('programs.form.exerciseTryMoreInheritDefault');
 
+  // The slider moves the "workouts without progress" counter on a 0..N
+  // scale - only meaningful with a workout count and some history.
+  let disabledHint: string | null = null;
+  if (threshold == null) disabledHint = t('programs.form.exerciseTryMoreNeedsThreshold');
+  else if (done == null) disabledHint = t('programs.form.exerciseTryMoreNoHistory');
+  const due = threshold != null && done != null && done >= threshold;
+
   return (
-    <div className="min-w-[14rem] flex-1">
-      <label className="label">
-        {t('programs.form.exerciseTryMoreLabel')} <span className="text-slate-200">{summary}</span>
-      </label>
-      <div className="flex items-center gap-3">
+    <div className="min-w-[14rem] flex-1 space-y-2">
+      <div>
+        <label className="label">{t('programs.form.exerciseTryMoreLabel')}</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            className="input w-16 text-center"
+            placeholder="0"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <span className="text-sm text-slate-300">{summary}</span>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+          <span className={due ? 'font-semibold text-warn' : 'text-slate-400'}>
+            {threshold != null && done != null
+              ? t('programs.form.exerciseTryMoreDone', { done: Math.min(done, threshold), total: threshold })
+              : t('programs.form.exerciseTryMoreDoneLabel')}
+          </span>
+          {sessionsDone != null && sessionsDone !== current && (
+            <button type="button" className="text-slate-400 hover:text-white" onClick={() => onSessionsDoneChange(null)}>
+              {t('programs.form.exerciseTryMoreUndo')}
+            </button>
+          )}
+        </div>
         <input
           type="range"
           min={0}
-          max={TRY_MORE_SLIDER_MAX}
+          max={threshold ?? 1}
           step={1}
-          className="h-2 flex-1 cursor-pointer accent-accent"
-          aria-label={t('programs.form.exerciseTryMoreLabel')}
-          value={own != null ? Math.min(own, TRY_MORE_SLIDER_MAX) : 0}
-          onChange={(e) => onChange(e.target.value === '0' ? '' : e.target.value)}
+          className="h-2 w-full cursor-pointer accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label={t('programs.form.exerciseTryMoreDoneLabel')}
+          disabled={disabledHint != null}
+          value={threshold != null && done != null ? Math.min(done, threshold) : 0}
+          onChange={(e) => onSessionsDoneChange(Number(e.target.value))}
         />
-        <input
-          type="text"
-          inputMode="numeric"
-          className="input w-16 text-center"
-          placeholder="0"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <p className="mt-1 text-xs text-slate-500">{disabledHint ?? t('programs.form.exerciseTryMoreSliderHint')}</p>
       </div>
-      {threshold != null && sessionsSince != null && (
-        <p className={`mt-1 text-xs ${sessionsSince >= threshold ? 'text-warn' : 'text-slate-400'}`}>
-          {t('programs.form.exerciseTryMoreNow', { count: sessionsSince })}
-        </p>
-      )}
-      <p className="mt-1 text-xs text-slate-500">{t('programs.form.exerciseTryMoreHint')}</p>
+      <p className="text-xs text-slate-500">{t('programs.form.exerciseTryMoreHint')}</p>
     </div>
   );
 }

@@ -117,10 +117,14 @@
       "exerciseTryMoreInheritProgram_one": "as in the program ({{count}} workout)",
       "exerciseTryMoreInheritProgram_other": "as in the program ({{count}} workouts)",
       "exerciseTryMoreInheritDefault": "default (14 days)",
-      "exerciseTryMoreHint": "Workouts with this exercise without progress. Progress = more volume (weight × reps of all sets: add a set, reps or weight) or a heavier weight - it restarts the count. 0 = use the program value below.",
-      "exerciseTryMoreNow_one": "Now: {{count}} workout without progress",
-      "exerciseTryMoreNow_other": "Now: {{count}} workouts without progress",
-      "errorExerciseTryMore": "The \"Try more\" workout count must be from 0 to 60."
+      "exerciseTryMoreHint": "Progress = more volume (weight × reps of all sets: add a set, reps or weight) or a heavier weight. Blank or 0 = the program value below.",
+      "errorExerciseTryMore": "The \"Try more\" workout count must be from 0 to 60.",
+      "exerciseTryMoreDone": "Already done without progress: {{done}} / {{total}}",
+      "exerciseTryMoreDoneLabel": "Workouts without progress",
+      "exerciseTryMoreSliderHint": "Drag back to postpone \"Try more\", forward to bring it closer. The next real progress starts the count from zero.",
+      "exerciseTryMoreNeedsThreshold": "Set a workout count (here or for the program) to use the slider.",
+      "exerciseTryMoreNoHistory": "No workouts with this exercise yet.",
+      "exerciseTryMoreUndo": "Undo"
     },
     "countdown": {
       "sessionsLeft_one": "{{count}} workout to \"Try more\"",
