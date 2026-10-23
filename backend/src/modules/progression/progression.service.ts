@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { exercises, workoutExercises, workouts, sets, programs, programExercises } from '../../db/schema.js';
+import { exercises, workoutExercises, workouts, sets, programs, programExercises, users } from '../../db/schema.js';
 
 // Default try_more threshold - sessions of the exercise without progress -
 // when neither its program entry nor the program sets one. Lower for big
@@ -114,6 +114,27 @@ export function longestBreak(workoutDates: string[], from: string, to: string): 
   return Math.max(longest, dayDiff(prev, to));
 }
 
+// Start of the most recent gap of `minDays`+ within [from, to] (same rules
+// as longestBreak), or null if there is none.
+function lastLongBreakStart(workoutDates: string[], from: string, to: string, minDays: number): string | null {
+  let found: string | null = null;
+  let prev = from;
+  for (const d of workoutDates) {
+    if (d <= from) continue;
+    if (d > to) break;
+    if (dayDiff(prev, d) >= minDays) found = prev;
+    prev = d;
+  }
+  if (dayDiff(prev, to) >= minDays) found = prev;
+  return found;
+}
+
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function dayDiff(from: string, to: string): number {
   return daysBetween(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`));
 }
@@ -140,12 +161,13 @@ function walkCounter(history: HistoryPoint[], workoutDates: string[] = []): Coun
     let afterBreak = false;
     if (i > 0) {
       const brk = workoutDates.length > 0 ? longestBreak(workoutDates, history[i - 1].date, cur.date) : 0;
-      if (brk >= BREAK_RESET_DAYS) {
-        afterBreak = true;
+      // A real progress right after a break is still shown as progress.
+      if (isProgressStep(history[i - 1], cur)) {
+        isProgress = true;
         baselineIndex = i;
         counter = 0;
-      } else if (isProgressStep(history[i - 1], cur)) {
-        isProgress = true;
+      } else if (brk >= BREAK_RESET_DAYS) {
+        afterBreak = true;
         baselineIndex = i;
         counter = 0;
       } else if (brk < BREAK_PAUSE_DAYS) {
@@ -160,7 +182,10 @@ function walkCounter(history: HistoryPoint[], workoutDates: string[] = []): Coun
 // Where the counter stands now: the date it counts from (last progress, a
 // reset after a break, or the first session if neither) and how many
 // sessions have added to it since. With `asOf` (today), a 14+ day break
-// since the last session already resets it - the count is stale.
+// since the last session already resets it - the count is stale. The date
+// returned then is the day after the break began: stable as days pass (the
+// slider's anchor keeps matching) and never a session date (an anchor set
+// before the break no longer matches).
 // Progress = a bigger session volume or a heavier working weight than the
 // session before (see isProgressStep).
 export function findLastProgress(
@@ -170,8 +195,9 @@ export function findLastProgress(
 ): { date: string; sessionsSince: number } | null {
   if (history.length === 0) return null;
   const last = history[history.length - 1];
-  if (asOf && workoutDates.length > 0 && longestBreak(workoutDates, last.date, asOf) >= BREAK_RESET_DAYS) {
-    return { date: asOf, sessionsSince: 0 };
+  if (asOf && workoutDates.length > 0) {
+    const breakStart = lastLongBreakStart(workoutDates, last.date, asOf, BREAK_RESET_DAYS);
+    if (breakStart) return { date: addDays(breakStart, 1), sessionsSince: 0 };
   }
   const step = walkCounter(history, workoutDates).at(-1)!;
   return { date: history[step.baselineIndex].date, sessionsSince: step.sessionsSinceProgress };
@@ -226,12 +252,31 @@ export function progressTimeline(
 // across every workout, not per exercise: with an A/B split an exercise
 // naturally skips a week.
 export async function getWorkoutDates(userId: string, executor: Executor = db): Promise<string[]> {
+  // Only workouts with at least one logged set - an empty, abandoned one
+  // in the middle of a break shouldn't hide the break.
   const rows = await executor
     .selectDistinct({ date: workouts.date })
     .from(workouts)
+    .innerJoin(workoutExercises, eq(workoutExercises.workoutId, workouts.id))
+    .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
     .where(eq(workouts.userId, userId))
     .orderBy(asc(workouts.date));
   return rows.map((r) => r.date);
+}
+
+// Today's date in the user's time zone - workout dates are local, so the
+// break test must be too (UTC would be a day off around midnight).
+export async function getUserToday(userId: string, executor: Executor = db, now = new Date()): Promise<string> {
+  const [user] = await executor.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId));
+  return localDate(now, user?.timezone);
+}
+
+export function localDate(now: Date, timezone: string | null | undefined): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone ?? 'UTC' }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
 }
 
 // Smallest effective tryMoreAfterWorkouts across all of the user's programs
@@ -381,7 +426,7 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
     return rows.map((w) => ({ ...w, workoutExercises: w.workoutExercises.map((we) => ({ ...we, progressAt: null })) }));
   }
 
-  const [historyRows, peRows, smallestThresholds, workoutDates] = await Promise.all([
+  const [historyRows, peRows, smallestThresholds, workoutDates, today] = await Promise.all([
     db
       .select({
         exerciseId: workoutExercises.exerciseId,
@@ -409,6 +454,7 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
       : Promise.resolve([]),
     getTryMoreAfterWorkoutsByExercise(userId),
     getWorkoutDates(userId),
+    getUserToday(userId),
   ]);
 
   const rowsByExercise = new Map<string, HistoryRow[]>();
@@ -425,7 +471,9 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
     if (!byDate) {
       const history = buildHistoryPoints(rowsByExercise.get(we.exerciseId) ?? []);
       const points = progressTimeline(history, we.exercise.repRangeMax, workoutDates);
-      const lastProgress = findLastProgress(history, workoutDates);
+      // With today, as the overview does: after a long break the slider's
+      // anchor is the break, not this session, so the shift stays off here.
+      const lastProgress = findLastProgress(history, workoutDates, today);
       if (lastProgress && points.length > 0) {
         const last = points[points.length - 1];
         const shifted = applyCounterShift(lastProgress, {
@@ -480,9 +528,10 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     orderBy: (ex, { asc: ascOrder }) => [ascOrder(ex.name)],
   });
 
-  const [tryMoreAfterWorkoutsByExercise, workoutDates] = await Promise.all([
+  const [tryMoreAfterWorkoutsByExercise, workoutDates, today] = await Promise.all([
     getTryMoreAfterWorkoutsByExercise(userId),
     getWorkoutDates(userId),
+    getUserToday(userId),
   ]);
 
   const now = new Date();
@@ -524,6 +573,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       tryMoreAfterWorkouts,
       counterShift: { adjust: ex.tryMoreCounterAdjust, anchor: ex.tryMoreCounterAnchor },
       workoutDates,
+      today,
       now,
     });
 
@@ -559,6 +609,8 @@ export type SuggestProgressionInput = {
   counterShift?: CounterShift;
   // All the user's workout dates, for break handling (see walkCounter).
   workoutDates?: string[];
+  // Today in the user's time zone (defaults to now's UTC date).
+  today?: string;
   now: Date;
 };
 
@@ -587,12 +639,10 @@ export async function computeCounterShift(
     .from(exercises)
     .where(eq(exercises.id, exerciseId));
   if (!exercise) return null;
+  // Sequential: `executor` may be a transaction (one connection).
   const workoutDates = await getWorkoutDates(exercise.userId, executor);
-  const lastProgress = findLastProgress(
-    await buildHistory(exerciseId, executor),
-    workoutDates,
-    new Date().toISOString().slice(0, 10),
-  );
+  const today = await getUserToday(exercise.userId, executor);
+  const lastProgress = findLastProgress(await buildHistory(exerciseId, executor), workoutDates, today);
   if (!lastProgress) return null;
   const adjust = sessionsDone - lastProgress.sessionsSince;
   return adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date };
@@ -607,10 +657,11 @@ export async function computeCounterShift(
 // 3. otherwise ok.
 export function suggestProgression(input: SuggestProgressionInput) {
   const { history, category, repRangeMax, tryMoreAfterWorkouts, counterShift, workoutDates = [], now } = input;
+  const today = input.today ?? now.toISOString().slice(0, 10);
   const last = history[history.length - 1];
   const lastDate = new Date(`${last.date}T00:00:00Z`);
   const daysSinceLastWorkout = daysBetween(lastDate, now);
-  const lastProgress = findLastProgress(history, workoutDates, now.toISOString().slice(0, 10));
+  const lastProgress = findLastProgress(history, workoutDates, today);
   const daysSinceProgress = lastProgress
     ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
     : null;

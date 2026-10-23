@@ -4,6 +4,7 @@ import {
   buildHistoryPoints,
   effectiveTryMoreAfterWorkouts,
   findLastProgress,
+  localDate,
   longestBreak,
   progressTimeline,
   suggestProgression,
@@ -228,6 +229,34 @@ describe('training breaks', () => {
     const points = progressTimeline(flat(dates), 15, dates);
     expect(points.map((p) => p.afterBreak)).toEqual([false, false, false, true, false]);
     expect(points.map((p) => p.sessionsSinceProgress)).toEqual([0, 1, 2, 0, 1]);
+  });
+
+  it('a progress right after a break is still progress', () => {
+    const history = buildHistoryPoints([...session('2026-09-01', 20, [10]), ...session('2026-09-25', 22.5, [10])]);
+    const dates = ['2026-09-01', '2026-09-25'];
+    expect(progressTimeline(history, 15, dates).at(-1)).toMatchObject({ isProgress: true, afterBreak: false });
+  });
+
+  it('a pending reset (break up to today) keeps a stable date that is no session', () => {
+    const dates = ['2026-09-01', '2026-09-03'];
+    const history = flat(dates);
+    const day1 = findLastProgress(history, dates, '2026-09-20');
+    const day2 = findLastProgress(history, dates, '2026-09-25');
+    expect(day1).toEqual({ date: '2026-09-04', sessionsSince: 0 });
+    expect(day2).toEqual(day1);
+    // A shift anchored there survives the days passing; one set before the
+    // break (anchored on a session date) lapses.
+    expect(applyCounterShift(day2!, { adjust: 2, anchor: '2026-09-04' })).toBe(2);
+    expect(applyCounterShift(day2!, { adjust: 2, anchor: '2026-09-01' })).toBe(0);
+    // Under 14 days to today - no reset.
+    expect(findLastProgress(history, dates, '2026-09-16')).toEqual({ date: '2026-09-01', sessionsSince: 1 });
+  });
+
+  it('localDate uses the user time zone', () => {
+    const now = new Date('2026-10-23T22:30:00Z');
+    expect(localDate(now, 'Europe/Kyiv')).toBe('2026-10-24');
+    expect(localDate(now, 'UTC')).toBe('2026-10-23');
+    expect(localDate(now, 'Not/AZone')).toBe('2026-10-23');
   });
 
   it('a gap for this exercise alone is not a break when the user kept training', () => {

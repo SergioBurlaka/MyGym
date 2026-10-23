@@ -254,6 +254,7 @@ describe('journal progressAt', () => {
       progressAt: {
         isFirst: boolean;
         isProgress: boolean;
+        afterBreak: boolean;
         sessionsSinceProgress: number;
         tryMoreAfterWorkouts: number;
       } | null;
@@ -315,6 +316,33 @@ describe('journal progressAt', () => {
       isProgress: false,
       sessionsSinceProgress: 3,
     });
+  });
+
+  it('marks the first session after a 14+ day break and restarts the count', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    await logWorkout(auth, day(-40), a, [8, 8]);
+    await logWorkout(auth, day(-38), a, [8, 8]);
+    // An empty, abandoned workout in the middle doesn't hide the break.
+    await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: { date: day(-25) } });
+    await logWorkout(auth, day(-10), a, [8, 8]);
+    await logWorkout(auth, day(-8), a, [8, 8]);
+
+    const byDate = await journal(auth);
+    expect(byDate.get(day(-38))).toMatchObject({ sessionsSinceProgress: 1 });
+    expect(byDate.get(day(-10))).toMatchObject({ afterBreak: true, sessionsSinceProgress: 0 });
+    expect(byDate.get(day(-8))).toMatchObject({ afterBreak: false, sessionsSinceProgress: 1 });
+  });
+
+  it('resets the overview count when the break runs up to today', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    for (const d of [-30, -28, -26, -24, -22]) await logWorkout(auth, day(d), a, [8, 8]);
+    const res = await app.inject({ method: 'GET', url: '/api/progression', headers: auth });
+    const row = (res.json() as { exerciseId: string; sessionsSinceProgress: number; suggestion: string }[]).find(
+      (p) => p.exerciseId === a,
+    )!;
+    expect(row).toMatchObject({ sessionsSinceProgress: 0, suggestion: 'ok' });
   });
 
   it('handles a page with an empty workout', async () => {
