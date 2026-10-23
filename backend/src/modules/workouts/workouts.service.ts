@@ -205,7 +205,7 @@ export async function finishWorkout(userId: string, workoutId: string) {
 
   const [row] = await db
     .update(workouts)
-    .set({ timeEnd: new Date() })
+    .set({ timeEnd: new Date(), autoFinished: false })
     .where(eq(workouts.id, workoutId))
     .returning();
   return row;
