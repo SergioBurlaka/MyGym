@@ -97,3 +97,76 @@ describe('per-exercise try-more threshold', () => {
     expect(await overviewThreshold(auth, c)).toBeNull(); // in no program
   });
 });
+
+describe('try-more slider (sessionsDone)', () => {
+  async function logSession(auth: Record<string, string>, exerciseId: string, date: string, reps: number[]) {
+    const started = await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: { date } });
+    expect(started.statusCode).toBe(201);
+    const saved = await app.inject({
+      method: 'PUT',
+      url: `/api/workouts/${started.json().id}/exercises`,
+      headers: auth,
+      payload: {
+        exercises: [
+          { exerciseId, weightPerUnitKg: 20, weightUnits: 2, sets: reps.map((r, i) => ({ setNumber: i + 1, reps: r })) },
+        ],
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+  }
+
+  async function counter(auth: Record<string, string>, exerciseId: string) {
+    const res = await app.inject({ method: 'GET', url: '/api/progression', headers: auth });
+    return (res.json() as { exerciseId: string; sessionsSinceProgress: number | null; suggestion: string }[]).find(
+      (p) => p.exerciseId === exerciseId,
+    )!;
+  }
+
+  it('moves the counter both ways until the next real progress', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 3 }] },
+    });
+    const programId = created.json().id as string;
+    const save = (sessionsDone: number) =>
+      app.inject({
+        method: 'PUT',
+        url: `/api/programs/${programId}`,
+        headers: auth,
+        payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 3, sessionsDone }] },
+      });
+
+    for (const date of ['2026-10-01', '2026-10-03', '2026-10-05']) await logSession(auth, a, date, [8, 8]);
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 2 });
+
+    expect((await save(0)).statusCode).toBe(200); // postpone
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 0, suggestion: 'ok' });
+
+    await logSession(auth, a, '2026-10-07', [8, 8]);
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 1 });
+
+    expect((await save(3)).statusCode).toBe(200); // bring forward
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 3, suggestion: 'try_more' });
+
+    // Real progress restarts the count and the shift lapses.
+    await logSession(auth, a, '2026-10-09', [8, 8, 8]);
+    await logSession(auth, a, '2026-10-11', [8, 8, 8]);
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 1, suggestion: 'ok' });
+  });
+
+  it('rejects an out-of-range position', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, sessionsDone: -1 }] },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

@@ -5,6 +5,9 @@ const programExerciseInputSchema = z.object({
   targetSets: z.coerce.number().int().min(1).max(20),
   // Per-exercise override of the program-level tryMoreAfterWorkouts below.
   tryMoreAfterWorkouts: z.coerce.number().int().min(1).max(60).nullable().optional(),
+  // Where the try-more slider was dragged: the workouts-without-progress
+  // counter of this exercise should read this now. Omitted = untouched.
+  sessionsDone: z.coerce.number().int().min(0).max(60).optional(),
 });
 
 export const saveProgramSchema = z.object({

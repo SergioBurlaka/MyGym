@@ -2,6 +2,24 @@ import { and, eq, asc, desc, isNotNull, count, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { programs, programExercises, exercises, workouts } from '../../db/schema.js';
 import type { SaveProgramInput } from './programs.schema.js';
+import { computeCounterShift } from '../progression/progression.service.js';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Applies the try-more slider positions sent with a program save to the
+// exercises themselves - the counter is per exercise, shared by every
+// program that includes it.
+async function applySessionsDone(tx: Tx, input: SaveProgramInput) {
+  for (const ex of input.exercises) {
+    if (ex.sessionsDone == null) continue;
+    const shift = await computeCounterShift(ex.exerciseId, ex.sessionsDone);
+    if (!shift) continue;
+    await tx
+      .update(exercises)
+      .set({ tryMoreCounterAdjust: shift.adjust, tryMoreCounterAnchor: shift.anchor })
+      .where(eq(exercises.id, ex.exerciseId));
+  }
+}
 
 const withExercises = {
   programExercises: {
@@ -84,6 +102,8 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
       })),
     );
 
+    await applySessionsDone(tx, input);
+
     // Read back via tx, not the module-level `db` - the inserts above
     // aren't committed yet, so a query on a separate connection wouldn't
     // see them (same pitfall as workouts.service.ts's startWorkout).
@@ -124,6 +144,8 @@ export async function updateProgram(userId: string, programId: string, input: Sa
         orderIndex: i,
       })),
     );
+
+    await applySessionsDone(tx, input);
 
     return tx.query.programs.findFirst({
       where: eq(programs.id, programId),

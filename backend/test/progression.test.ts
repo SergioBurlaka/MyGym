@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyCounterShift,
   buildHistoryPoints,
   findLastProgress,
   suggestProgression,
@@ -143,7 +144,36 @@ describe('findLastProgress', () => {
   });
 });
 
+describe('applyCounterShift', () => {
+  const lastProgress = { date: '2026-10-03', sessionsSince: 4 };
+
+  it('shifts the counter while the anchor is the last progress', () => {
+    expect(applyCounterShift(lastProgress, { adjust: -2, anchor: '2026-10-03' })).toBe(2);
+    expect(applyCounterShift(lastProgress, { adjust: 3, anchor: '2026-10-03' })).toBe(7);
+  });
+
+  it('never goes below zero', () => {
+    expect(applyCounterShift(lastProgress, { adjust: -9, anchor: '2026-10-03' })).toBe(0);
+  });
+
+  it('lapses once a newer progress moved the anchor', () => {
+    expect(applyCounterShift(lastProgress, { adjust: -2, anchor: '2026-09-20' })).toBe(4);
+    expect(applyCounterShift(lastProgress, undefined)).toBe(4);
+  });
+});
+
 describe('suggestProgression', () => {
+  it('a postponed counter holds off try_more', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [8]),
+      ...session('2026-10-03', 20, [8]),
+      ...session('2026-10-05', 20, [8]),
+    ]);
+    const shifted = suggest(history, { tryMoreAfterWorkouts: 2, counterShift: { adjust: -1, anchor: '2026-10-01' } });
+    expect(shifted).toMatchObject({ sessionsSinceProgress: 1, suggestion: 'ok' });
+    expect(suggest(history, { tryMoreAfterWorkouts: 2 }).suggestion).toBe('try_more');
+  });
+
   it('increase_weight once the top of the rep range is reached', () => {
     const history = buildHistoryPoints(session('2026-10-18', 20, [15, 15, 15]));
     expect(suggest(history).suggestion).toBe('increase_weight');

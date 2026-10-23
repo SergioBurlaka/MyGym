@@ -261,6 +261,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       category: ex.category,
       repRangeMax: ex.repRangeMax,
       tryMoreAfterWorkouts,
+      counterShift: { adjust: ex.tryMoreCounterAdjust, anchor: ex.tryMoreCounterAnchor },
       now,
     });
 
@@ -290,8 +291,32 @@ export type SuggestProgressionInput = {
   category: ExerciseProgression['category'];
   repRangeMax: number;
   tryMoreAfterWorkouts: number | null;
+  // exercises.tryMoreCounterAdjust/Anchor - see applyCounterShift.
+  counterShift?: CounterShift;
   now: Date;
 };
+
+export type CounterShift = { adjust: number; anchor: string | null };
+
+// The user's manual shift of the sessions-without-progress counter (the
+// try-more slider): applies only while the last progress is still the one
+// it was set against, so the next real progress restarts the count clean.
+export function applyCounterShift(
+  lastProgress: { date: string; sessionsSince: number },
+  shift: CounterShift | undefined,
+): number {
+  if (!shift || shift.adjust === 0 || shift.anchor !== lastProgress.date) return lastProgress.sessionsSince;
+  return Math.max(0, lastProgress.sessionsSince + shift.adjust);
+}
+
+// The shift that makes the counter read `sessionsDone` right now (what the
+// slider was dragged to), or null if the exercise has no history yet.
+export async function computeCounterShift(exerciseId: string, sessionsDone: number): Promise<CounterShift | null> {
+  const lastProgress = findLastProgress(await buildHistory(exerciseId));
+  if (!lastProgress) return null;
+  const adjust = sessionsDone - lastProgress.sessionsSince;
+  return adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date };
+}
 
 // The progression rules (see README "Progression logic"), DB-free:
 // 1. top of the rep range reached -> add weight (or, for a bodyweight
@@ -301,7 +326,7 @@ export type SuggestProgressionInput = {
 //    exercise - -> a soft "try more" nudge;
 // 3. otherwise ok.
 export function suggestProgression(input: SuggestProgressionInput) {
-  const { history, category, repRangeMax, tryMoreAfterWorkouts, now } = input;
+  const { history, category, repRangeMax, tryMoreAfterWorkouts, counterShift, now } = input;
   const last = history[history.length - 1];
   const lastDate = new Date(`${last.date}T00:00:00Z`);
   const daysSinceLastWorkout = daysBetween(lastDate, now);
@@ -309,7 +334,7 @@ export function suggestProgression(input: SuggestProgressionInput) {
   const daysSinceProgress = lastProgress
     ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
     : null;
-  const sessionsSinceProgress = lastProgress?.sessionsSince ?? null;
+  const sessionsSinceProgress = lastProgress ? applyCounterShift(lastProgress, counterShift) : null;
 
   const atTopOfRange = last.maxReps >= repRangeMax;
   const hasWeight = last.totalWeightKg != null && last.totalWeightKg > 0;
