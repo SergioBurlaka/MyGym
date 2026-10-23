@@ -13,6 +13,7 @@ import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
 import { tryMoreStatus } from '../utils/tryMoreCountdown.js';
+import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 
 // Max per-exercise "try more" workout count (backend's limit); 0 = inherit
 // the program's value.
@@ -246,36 +247,7 @@ function TryMoreCountdown({
   progression: ExerciseProgression | undefined;
   threshold: number | null;
 }) {
-  const { t } = useTranslation();
-  const status = tryMoreStatus(progression, threshold);
-
-  if (status.kind === 'unknown') return null;
-  if (status.kind === 'no_data') {
-    return <span className="text-xs text-slate-500">{t('programs.countdown.noData')}</span>;
-  }
-  if (status.kind === 'add_weight') {
-    return <span className="text-xs font-semibold text-good">{t('programs.countdown.addWeight')}</span>;
-  }
-
-  const due = status.kind === 'due';
-  const percent = Math.min(100, Math.round((status.done / status.total) * 100));
-  return (
-    <span
-      className="flex items-center gap-2"
-      title={t('programs.countdown.progressTitle', { done: status.done, total: status.total })}
-    >
-      <span className={`text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>
-        {due
-          ? t('programs.countdown.due')
-          : t(status.unit === 'sessions' ? 'programs.countdown.sessionsLeft' : 'programs.countdown.daysLeft', {
-              count: status.left,
-            })}
-      </span>
-      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-border" aria-hidden="true">
-        <span className={`block h-full rounded-full ${due ? 'bg-warn' : 'bg-accent'}`} style={{ width: `${percent}%` }} />
-      </span>
-    </span>
-  );
+  return <TryMoreStatusBadge status={tryMoreStatus(progression, threshold)} />;
 }
 
 function ProgramForm({

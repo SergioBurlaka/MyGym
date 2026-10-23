@@ -12,6 +12,8 @@ import NewWorkoutButton from '../components/NewWorkoutButton.js';
 import ConsistencyCalendar from '../components/ConsistencyCalendar.js';
 import Popconfirm from '../components/Popconfirm.js';
 import { labelColor } from '../utils/labelColor.js';
+import { journalTryMoreStatus } from '../utils/tryMoreCountdown.js';
+import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import type { ExerciseProgression, Workout } from '../types/index.js';
 
 const PAGE_SIZE = 20;
@@ -131,14 +133,17 @@ export default function DashboardPage() {
               {w.workoutExercises.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-500">{t('dashboard.emptyWorkout')}</p>
               ) : (
-                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
+                <ul className="mt-2 divide-y divide-surface-border text-sm text-slate-400">
                   {w.workoutExercises.map((we) => (
-                    <li key={we.id}>
-                      {we.exercise.name}:{' '}
-                      {t('dashboard.setsSummary', {
-                        count: we.sets.length,
-                        weight: formatTotalWeight(we.weightPerUnitKg, we.weightUnits),
-                      })}
+                    <li key={we.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5">
+                      <span>
+                        {we.exercise.name}:{' '}
+                        {t('dashboard.setsSummary', {
+                          count: we.sets.length,
+                          weight: formatTotalWeight(we.weightPerUnitKg, we.weightUnits),
+                        })}
+                      </span>
+                      <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} label="fraction" />
                     </li>
                   ))}
                 </ul>
@@ -347,7 +352,10 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
             const totalWeight = we.weightPerUnitKg != null ? Number(we.weightPerUnitKg) * (we.weightUnits ?? 2) : null;
             return (
               <div key={we.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
-                <span className="text-slate-200">{we.exercise.name}</span>
+                <span className="flex min-w-0 flex-col gap-1">
+                  <span className="text-slate-200">{we.exercise.name}</span>
+                  <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} label="fraction" />
+                </span>
                 {totalWeight != null ? (
                   <span className="flex flex-col items-end whitespace-nowrap leading-tight">
                     <b className="font-semibold text-slate-100">

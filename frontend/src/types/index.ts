@@ -29,6 +29,20 @@ export type WorkoutExercise = {
   orderIndex: number;
   exercise: Exercise;
   sets: SetRow[];
+  // Only on journal listings (GET /api/workouts): the try-more counter as
+  // of this workout.
+  progressAt?: WorkoutProgressAt | null;
+};
+
+export type WorkoutProgressAt = {
+  date: string;
+  isFirst: boolean;
+  isProgress: boolean;
+  atTopOfRange: boolean;
+  sessionsSinceProgress: number;
+  daysSinceProgress: number;
+  // null = the 14-day rule applies.
+  tryMoreAfterWorkouts: number | null;
 };
 
 export type Workout = {

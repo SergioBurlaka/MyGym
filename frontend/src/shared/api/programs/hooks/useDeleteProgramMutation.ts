@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { ProgramsApi } from '../programs.api.js';
 import { programsKeys } from '../programs.keys.js';
 import { progressionKeys } from '../../progression/progression.keys.js';
+import { workoutsKeys } from '../../workouts/workouts.keys.js';
 
 export const useDeleteProgramMutation = (id: string): UseMutationResult<unknown, Error, void> => {
   const queryClient = useQueryClient();
@@ -16,6 +17,8 @@ export const useDeleteProgramMutation = (id: string): UseMutationResult<unknown,
       await queryClient.invalidateQueries({ queryKey: programsKeys.suggestion.queryKey });
       // The try-more countdowns on the Programs page come from here.
       await queryClient.invalidateQueries({ queryKey: progressionKeys.list.queryKey });
+      // Journal cards carry progressAt, judged by program thresholds.
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
     },
   });
 };

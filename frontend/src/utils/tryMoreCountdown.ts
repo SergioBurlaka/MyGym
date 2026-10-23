@@ -1,4 +1,4 @@
-import type { ExerciseProgression } from '../types/index.js';
+import type { ExerciseProgression, WorkoutProgressAt } from '../types/index.js';
 
 // Mirrors PROGRESS_REMINDER_DAYS in backend progression.service.ts - the
 // rule that applies when neither the program nor the exercise sets a
@@ -8,6 +8,8 @@ export const DEFAULT_TRY_MORE_DAYS = 14;
 export type TryMoreStatus =
   | { kind: 'unknown' }
   | { kind: 'no_data' }
+  | { kind: 'first' }
+  | { kind: 'progress' }
   | { kind: 'add_weight' }
   | { kind: 'due'; unit: 'sessions' | 'days'; done: number; total: number }
   | { kind: 'countdown'; unit: 'sessions' | 'days'; done: number; total: number; left: number };
@@ -30,6 +32,22 @@ export function tryMoreStatus(p: ExerciseProgression | undefined, threshold: num
   const unit = sessions != null ? 'sessions' : 'days';
   const total = sessions ?? DEFAULT_TRY_MORE_DAYS;
   const done = (unit === 'sessions' ? p.sessionsSinceProgress : p.daysSinceProgress) ?? 0;
+  if (done >= total) return { kind: 'due', unit, done, total };
+  return { kind: 'countdown', unit, done, total, left: total - done };
+}
+
+// The same scale for a journal workout: where the counter stood after that
+// session (backend's progressAt), with the same rule priority as the
+// backend's suggestion - top of the rep range first.
+export function journalTryMoreStatus(p: WorkoutProgressAt | null | undefined): TryMoreStatus {
+  if (!p) return { kind: 'unknown' };
+  if (p.atTopOfRange) return { kind: 'add_weight' };
+  if (p.isFirst) return { kind: 'first' };
+  if (p.isProgress) return { kind: 'progress' };
+
+  const unit = p.tryMoreAfterWorkouts != null ? 'sessions' : 'days';
+  const total = p.tryMoreAfterWorkouts ?? DEFAULT_TRY_MORE_DAYS;
+  const done = unit === 'sessions' ? p.sessionsSinceProgress : p.daysSinceProgress;
   if (done >= total) return { kind: 'due', unit, done, total };
   return { kind: 'countdown', unit, done, total, left: total - done };
 }
