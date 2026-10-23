@@ -550,6 +550,7 @@ function ExerciseTryMoreField({
   onSessionsDoneChange: (value: number | null) => void;
 }) {
   const { t } = useTranslation();
+  const [focused, setFocused] = useState(false);
   const own = parseThreshold(value);
   const threshold = own ?? programValue;
   const current = progression?.sessionsSinceProgress ?? null;
@@ -582,8 +583,13 @@ function ExerciseTryMoreField({
             type="text"
             inputMode="numeric"
             className="input w-16 text-center"
-            placeholder="0"
-            value={value}
+            placeholder={programValue != null ? String(programValue) : '0'}
+            // Without its own value the field shows the count actually in
+            // effect (the program's); focusing it gives an empty field to
+            // type an own value, with the inherited one as the placeholder.
+            value={own == null && !focused && programValue != null ? String(programValue) : value}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             onChange={(e) => onChange(e.target.value)}
           />
           <span className="text-sm text-slate-300">{summary}</span>
