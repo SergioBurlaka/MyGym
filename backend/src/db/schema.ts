@@ -255,7 +255,8 @@ export const programExercises = pgTable('program_exercises', {
   targetSets: smallint('target_sets').notNull().default(3),
   // Per-exercise override of programs.tryMoreAfterWorkouts (same meaning:
   // workouts of this exercise without progress before "try_more"). Null
-  // falls back to the program's value, then to the 14-day rule.
+  // falls back to the program's value, then to the category default
+  // (DEFAULT_TRY_MORE_AFTER_WORKOUTS in progression.service.ts).
   tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({

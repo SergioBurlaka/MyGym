@@ -18,13 +18,29 @@ async function exerciseIds(auth: Record<string, string>): Promise<string[]> {
   return (res.json() as { id: string }[]).map((e) => e.id);
 }
 
-async function overviewThreshold(auth: Record<string, string>, exerciseId: string) {
+// Dates relative to today, so a test's sessions never look like they were
+// before a long training break (that would reset the try-more counter).
+function day(offset: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+type OverviewRow = {
+  exerciseId: string;
+  category: 'large' | 'small' | 'bodyweight';
+  tryMoreAfterWorkouts: number;
+  tryMoreIsDefault: boolean;
+};
+
+async function overviewRow(auth: Record<string, string>, exerciseId: string): Promise<OverviewRow> {
   const res = await app.inject({ method: 'GET', url: '/api/progression', headers: auth });
   expect(res.statusCode).toBe(200);
-  const row = (res.json() as { exerciseId: string; tryMoreAfterWorkouts: number | null }[]).find(
-    (p) => p.exerciseId === exerciseId,
-  );
-  return row?.tryMoreAfterWorkouts;
+  return (res.json() as OverviewRow[]).find((p) => p.exerciseId === exerciseId)!;
+}
+
+async function overviewThreshold(auth: Record<string, string>, exerciseId: string) {
+  return (await overviewRow(auth, exerciseId)).tryMoreAfterWorkouts;
 }
 
 describe('per-exercise try-more threshold', () => {
@@ -94,7 +110,10 @@ describe('per-exercise try-more threshold', () => {
 
     expect(await overviewThreshold(auth, a)).toBe(5); // own value beats the program's 8
     expect(await overviewThreshold(auth, b)).toBe(3); // 8 (A, inherited) vs 3 (B)
-    expect(await overviewThreshold(auth, c)).toBeNull(); // in no program
+    // In no program -> the category default.
+    const rowC = await overviewRow(auth, c);
+    expect(rowC.tryMoreIsDefault).toBe(true);
+    expect(rowC.tryMoreAfterWorkouts).toBe({ large: 4, small: 6, bodyweight: 5 }[rowC.category]);
   });
 });
 
@@ -140,21 +159,21 @@ describe('try-more slider (sessionsDone)', () => {
         payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 3, sessionsDone }] },
       });
 
-    for (const date of ['2026-10-01', '2026-10-03', '2026-10-05']) await logSession(auth, a, date, [8, 8]);
+    for (const date of [day(-10), day(-8), day(-6)]) await logSession(auth, a, date, [8, 8]);
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 2 });
 
     expect((await save(0)).statusCode).toBe(200); // postpone
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 0, suggestion: 'ok' });
 
-    await logSession(auth, a, '2026-10-07', [8, 8]);
+    await logSession(auth, a, day(-4), [8, 8]);
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 1 });
 
     expect((await save(3)).statusCode).toBe(200); // bring forward
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 3, suggestion: 'try_more' });
 
     // Real progress restarts the count and the shift lapses.
-    await logSession(auth, a, '2026-10-09', [8, 8, 8]);
-    await logSession(auth, a, '2026-10-11', [8, 8, 8]);
+    await logSession(auth, a, day(-2), [8, 8, 8]);
+    await logSession(auth, a, day(0), [8, 8, 8]);
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 1, suggestion: 'ok' });
   });
 
@@ -168,14 +187,14 @@ describe('try-more slider (sessionsDone)', () => {
       payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 3, sessionsDone: 2 }] },
     });
     expect(res.statusCode).toBe(201);
-    await logSession(auth, a, '2026-10-01', [8, 8]);
+    await logSession(auth, a, day(-10), [8, 8]);
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 0 });
   });
 
   it('dragging back to the real count clears the shift', async () => {
     const { auth } = await registerUser(app);
     const [a] = await exerciseIds(auth);
-    for (const date of ['2026-10-01', '2026-10-03', '2026-10-05']) await logSession(auth, a, date, [8, 8]);
+    for (const date of [day(-10), day(-8), day(-6)]) await logSession(auth, a, date, [8, 8]);
     const body = (sessionsDone: number) => ({
       name: 'A',
       exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 5, sessionsDone }],
@@ -185,7 +204,7 @@ describe('try-more slider (sessionsDone)', () => {
 
     await app.inject({ method: 'PUT', url: `/api/programs/${created.json().id}`, headers: auth, payload: body(2) });
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 2 });
-    await logSession(auth, a, '2026-10-07', [8, 8]);
+    await logSession(auth, a, day(-4), [8, 8]);
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 3 }); // no leftover shift
   });
 
@@ -236,7 +255,7 @@ describe('journal progressAt', () => {
         isFirst: boolean;
         isProgress: boolean;
         sessionsSinceProgress: number;
-        tryMoreAfterWorkouts: number | null;
+        tryMoreAfterWorkouts: number;
       } | null;
     }[];
   };
@@ -259,15 +278,15 @@ describe('journal progressAt', () => {
       payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 4 }] },
     });
     const programId = created.json().id as string;
-    await logWorkout(auth, '2026-10-01', a, [8, 8], programId);
-    await logWorkout(auth, '2026-10-03', a, [8, 8, 8], programId);
-    await logWorkout(auth, '2026-10-05', a, [8, 8, 8]);
+    await logWorkout(auth, day(-10), a, [8, 8], programId);
+    await logWorkout(auth, day(-8), a, [8, 8, 8], programId);
+    await logWorkout(auth, day(-6), a, [8, 8, 8]);
 
     const byDate = await journal(auth);
-    expect(byDate.get('2026-10-01')).toMatchObject({ isFirst: true, sessionsSinceProgress: 0, tryMoreAfterWorkouts: 4 });
-    expect(byDate.get('2026-10-03')).toMatchObject({ isProgress: true, sessionsSinceProgress: 0 });
+    expect(byDate.get(day(-10))).toMatchObject({ isFirst: true, sessionsSinceProgress: 0, tryMoreAfterWorkouts: 4 });
+    expect(byDate.get(day(-8))).toMatchObject({ isProgress: true, sessionsSinceProgress: 0 });
     // Not started from the program -> the smallest threshold across programs (also 4).
-    expect(byDate.get('2026-10-05')).toMatchObject({ isProgress: false, sessionsSinceProgress: 1, tryMoreAfterWorkouts: 4 });
+    expect(byDate.get(day(-6))).toMatchObject({ isProgress: false, sessionsSinceProgress: 1, tryMoreAfterWorkouts: 4 });
 
     // The slider shift shows on the latest workout only.
     await app.inject({
@@ -277,21 +296,21 @@ describe('journal progressAt', () => {
       payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 4, sessionsDone: 3 }] },
     });
     const shifted = await journal(auth);
-    expect(shifted.get('2026-10-05')).toMatchObject({ sessionsSinceProgress: 3 });
-    expect(shifted.get('2026-10-03')).toMatchObject({ sessionsSinceProgress: 0 });
+    expect(shifted.get(day(-6))).toMatchObject({ sessionsSinceProgress: 3 });
+    expect(shifted.get(day(-8))).toMatchObject({ sessionsSinceProgress: 0 });
   });
 
   it('shows the count, not "first time", once the slider moved the latest session', async () => {
     const { auth } = await registerUser(app);
     const [a] = await exerciseIds(auth);
-    await logWorkout(auth, '2026-10-01', a, [8, 8]);
+    await logWorkout(auth, day(-10), a, [8, 8]);
     await app.inject({
       method: 'POST',
       url: '/api/programs',
       headers: auth,
       payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 4, sessionsDone: 3 }] },
     });
-    expect((await journal(auth)).get('2026-10-01')).toMatchObject({
+    expect((await journal(auth)).get(day(-10))).toMatchObject({
       isFirst: false,
       isProgress: false,
       sessionsSinceProgress: 3,
