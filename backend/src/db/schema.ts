@@ -240,6 +240,10 @@ export const programExercises = pgTable('program_exercises', {
   // weight (and rep counts) from the most recent time each exercise was
   // actually performed, not a stale "starting weight" set once up front.
   targetSets: smallint('target_sets').notNull().default(3),
+  // Per-exercise override of programs.tryMoreAfterWorkouts (same meaning:
+  // workouts of this exercise without progress before "try_more"). Null
+  // falls back to the program's value, then to the 14-day rule.
+  tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({
   programIdx: index('program_exercises_program_idx').on(table.programId),
