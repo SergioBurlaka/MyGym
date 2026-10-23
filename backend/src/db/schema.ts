@@ -10,6 +10,7 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -270,6 +271,9 @@ export const workouts = pgTable('workouts', {
   date: date('date').notNull(),
   timeStart: timestamp('time_start', { withTimezone: true }),
   timeEnd: timestamp('time_end', { withTimezone: true }),
+  // True when timeEnd was set by autoFinishStaleWorkouts (the user never
+  // pressed "Finish") rather than by the user.
+  autoFinished: boolean('auto_finished').notNull().default(false),
   // Free-text label the user assigns to a workout (e.g. "А" / "Б" for an
   // alternating split) so a future workout can be started "from" the latest
   // one with the same label, instead of re-adding every exercise by hand.

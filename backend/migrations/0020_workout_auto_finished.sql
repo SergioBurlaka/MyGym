@@ -1,0 +1,1 @@
+ALTER TABLE "workouts" ADD COLUMN "auto_finished" boolean DEFAULT false NOT NULL;
