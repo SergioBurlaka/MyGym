@@ -39,7 +39,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 Повні дампи з даними — тільки в `backups/` (у `.gitignore`: хеш пароля, refresh-токени).
 
 - `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" нижче)
-- `refresh_tokens` — хеші refresh-токенів. Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
+- `refresh_tokens` — хеші refresh-токенів (unique-індекс на `token_hash` — кожен refresh шукає за ним). Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
 - `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
 - `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. `client_logo_uri` (nullable, лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`. `oauth_clients` — клієнти, зареєстровані через DCR (`id` = `mygym_cli_…`, хеш секрету, метод автентифікації, `redirect_uris` jsonb); не FK до grant-ів. Див. "OAuth для MCP-клієнтів" нижче
 - `exercises` — вправи користувача (кожен юзер має свій список, сідиться 13 вправами при реєстрації, можна додавати свої через UI). `tryMoreCounterAdjust` (smallint, default 0) + `tryMoreCounterAnchor` (date, nullable) — ручний зсув лічильника «тренувань без прогресу» (див. "Правила нагадування")
@@ -78,6 +78,11 @@ Access-токен живе 15 хв (`JWT_ACCESS_TTL`), refresh — 30 днів (
   Свідомий компроміс безпеки для особистого застосунку. Саме через це logout
   **видаляє** рядок `refresh_tokens`, а не ставить `revokedAt` — інакше grace
   дав би хвилину на повторне використання токена після виходу.
+- **Прибирання:** ротований рядок лишається (для grace), тож раніше кожен refresh
+  (раз на ~15 хв на відкриту вкладку) лишав рядок назавжди. Тепер `issueTokenPair`
+  (вхід, реєстрація, Google, ротація) видаляє рядки **цього користувача**, що вже
+  не можуть бути прийняті: прострочені або відкликані понад `ROTATION_GRACE_MS`
+  тому. Рядки неактивних користувачів лежать до їхнього наступного входу.
 
 ## Вхід через Google (`modules/auth/google.client.ts` + `auth.routes.ts`)
 
