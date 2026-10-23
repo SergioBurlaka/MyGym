@@ -79,6 +79,7 @@ erDiagram
         date date
         timestamptz time_start
         timestamptz time_end
+        boolean auto_finished
         text program_label "вільний текст"
         uuid program_id FK "nullable"
     }
@@ -183,7 +184,9 @@ dimension (type 2)**: замість перезапису історії дод�
   «стартового» значення, яке швидко застаріває.
 
 ### `workouts`
-Одне тренування. `time_start`/`time_end` бекенд ставить сам.
+Одне тренування. `time_start`/`time_end` бекенд ставить сам: `time_end` — кнопкою
+«Завершити» або автоматично через 1,5 год без змін (`auto_finished = true`,
+`time_end` = момент останнього збереження; див. CLAUDE.md, «Автозавершення»).
 
 Є два способи позначити, «що це було за тренування»:
 

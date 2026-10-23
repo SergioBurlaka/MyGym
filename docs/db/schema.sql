@@ -302,7 +302,8 @@ CREATE TABLE public.workouts (
     time_end timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     program_label text,
-    program_id uuid
+    program_id uuid,
+    auto_finished boolean DEFAULT false NOT NULL
 );
 
 
