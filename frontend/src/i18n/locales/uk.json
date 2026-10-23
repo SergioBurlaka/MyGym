@@ -135,20 +135,6 @@
       "exerciseTryMoreEarlierElsewhere_few": "Інша програма з цією вправою нагадає раніше: після {{count}} тренувань.",
       "exerciseTryMoreEarlierElsewhere_many": "Інша програма з цією вправою нагадає раніше: після {{count}} тренувань.",
       "exerciseTryMoreEarlierElsewhere_other": "Інша програма з цією вправою нагадає раніше: після {{count}} тренування."
-    },
-    "countdown": {
-      "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",
-      "sessionsLeft_few": "ще {{count}} тренування до «Спробуй більше»",
-      "sessionsLeft_many": "ще {{count}} тренувань до «Спробуй більше»",
-      "sessionsLeft_other": "ще {{count}} тренування до «Спробуй більше»",
-      "daysLeft_one": "ще {{count}} день до «Спробуй більше»",
-      "daysLeft_few": "ще {{count}} дні до «Спробуй більше»",
-      "daysLeft_many": "ще {{count}} днів до «Спробуй більше»",
-      "daysLeft_other": "ще {{count}} дня до «Спробуй більше»",
-      "due": "Час спробувати більше",
-      "addWeight": "Час додати вагу",
-      "noData": "Ще не виконувалась",
-      "progressTitle": "{{done}} з {{total}} без прогресу"
     }
   },
   "workout": {
@@ -567,5 +553,23 @@
         "invalid_request": "Запит на підключення некоректний (неправильна адреса повернення). Почніть підключення ще раз із застосунку."
       }
     }
+  },
+  "progressStatus": {
+    "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",
+    "sessionsLeft_few": "ще {{count}} тренування до «Спробуй більше»",
+    "sessionsLeft_many": "ще {{count}} тренувань до «Спробуй більше»",
+    "sessionsLeft_other": "ще {{count}} тренування до «Спробуй більше»",
+    "daysLeft_one": "ще {{count}} день до «Спробуй більше»",
+    "daysLeft_few": "ще {{count}} дні до «Спробуй більше»",
+    "daysLeft_many": "ще {{count}} днів до «Спробуй більше»",
+    "daysLeft_other": "ще {{count}} дня до «Спробуй більше»",
+    "due": "Час спробувати більше",
+    "addWeight": "Час додати вагу",
+    "noData": "Ще не виконувалась",
+    "progressTitle": "{{done}} з {{total}} без прогресу",
+    "first": "Перше виконання",
+    "progress": "✓ Прогрес",
+    "fractionSessions": "{{done}} / {{total}} без прогресу",
+    "fractionDays": "{{done}} / {{total}} дн. без прогресу"
   }
 }

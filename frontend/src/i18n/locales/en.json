@@ -127,16 +127,6 @@
       "exerciseTryMoreUndo": "Undo",
       "exerciseTryMoreEarlierElsewhere_one": "Another program with this exercise nudges sooner: after {{count}} workout.",
       "exerciseTryMoreEarlierElsewhere_other": "Another program with this exercise nudges sooner: after {{count}} workouts."
-    },
-    "countdown": {
-      "sessionsLeft_one": "{{count}} workout to \"Try more\"",
-      "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
-      "daysLeft_one": "{{count}} day to \"Try more\"",
-      "daysLeft_other": "{{count}} days to \"Try more\"",
-      "due": "Time to try more",
-      "addWeight": "Time to add weight",
-      "noData": "No workouts yet",
-      "progressTitle": "{{done}} of {{total}} without progress"
     }
   },
   "workout": {
@@ -553,5 +543,19 @@
         "invalid_request": "The connection request was invalid (wrong return address). Start connecting again from the app."
       }
     }
+  },
+  "progressStatus": {
+    "sessionsLeft_one": "{{count}} workout to \"Try more\"",
+    "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
+    "daysLeft_one": "{{count}} day to \"Try more\"",
+    "daysLeft_other": "{{count}} days to \"Try more\"",
+    "due": "Time to try more",
+    "addWeight": "Time to add weight",
+    "noData": "No workouts yet",
+    "progressTitle": "{{done}} of {{total}} without progress",
+    "first": "First time",
+    "progress": "✓ Progress",
+    "fractionSessions": "{{done}} / {{total}} without progress",
+    "fractionDays": "{{done}} / {{total}} days without progress"
   }
 }

@@ -3,6 +3,7 @@ import {
   applyCounterShift,
   buildHistoryPoints,
   findLastProgress,
+  progressTimeline,
   suggestProgression,
   type HistoryPoint,
   type HistoryRow,
@@ -141,6 +142,36 @@ describe('findLastProgress', () => {
 
   it('is null for an empty history', () => {
     expect(findLastProgress([])).toBeNull();
+  });
+});
+
+describe('progressTimeline', () => {
+  it('freezes the counter at every session', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [8, 8]),
+      ...session('2026-10-03', 20, [8, 8, 8]), // progress (set)
+      ...session('2026-10-05', 20, [8, 8, 8]),
+      ...session('2026-10-08', 20, [8, 8, 8]),
+      ...session('2026-10-10', 20, [15, 15, 15]), // progress, top of range
+    ]);
+    const points = progressTimeline(history, 15);
+    expect(points.map((p) => [p.isFirst, p.isProgress, p.sessionsSinceProgress, p.daysSinceProgress])).toEqual([
+      [true, false, 0, 0],
+      [false, true, 0, 0],
+      [false, false, 1, 2],
+      [false, false, 2, 5],
+      [false, true, 0, 0],
+    ]);
+    expect(points.map((p) => p.atTopOfRange)).toEqual([false, false, false, false, true]);
+  });
+
+  it('agrees with findLastProgress on the last session', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [8]),
+      ...session('2026-10-03', 20, [9]),
+      ...session('2026-10-05', 20, [7]),
+    ]);
+    expect(progressTimeline(history, 15).at(-1)!.sessionsSinceProgress).toBe(findLastProgress(history)!.sessionsSince);
   });
 });
 

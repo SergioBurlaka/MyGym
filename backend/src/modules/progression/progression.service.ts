@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, asc } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises, workoutExercises, workouts, sets, programs, programExercises } from '../../db/schema.js';
 
@@ -93,16 +93,52 @@ export function findLastProgress(history: HistoryPoint[]): { date: string; sessi
   if (history.length === 0) return null;
   let lastProgressIndex = 0;
   for (let i = 1; i < history.length; i++) {
-    const prev = history[i - 1];
-    const cur = history[i];
-    const weightImproved = sessionWeight(cur) > sessionWeight(prev);
-    const sameKind = sessionWeight(cur) > 0 === sessionWeight(prev) > 0;
-    const volumeImproved = sameKind && sessionVolume(cur) > sessionVolume(prev);
-    if (weightImproved || volumeImproved) {
+    if (isProgressStep(history[i - 1], history[i])) {
       lastProgressIndex = i;
     }
   }
   return { date: history[lastProgressIndex].date, sessionsSince: history.length - 1 - lastProgressIndex };
+}
+
+function isProgressStep(prev: HistoryPoint, cur: HistoryPoint): boolean {
+  const weightImproved = sessionWeight(cur) > sessionWeight(prev);
+  const sameKind = sessionWeight(cur) > 0 === sessionWeight(prev) > 0;
+  const volumeImproved = sameKind && sessionVolume(cur) > sessionVolume(prev);
+  return weightImproved || volumeImproved;
+}
+
+export type TimelinePoint = {
+  date: string;
+  // The exercise's first session - nothing to compare against.
+  isFirst: boolean;
+  isProgress: boolean;
+  atTopOfRange: boolean;
+  // As of this session (0 when it progressed), same meaning as in
+  // ExerciseProgression but frozen at that date.
+  sessionsSinceProgress: number;
+  daysSinceProgress: number;
+};
+
+// Where the progress counter stood after each session of a chronological
+// history - the journal shows it per workout. Uses the same progress step
+// as findLastProgress, so the last point agrees with it.
+export function progressTimeline(history: HistoryPoint[], repRangeMax: number): TimelinePoint[] {
+  let lastProgressIndex = 0;
+  return history.map((cur, i) => {
+    const isProgress = i > 0 && isProgressStep(history[i - 1], cur);
+    if (isProgress) lastProgressIndex = i;
+    return {
+      date: cur.date,
+      isFirst: i === 0,
+      isProgress,
+      atTopOfRange: cur.maxReps >= repRangeMax,
+      sessionsSinceProgress: i - lastProgressIndex,
+      daysSinceProgress: daysBetween(
+        new Date(`${history[lastProgressIndex].date}T00:00:00Z`),
+        new Date(`${cur.date}T00:00:00Z`),
+      ),
+    };
+  });
 }
 
 // Smallest effective tryMoreAfterWorkouts across all of the user's programs
@@ -132,6 +168,11 @@ async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<st
   return byExercise;
 }
 
+// Deterministic row order for history queries: buildHistoryPoints takes a
+// day's weight from its first row, so two workouts on one date must come in
+// the same order for the overview and the journal.
+const HISTORY_ORDER = [asc(workouts.date), asc(workouts.createdAt), asc(workoutExercises.id)] as const;
+
 // `executor` lets a caller inside a transaction read through it (`tx`)
 // instead of taking a second pool connection.
 type Executor = Pick<typeof db, 'select'>;
@@ -148,7 +189,7 @@ async function buildHistory(exerciseId: string, executor: Executor = db): Promis
     .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
     .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
     .where(eq(workoutExercises.exerciseId, exerciseId))
-    .orderBy(asc(workouts.date));
+    .orderBy(...HISTORY_ORDER);
 
   return buildHistoryPoints(rows);
 }
@@ -213,6 +254,110 @@ export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
       isRepsPR,
     };
   });
+}
+
+export type WorkoutProgressAt = TimelinePoint & {
+  // Workout-count threshold to judge this session against (the workout's
+  // program, else the smallest across programs); null = 14-day rule.
+  tryMoreAfterWorkouts: number | null;
+};
+
+type JournalWorkout = {
+  date: string;
+  programId: string | null;
+  workoutExercises: {
+    exerciseId: string;
+    exercise: { repRangeMax: number; tryMoreCounterAdjust: number; tryMoreCounterAnchor: string | null };
+  }[];
+};
+
+// Adds `progressAt` - where the progress counter stood after that workout -
+// to every exercise of a page of journal workouts. One history query for
+// all exercises on the page. The manual counter shift (try-more slider) only
+// applies to an exercise's latest session, so the newest card agrees with
+// the Programs page while older cards show plain history.
+export async function attachProgressAt<W extends JournalWorkout>(userId: string, rows: W[]) {
+  const exerciseIds = [...new Set(rows.flatMap((w) => w.workoutExercises.map((we) => we.exerciseId)))];
+  const programIds = [...new Set(rows.map((w) => w.programId).filter((id): id is string => id != null))];
+  if (exerciseIds.length === 0) {
+    return rows.map((w) => ({ ...w, workoutExercises: w.workoutExercises.map((we) => ({ ...we, progressAt: null })) }));
+  }
+
+  const [historyRows, peRows, smallestThresholds] = await Promise.all([
+    db
+      .select({
+        exerciseId: workoutExercises.exerciseId,
+        date: workouts.date,
+        weightPerUnitKg: workoutExercises.weightPerUnitKg,
+        weightUnits: workoutExercises.weightUnits,
+        reps: sets.reps,
+      })
+      .from(workoutExercises)
+      .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+      .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
+      .where(and(eq(workouts.userId, userId), inArray(workoutExercises.exerciseId, exerciseIds)))
+      .orderBy(...HISTORY_ORDER),
+    programIds.length > 0
+      ? db
+          .select({
+            programId: programExercises.programId,
+            exerciseId: programExercises.exerciseId,
+            exerciseValue: programExercises.tryMoreAfterWorkouts,
+            programValue: programs.tryMoreAfterWorkouts,
+          })
+          .from(programExercises)
+          .innerJoin(programs, eq(programExercises.programId, programs.id))
+          .where(and(eq(programs.userId, userId), inArray(programExercises.programId, programIds)))
+      : Promise.resolve([]),
+    getTryMoreAfterWorkoutsByExercise(userId),
+  ]);
+
+  const rowsByExercise = new Map<string, HistoryRow[]>();
+  for (const row of historyRows) {
+    if (!rowsByExercise.has(row.exerciseId)) rowsByExercise.set(row.exerciseId, []);
+    rowsByExercise.get(row.exerciseId)!.push(row);
+  }
+  const programThresholds = new Map<string, number | null>();
+  for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.exerciseValue ?? r.programValue);
+
+  const timelines = new Map<string, Map<string, TimelinePoint>>();
+  function timelineOf(we: JournalWorkout['workoutExercises'][number]) {
+    let byDate = timelines.get(we.exerciseId);
+    if (!byDate) {
+      const history = buildHistoryPoints(rowsByExercise.get(we.exerciseId) ?? []);
+      const points = progressTimeline(history, we.exercise.repRangeMax);
+      const lastProgress = findLastProgress(history);
+      if (lastProgress && points.length > 0) {
+        const last = points[points.length - 1];
+        const shifted = applyCounterShift(lastProgress, {
+          adjust: we.exercise.tryMoreCounterAdjust,
+          anchor: we.exercise.tryMoreCounterAnchor,
+        });
+        // Slider moved off a progress/first session: show the count, as the
+        // Programs page does, not "progress".
+        if (shifted !== last.sessionsSinceProgress && shifted > 0) {
+          last.isProgress = false;
+          last.isFirst = false;
+        }
+        last.sessionsSinceProgress = shifted;
+      }
+      byDate = new Map(points.map((p) => [p.date, p]));
+      timelines.set(we.exerciseId, byDate);
+    }
+    return byDate;
+  }
+
+  return rows.map((w) => ({
+    ...w,
+    workoutExercises: w.workoutExercises.map((we) => {
+      const point = timelineOf(we).get(w.date);
+      const fromProgram = w.programId != null ? programThresholds.get(`${w.programId}:${we.exerciseId}`) : null;
+      const progressAt: WorkoutProgressAt | null = point
+        ? { ...point, tryMoreAfterWorkouts: fromProgram ?? smallestThresholds.get(we.exerciseId) ?? null }
+        : null;
+      return { ...we, progressAt };
+    }),
+  }));
 }
 
 export async function getExerciseHistory(userId: string, exerciseId: string): Promise<HistoryPoint[]> {
