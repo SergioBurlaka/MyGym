@@ -241,7 +241,12 @@ export const programs = pgTable('programs', {
 export const programExercises = pgTable('program_exercises', {
   id: uuid('id').primaryKey().defaultRandom(),
   programId: uuid('program_id').notNull().references(() => programs.id, { onDelete: 'cascade' }),
-  exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'restrict' }),
+  // NO ACTION + DEFERRABLE INITIALLY DEFERRED (set in migration 0019 - drizzle
+  // can't express it): deleting an exercise still in use fails at commit,
+  // but deleting a user works - its workouts/programs cascade away in the
+  // same statement before the check runs. RESTRICT can't be deferred. If
+  // drizzle-kit ever regenerates this FK, re-add the DEFERRABLE clause.
+  exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'no action' }),
   // Target number of sets for this exercise within the program - lets the
   // user see the planned volume at a glance. Weight is intentionally NOT
   // stored here: a new workout started from a program pulls the working
@@ -286,7 +291,12 @@ export const workouts = pgTable('workouts', {
 export const workoutExercises = pgTable('workout_exercises', {
   id: uuid('id').primaryKey().defaultRandom(),
   workoutId: uuid('workout_id').notNull().references(() => workouts.id, { onDelete: 'cascade' }),
-  exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'restrict' }),
+  // NO ACTION + DEFERRABLE INITIALLY DEFERRED (set in migration 0019 - drizzle
+  // can't express it): deleting an exercise still in use fails at commit,
+  // but deleting a user works - its workouts/programs cascade away in the
+  // same statement before the check runs. RESTRICT can't be deferred. If
+  // drizzle-kit ever regenerates this FK, re-add the DEFERRABLE clause.
+  exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'no action' }),
   // Weight per single unit (one dumbbell, or plates on one side of the bar).
   // Null when the exercise is done with bodyweight only.
   weightPerUnitKg: numeric('weight_per_unit_kg', { precision: 6, scale: 2 }),

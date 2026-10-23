@@ -16,11 +16,11 @@ erDiagram
     users ||--o{ workouts : "тренування"
 
     programs ||--o{ program_exercises : "склад програми"
-    exercises ||--o{ program_exercises : "RESTRICT"
+    exercises ||--o{ program_exercises : "NO ACTION (deferred)"
     programs |o--o{ workouts : "SET NULL"
 
     workouts ||--o{ workout_exercises : "вправи тренування"
-    exercises ||--o{ workout_exercises : "RESTRICT"
+    exercises ||--o{ workout_exercises : "NO ACTION (deferred)"
     workout_exercises ||--o{ sets : "підходи"
 
     users {
@@ -168,7 +168,7 @@ dimension (type 2)**: замість перезапису історії дод�
 не залежить. Приклад: «Жим стоячи» — штанга, але категорія `small` через травму плеча.
 
 `archived_at` реалізує soft-delete: вправу, на яку вже посилаються тренування,
-не можна видалити фізично (див. RESTRICT нижче), тому її ховають.
+не можна видалити фізично (див. FK нижче), тому її ховають.
 
 ### `programs` і `program_exercises`
 Програма — іменований шаблон («Програма А»), який створюють заздалегідь.
@@ -221,10 +221,18 @@ dimension (type 2)**: замість перезапису історії дод�
 | `workouts` → `workout_exercises` → `sets` | **CASCADE** | видалив тренування — зникли й вправи з підходами |
 | `programs` → `program_exercises` | **CASCADE** | склад програми видаляється разом з нею |
 | `programs` → `workouts.program_id` | **SET NULL** | тренування лишаються, губиться тільки зв'язок із програмою |
-| `exercises` ← `workout_exercises`, `program_exercises` | **RESTRICT** | вправу з історією видалити не можна, лише архівувати |
+| `exercises` ← `workout_exercises`, `program_exercises` | **NO ACTION, DEFERRABLE INITIALLY DEFERRED** | вправу з історією видалити не можна, лише архівувати |
 
-RESTRICT на `exercises` захищає історію: видалення вправи інакше або знищило б
-усі минулі підходи (CASCADE), або залишило б підходи «нічиєї» вправи (SET NULL).
+Цей FK захищає історію: видалення вправи інакше або знищило б усі минулі
+підходи (CASCADE), або залишило б підходи «нічиєї» вправи (SET NULL).
+
+Чому відкладений, а не RESTRICT (міграція 0019): видалення користувача каскадить і
+в `exercises`, і в `workouts`. RESTRICT перевіряється одразу й падав раніше, ніж
+каскад через `workouts` прибирав `workout_exercises`, — користувача з тренуваннями
+не можна було видалити. `NO ACTION` без `DEFERRABLE` падає так само. З перевіркою
+на коміті видалення користувача проходить, а пряме видалення вправи, що є в
+історії чи програмі, — так само помилка `23503`. Drizzle не вміє `DEFERRABLE`, тому
+його дописано в міграцію вручну.
 
 ## Індекси
 

@@ -214,10 +214,16 @@ popup GIS погано працює у встановленому PWA, а так
   оновлюють протухлий OAuth-токен. API недоступне → запит пропускається
   (інструменти скажуть «could not reach»), щоб не просити зайвий раз увійти.
   Конфіг — `PUBLIC_URL` (compose: `https://${DOMAIN}`, dev: `http://localhost:5173`).
-- **Gotcha (поза MCP, знайдено при e2e):** користувача з тренуваннями не можна
-  видалити (`DELETE FROM users`) — каскад іде в `exercises`, а
-  `workout_exercises.exerciseId` має `restrict`. Тести не ловлять, бо
-  `TRUNCATE … CASCADE`. Виправити перед фічею «видалити акаунт».
+- **Gotcha (поза MCP, знайдено при e2e; виправлено 2026-10-23, міграція 0019):**
+  користувача з тренуваннями не можна було видалити — каскад `users → exercises`
+  падав на `restrict` у `workout_exercises.exerciseId` раніше, ніж каскад
+  `users → workouts` прибирав посилання. `NO ACTION` **не допомагає** (перевірено) —
+  потрібен `DEFERRABLE INITIALLY DEFERRED` (перевірка на коміті; `RESTRICT` не
+  відкладається). Тепер так на обох FK до вправ (`workout_exercises`,
+  `program_exercises`): видалення користувача проходить, пряме видалення вправи з
+  історією — досі `23503`. Drizzle `DEFERRABLE` не описує — дописано в міграцію
+  руками; якщо drizzle-kit колись перегенерує ці FK, повернути. Тест —
+  `test/db-constraints.test.ts` (звичайні тести не ловили, бо `TRUNCATE … CASCADE`).
 
 ## OAuth для MCP-клієнтів (`modules/oauth/`, MCP, частина 3)
 
@@ -698,7 +704,7 @@ prev/next). Без цього старі імпортовані тренуван
 - Видалення програми — справжнє (`DELETE`), каскадить `program_exercises`;
   `workouts.programId` існуючих тренувань стає `null` (сам запис, вправи й
   підходи не чіпаються), вправи в загальному списку "Вправи" не зачіпаються
-  (`onDelete: 'restrict'` на `program_exercises.exerciseId`).
+  (FK `program_exercises.exerciseId` — `no action deferrable`, вправу з програми не видалити).
 - Сторінка `/programs` (`ProgramsPage.tsx`, пункт «Програми» в навбарі) —
   список програм (назва + вправи з `targetSets` у дужках) + форма
   створення/редагування: назва, вибір вправ, поле "цільова кількість
