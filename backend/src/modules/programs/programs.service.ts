@@ -79,6 +79,7 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
         programId: program.id,
         exerciseId: ex.exerciseId,
         targetSets: ex.targetSets,
+        tryMoreAfterWorkouts: ex.tryMoreAfterWorkouts ?? null,
         orderIndex: i,
       })),
     );
@@ -119,6 +120,7 @@ export async function updateProgram(userId: string, programId: string, input: Sa
         programId,
         exerciseId: ex.exerciseId,
         targetSets: ex.targetSets,
+        tryMoreAfterWorkouts: ex.tryMoreAfterWorkouts ?? null,
         orderIndex: i,
       })),
     );

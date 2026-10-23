@@ -3,6 +3,8 @@ import { z } from 'zod';
 const programExerciseInputSchema = z.object({
   exerciseId: z.string().uuid(),
   targetSets: z.coerce.number().int().min(1).max(20),
+  // Per-exercise override of the program-level tryMoreAfterWorkouts below.
+  tryMoreAfterWorkouts: z.coerce.number().int().min(1).max(60).nullable().optional(),
 });
 
 export const saveProgramSchema = z.object({
