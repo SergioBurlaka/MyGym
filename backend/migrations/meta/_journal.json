@@ -127,6 +127,13 @@
       "when": 1792762471059,
       "tag": "0017_exercise_try_more_counter",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792769191880,
+      "tag": "0018_refresh_token_hash_idx",
+      "breakpoints": true
     }
   ]
 }
