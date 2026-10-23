@@ -213,7 +213,7 @@ function ProgramCard({
             key={pe.id}
             className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm first:pt-0 last:pb-0"
           >
-            <span className="text-slate-200">
+            <span className="min-w-0 text-slate-200">
               {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
               <span className="text-slate-400">×{pe.targetSets}</span>
             </span>
@@ -229,11 +229,11 @@ function ProgramCard({
 
       {program.tryMoreAfterWorkouts != null && (
         <div className="flex items-center gap-2 border-t border-surface-border pt-2.5 text-xs text-slate-400">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f5a524" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg className="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f5a524" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 17l6-6 4 4 8-8" />
             <path d="M15 7h6v6" />
           </svg>
-          <span>{t('programs.tryMoreAfterWorkoutsBadge', { count: program.tryMoreAfterWorkouts })}</span>
+          <span className="min-w-0">{t('programs.tryMoreAfterWorkoutsBadge', { count: program.tryMoreAfterWorkouts })}</span>
         </div>
       )}
     </div>
