@@ -59,29 +59,29 @@ async function row(id: string) {
 }
 
 describe('autoFinishStaleWorkouts', () => {
-  it('closes a workout an hour after the last save, ending it at that save', async () => {
+  it('closes a workout 1.5 hours after the last save, ending it at that save', async () => {
     const { auth } = await registerUser(app);
-    const id = await openWorkout(auth, { startedMinutesAgo: 150, savedMinutesAgo: 65 });
+    const id = await openWorkout(auth, { startedMinutesAgo: 150, savedMinutesAgo: 95 });
 
     expect(await autoFinishStaleWorkouts()).toBe(1);
     const w = await row(id);
     expect(w.autoFinished).toBe(true);
-    // ~65 minutes ago - the last save, not now.
-    expect(Math.abs(w.timeEnd!.getTime() - minutesAgo(65).getTime())).toBeLessThan(5_000);
+    // ~95 minutes ago - the last save, not now.
+    expect(Math.abs(w.timeEnd!.getTime() - minutesAgo(95).getTime())).toBeLessThan(5_000);
   });
 
   it('keeps a long workout open while it is still being saved', async () => {
     const { auth } = await registerUser(app);
-    const id = await openWorkout(auth, { startedMinutesAgo: 150, savedMinutesAgo: 20 });
+    const id = await openWorkout(auth, { startedMinutesAgo: 150, savedMinutesAgo: 80 });
 
     expect(await autoFinishStaleWorkouts()).toBe(0);
     expect((await row(id)).timeEnd).toBeNull();
   });
 
-  it('closes a workout with nothing logged an hour after its start', async () => {
+  it('closes a workout with nothing logged 1.5 hours after its start', async () => {
     const { auth } = await registerUser(app);
-    const fresh = await openWorkout(auth, { startedMinutesAgo: 30 });
-    const stale = await openWorkout(auth, { startedMinutesAgo: 61 });
+    const fresh = await openWorkout(auth, { startedMinutesAgo: 80 });
+    const stale = await openWorkout(auth, { startedMinutesAgo: 91 });
 
     expect(await autoFinishStaleWorkouts()).toBe(1);
     expect((await row(fresh)).timeEnd).toBeNull();
@@ -108,13 +108,36 @@ describe('autoFinishStaleWorkouts', () => {
   it('works across users and shows the flag in the API', async () => {
     const one = await registerUser(app);
     const two = await registerUser(app);
-    const a = await openWorkout(one.auth, { startedMinutesAgo: 90, savedMinutesAgo: 70 });
-    const b = await openWorkout(two.auth, { startedMinutesAgo: 90, savedMinutesAgo: 70 });
+    const a = await openWorkout(one.auth, { startedMinutesAgo: 120, savedMinutesAgo: 100 });
+    const b = await openWorkout(two.auth, { startedMinutesAgo: 120, savedMinutesAgo: 100 });
 
     expect(await autoFinishStaleWorkouts()).toBe(2);
     const got = await app.inject({ method: 'GET', url: `/api/workouts/${a}`, headers: one.auth });
     expect(got.json()).toMatchObject({ autoFinished: true });
     const list = await app.inject({ method: 'GET', url: '/api/workouts', headers: two.auth });
     expect(list.json().data.find((w: { id: string }) => w.id === b)).toMatchObject({ autoFinished: true });
+  });
+
+  it('stays closed: a later save, a second sweep or a late finish keep its end time', async () => {
+    const { auth } = await registerUser(app);
+    const id = await openWorkout(auth, { startedMinutesAgo: 200, savedMinutesAgo: 100 });
+    expect(await autoFinishStaleWorkouts()).toBe(1);
+    const endedAt = (await row(id)).timeEnd;
+
+    const saved = await app.inject({
+      method: 'PUT',
+      url: `/api/workouts/${id}/exercises`,
+      headers: auth,
+      payload: {
+        exercises: [
+          { exerciseId: await exerciseId(auth), weightPerUnitKg: 20, weightUnits: 2, sets: [{ setNumber: 1, reps: 9 }] },
+        ],
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(await autoFinishStaleWorkouts()).toBe(0);
+    const finished = await app.inject({ method: 'POST', url: `/api/workouts/${id}/finish`, headers: auth });
+    expect(finished.statusCode).toBe(200);
+    expect(await row(id)).toMatchObject({ timeEnd: endedAt, autoFinished: true });
   });
 });

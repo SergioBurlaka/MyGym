@@ -202,10 +202,13 @@ export async function finishWorkout(userId: string, workoutId: string) {
     where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
   });
   if (!existing) return null;
+  // Already finished (by hand or automatically) - keep its end time; a late
+  // "finish" (e.g. from an AI client hours later) would inflate the duration.
+  if (existing.timeEnd) return existing;
 
   const [row] = await db
     .update(workouts)
-    .set({ timeEnd: new Date(), autoFinished: false })
+    .set({ timeEnd: new Date() })
     .where(eq(workouts.id, workoutId))
     .returning();
   return row;

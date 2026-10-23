@@ -136,7 +136,7 @@
     "dateLabel": "Workout date",
     "finishedDuration": "Finished · {{duration}}",
     "autoFinishedDuration": "Finished automatically · {{duration}}",
-    "autoFinishedHint": "The workout wasn't finished by hand, so it closed itself after an hour without changes. The end time is the last save.",
+    "autoFinishedHint": "The workout wasn't finished by hand, so it closed itself after 1.5 hours without changes. The end time is the last save.",
     "inProgress": "Workout in progress…",
     "nameLabel": "Name",
     "namePlaceholder": "Program A / Program B…",

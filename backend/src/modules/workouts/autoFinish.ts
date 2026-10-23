@@ -3,8 +3,10 @@ import type { FastifyInstance } from 'fastify';
 import { db } from '../../db/client.js';
 
 // A workout nobody pressed "Finish" on is closed after this long without
-// activity (user's decision, 2026-10-24).
-export const AUTO_FINISH_AFTER_MINUTES = 60;
+// activity (user's decision, 2026-10-24). Once closed it stays closed: a
+// later save doesn't reopen it or move timeEnd - 1.5 h of silence means the
+// session is over, and a later edit is a correction.
+export const AUTO_FINISH_AFTER_MINUTES = 90;
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 
 // Closes every open workout whose last activity is AUTO_FINISH_AFTER_MINUTES
