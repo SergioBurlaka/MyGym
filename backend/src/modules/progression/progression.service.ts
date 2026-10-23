@@ -66,17 +66,26 @@ function totalWeight(weightPerUnitKg: string | null, weightUnits: number | null)
   return Number(weightPerUnitKg) * units;
 }
 
+// Weight of a session, with "no weight logged" and a logged 0 both as 0.
+function sessionWeight(point: HistoryPoint): number {
+  return point.totalWeightKg ?? 0;
+}
+
 // Session "volume" used to detect progress: weight * total reps of all
-// sets, or just total reps when the exercise was done without weight. More
-// sets, more reps or more weight all raise it.
+// sets, or just total reps when the exercise was done without weight (or
+// with 0 - otherwise 0 * reps would never grow). More sets, more reps or
+// more weight all raise it.
 function sessionVolume(point: HistoryPoint): number {
-  return point.volumeKg ?? point.totalReps;
+  return sessionWeight(point) > 0 ? sessionWeight(point) * point.totalReps : point.totalReps;
 }
 
 // Walks a chronological history and returns the date of the most recent
 // entry that progressed on the one before it - a bigger session volume, or
 // a heavier working weight (heavier weight often means fewer reps, so the
-// volume alone could even drop) - plus how many sessions have happened since
+// volume alone could even drop; going from no weight to some counts too).
+// Volumes are only compared between two weighted or two unweighted sessions:
+// kg * reps vs plain reps would be meaningless. Returns that date plus how
+// many sessions have happened since
 // (0 if the progress was the latest session). Falls back to the earliest
 // entry when no improvement has ever been recorded (nothing to compare
 // against yet, but also nothing "stalled").
@@ -86,9 +95,9 @@ export function findLastProgress(history: HistoryPoint[]): { date: string; sessi
   for (let i = 1; i < history.length; i++) {
     const prev = history[i - 1];
     const cur = history[i];
-    const weightImproved =
-      cur.totalWeightKg != null && prev.totalWeightKg != null && cur.totalWeightKg > prev.totalWeightKg;
-    const volumeImproved = sessionVolume(cur) > sessionVolume(prev);
+    const weightImproved = sessionWeight(cur) > sessionWeight(prev);
+    const sameKind = sessionWeight(cur) > 0 === sessionWeight(prev) > 0;
+    const volumeImproved = sameKind && sessionVolume(cur) > sessionVolume(prev);
     if (weightImproved || volumeImproved) {
       lastProgressIndex = i;
     }

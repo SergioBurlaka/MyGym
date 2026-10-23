@@ -119,6 +119,20 @@ describe('findLastProgress', () => {
     expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
   });
 
+  it('treats a logged weight of 0 like no weight (total reps as volume)', () => {
+    const history = buildHistoryPoints([...session('2026-10-01', 0, [20, 20]), ...session('2026-10-03', 0, [25, 25])]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
+  });
+
+  it('counts starting to add weight as progress, but not dropping it', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', null, [30, 30, 30]),
+      ...session('2026-10-03', 1.25, [10, 10, 10]), // progress: weight appeared, tiny kg volume
+      ...session('2026-10-05', null, [30, 30, 30, 30]), // weight forgotten: reps vs kg not compared
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
+  });
+
   it('falls back to the first session when nothing ever improved', () => {
     const history = buildHistoryPoints([...session('2026-10-01', 20, [8]), ...session('2026-10-03', 20, [8])]);
     expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
