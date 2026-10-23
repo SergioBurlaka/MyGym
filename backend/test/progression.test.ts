@@ -85,6 +85,40 @@ describe('findLastProgress', () => {
     expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 2 });
   });
 
+  it('counts an added set as progress (more volume at the same weight)', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [10, 10]),
+      ...session('2026-10-03', 20, [10, 10, 8]), // progress (sets)
+      ...session('2026-10-05', 20, [10, 10, 8]),
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
+  });
+
+  it('counts a heavier weight as progress even when the volume drops', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [12, 12, 12]), // 40 kg x 36 = 1440
+      ...session('2026-10-03', 22.5, [8, 8, 8]), // 45 kg x 24 = 1080, but heavier
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
+  });
+
+  it('does not count a higher top set when the total volume did not grow', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', 20, [10, 10, 10]),
+      ...session('2026-10-03', 20, [12, 9, 8]), // max reps up, total reps down
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
+  });
+
+  it('uses total reps as the volume of a bodyweight exercise', () => {
+    const history = buildHistoryPoints([
+      ...session('2026-10-01', null, [20, 20]),
+      ...session('2026-10-03', null, [20, 20, 15]), // progress (sets)
+      ...session('2026-10-05', null, [20, 18]),
+    ]);
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 1 });
+  });
+
   it('falls back to the first session when nothing ever improved', () => {
     const history = buildHistoryPoints([...session('2026-10-01', 20, [8]), ...session('2026-10-03', 20, [8])]);
     expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
