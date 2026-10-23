@@ -203,9 +203,7 @@ function MobileRemindersCard({ items }: { items: ExerciseProgression[] }) {
             <span className="text-slate-200">{p.name}</span>
             {p.suggestion === 'try_more' ? (
               <span className="text-xs font-semibold text-warn">
-                {p.tryMoreAfterWorkouts != null
-                  ? t('dashboard.reminderSessions', { count: p.sessionsSinceProgress ?? 0 })
-                  : t('dashboard.reminderDays', { count: p.daysSinceProgress ?? 0 })}
+                {t('dashboard.reminderSessions', { count: p.sessionsSinceProgress ?? 0 })}
               </span>
             ) : (
               <ProgressionBadge suggestion={p.suggestion} />

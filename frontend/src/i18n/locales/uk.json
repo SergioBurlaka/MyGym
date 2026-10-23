@@ -76,7 +76,6 @@
     "emptyWorkout": "Порожньо — додайте вправи",
     "setsSummary": "{{count}} підх. × {{weight}}",
     "setsOnly": "{{count}} підх.",
-    "reminderDays": "{{count}} дн.",
     "reminderSessions": "{{count}} трен.",
     "showAllReminders": "Показати всі {{count}}",
     "workoutMenuLabel": "Дії з тренуванням {{date}}"
@@ -105,7 +104,7 @@
       "addExerciseButton": "+ Додати вправу",
       "tryMoreAfterWorkoutsLabel": "«Спробуй більше» після N тренувань без прогресу (для всіх вправ за замовчуванням)",
       "tryMoreAfterWorkoutsPlaceholder": "напр. 6",
-      "tryMoreAfterWorkoutsHint": "Діє для вправ, у яких власне значення 0. Рахуються лише фактично проведені тренування з вправою — пропущені дні не додаються до лічильника, але й не скидають його. Залиш порожнім, щоб лишити стандартне правило (14 календарних днів без прогресу).",
+      "tryMoreAfterWorkoutsHint": "Діє для вправ, у яких власне значення 0. Рахуються лише фактично проведені тренування з вправою — пропущені дні не додаються до лічильника. Після перерви в тренуваннях 10–13 днів перше тренування не рахується, після 14+ днів лічильник починається спочатку. Залиш порожнім, щоб лишити стандарт: 4 тренування для великих груп, 6 для малих, 5 для вправ без ваги.",
       "saveButton": "Зберегти програму",
       "saving": "Зберігаємо…",
       "errorNameRequired": "Вкажи назву програми.",
@@ -122,13 +121,15 @@
       "exerciseTryMoreInheritProgram_few": "як у програмі ({{count}} тренувань)",
       "exerciseTryMoreInheritProgram_many": "як у програмі ({{count}} тренувань)",
       "exerciseTryMoreInheritProgram_other": "як у програмі ({{count}} тренування)",
-      "exerciseTryMoreInheritDefault": "стандартно (14 днів)",
+      "exerciseTryMoreInheritDefault_one": "стандартно ({{count}} тренування)",
+      "exerciseTryMoreInheritDefault_few": "стандартно ({{count}} тренувань)",
+      "exerciseTryMoreInheritDefault_many": "стандартно ({{count}} тренувань)",
+      "exerciseTryMoreInheritDefault_other": "стандартно ({{count}} тренування)",
       "exerciseTryMoreHint": "Прогрес = більший обсяг (вага × повторення всіх підходів: додай підхід, повторення чи вагу) або більша вага. Порожньо чи 0 = значення програми нижче.",
       "errorExerciseTryMore": "Кількість тренувань для «Спробуй більше» — від 0 до 60.",
       "exerciseTryMoreDone": "Вже пройшло без прогресу: {{done}} / {{total}}",
       "exerciseTryMoreDoneLabel": "Тренувань без прогресу",
       "exerciseTryMoreSliderHint": "Потягни назад, щоб відкласти «Спробуй більше», вперед — щоб наблизити. Наступний справжній прогрес почне відлік з нуля.",
-      "exerciseTryMoreNeedsThreshold": "Вкажи кількість тренувань (тут або для програми), щоб користуватись повзунком.",
       "exerciseTryMoreNoHistory": "Ще не було тренувань із цією вправою.",
       "exerciseTryMoreUndo": "Скасувати",
       "exerciseTryMoreEarlierElsewhere_one": "Інша програма з цією вправою нагадає раніше: після {{count}} тренування.",
@@ -182,7 +183,7 @@
       "lastWorkout": "Востаннє",
       "lastWeight": "Остання вага",
       "maxReps": "Макс. повторень",
-      "daysWithoutProgress": "Без прогресу, днів"
+      "sessionsWithoutProgress": "Тренувань без прогресу"
     },
     "charts": {
       "workingWeightTitle": "Робоча вага, кг",
@@ -310,8 +311,7 @@
       "no_data": "Ще немає жодного запису для цієї вправи.",
       "start_adding_weight": "Досягнуто {{repRangeMax}} повторень без ваги — час почати додавати обтяження.",
       "increase_weight": "Досягнуто верхньої межі ({{repRangeMax}} повт.) — додайте +{{weightStep}} кг з кожного боку.",
-      "try_more": "Без прогресу вже {{days}} дн. — спробуйте додати підхід, повторення або вагу.",
-      "try_more_sessions": "Без прогресу вже {{sessions}} трен. — спробуйте додати підхід, повторення або вагу.",
+      "try_more": "Без прогресу вже {{sessions}} трен. — спробуйте додати підхід, повторення або вагу.",
       "ok": "Прогрес у нормі."
     }
   },
@@ -559,17 +559,13 @@
     "sessionsLeft_few": "ще {{count}} тренування до «Спробуй більше»",
     "sessionsLeft_many": "ще {{count}} тренувань до «Спробуй більше»",
     "sessionsLeft_other": "ще {{count}} тренування до «Спробуй більше»",
-    "daysLeft_one": "ще {{count}} день до «Спробуй більше»",
-    "daysLeft_few": "ще {{count}} дні до «Спробуй більше»",
-    "daysLeft_many": "ще {{count}} днів до «Спробуй більше»",
-    "daysLeft_other": "ще {{count}} дня до «Спробуй більше»",
     "due": "Час спробувати більше",
     "addWeight": "Час додати вагу",
     "noData": "Ще не виконувалась",
     "progressTitle": "{{done}} з {{total}} без прогресу",
     "first": "Перше виконання",
+    "afterBreak": "Після перерви — відлік з нуля",
     "progress": "✓ Прогрес",
-    "fractionSessions": "{{done}} / {{total}} тр. до прогресу",
-    "fractionDays": "{{done}} / {{total}} дн. до прогресу"
+    "fractionSessions": "{{done}} / {{total}} тр. до прогресу"
   }
 }

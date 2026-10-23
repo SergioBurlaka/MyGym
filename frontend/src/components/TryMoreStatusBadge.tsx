@@ -22,6 +22,8 @@ export default function TryMoreStatusBadge({
       return <span className="text-xs text-slate-500">{t('progressStatus.first')}</span>;
     case 'progress':
       return <span className="text-xs font-semibold text-good">{t('progressStatus.progress')}</span>;
+    case 'after_break':
+      return <span className="text-xs text-slate-400">{t('progressStatus.afterBreak')}</span>;
     case 'add_weight':
       return <span className="text-xs font-semibold text-good">{t('progressStatus.addWeight')}</span>;
   }
@@ -31,12 +33,12 @@ export default function TryMoreStatusBadge({
   let text: string;
   if (due) text = t('progressStatus.due');
   else if (label === 'fraction')
-    text = t(status.unit === 'sessions' ? 'progressStatus.fractionSessions' : 'progressStatus.fractionDays', {
+    text = t('progressStatus.fractionSessions', {
       done: status.done,
       total: status.total,
     });
   else
-    text = t(status.unit === 'sessions' ? 'progressStatus.sessionsLeft' : 'progressStatus.daysLeft', {
+    text = t('progressStatus.sessionsLeft', {
       count: status.left,
     });
 

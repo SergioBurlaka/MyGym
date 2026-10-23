@@ -1,26 +1,31 @@
-import type { ExerciseProgression, WorkoutProgressAt } from '../types/index.js';
+import type { ExerciseProgression, MuscleCategory, WorkoutProgressAt } from '../types/index.js';
 
-// Mirrors PROGRESS_REMINDER_DAYS in backend progression.service.ts - the
-// rule that applies when neither the program nor the exercise sets a
-// workout count.
-export const DEFAULT_TRY_MORE_DAYS = 14;
+// Mirrors DEFAULT_TRY_MORE_AFTER_WORKOUTS in backend progression.service.ts
+// - sessions without progress when neither the program nor the exercise
+// sets a count.
+export const DEFAULT_TRY_MORE_AFTER_WORKOUTS: Record<MuscleCategory, number> = {
+  large: 4,
+  small: 6,
+  bodyweight: 5,
+};
 
 export type TryMoreStatus =
   | { kind: 'unknown' }
   | { kind: 'no_data' }
   | { kind: 'first' }
   | { kind: 'progress' }
+  | { kind: 'after_break' }
   | { kind: 'add_weight' }
-  | { kind: 'due'; unit: 'sessions' | 'days'; done: number; total: number }
-  | { kind: 'countdown'; unit: 'sessions' | 'days'; done: number; total: number; left: number };
+  | { kind: 'due'; done: number; total: number }
+  | { kind: 'countdown'; done: number; total: number; left: number };
 
 // How far an exercise is from the "try_more" nudge under ONE program's
 // threshold (the exercise's own value there, else the program's). Computed
 // here rather than taken from p.suggestion: the backend judges an exercise
 // by the smallest threshold across all programs that include it, while a
 // program card should count down to its own. When this program sets no
-// count but another program does, the backend uses that count instead of
-// days - so does the card, or it could say "due" while nothing nudges.
+// count, the card uses the backend's (another program's, else the category
+// default), or it could say "due" while nothing nudges.
 export function tryMoreStatus(p: ExerciseProgression | undefined, threshold: number | null): TryMoreStatus {
   // Not in the overview at all (e.g. an archived exercise) - nothing to say.
   if (!p) return { kind: 'unknown' };
@@ -28,12 +33,10 @@ export function tryMoreStatus(p: ExerciseProgression | undefined, threshold: num
   // Topping the rep range wins over the stall reminder on the backend too.
   if (p.suggestion === 'increase_weight' || p.suggestion === 'start_adding_weight') return { kind: 'add_weight' };
 
-  const sessions = threshold ?? p.tryMoreAfterWorkouts;
-  const unit = sessions != null ? 'sessions' : 'days';
-  const total = sessions ?? DEFAULT_TRY_MORE_DAYS;
-  const done = (unit === 'sessions' ? p.sessionsSinceProgress : p.daysSinceProgress) ?? 0;
-  if (done >= total) return { kind: 'due', unit, done, total };
-  return { kind: 'countdown', unit, done, total, left: total - done };
+  const total = threshold ?? p.tryMoreAfterWorkouts;
+  const done = p.sessionsSinceProgress ?? 0;
+  if (done >= total) return { kind: 'due', done, total };
+  return { kind: 'countdown', done, total, left: total - done };
 }
 
 // The same scale for a journal workout: where the counter stood after that
@@ -44,10 +47,10 @@ export function journalTryMoreStatus(p: WorkoutProgressAt | null | undefined): T
   if (p.atTopOfRange) return { kind: 'add_weight' };
   if (p.isFirst) return { kind: 'first' };
   if (p.isProgress) return { kind: 'progress' };
+  if (p.afterBreak) return { kind: 'after_break' };
 
-  const unit = p.tryMoreAfterWorkouts != null ? 'sessions' : 'days';
-  const total = p.tryMoreAfterWorkouts ?? DEFAULT_TRY_MORE_DAYS;
-  const done = unit === 'sessions' ? p.sessionsSinceProgress : p.daysSinceProgress;
-  if (done >= total) return { kind: 'due', unit, done, total };
-  return { kind: 'countdown', unit, done, total, left: total - done };
+  const total = p.tryMoreAfterWorkouts;
+  const done = p.sessionsSinceProgress;
+  if (done >= total) return { kind: 'due', done, total };
+  return { kind: 'countdown', done, total, left: total - done };
 }
