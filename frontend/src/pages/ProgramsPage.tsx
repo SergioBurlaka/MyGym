@@ -30,6 +30,15 @@ type EditableExercise = {
 
 type ProgressionById = Map<string, ExerciseProgression>;
 
+// The slider position to save, as the user sees it: clamped to the scale,
+// and not sent at all while the slider is untouched or disabled (no
+// threshold) - otherwise an invisible shift would be stored.
+function sessionsDoneToSend(block: EditableExercise, programThreshold: number | null): { sessionsDone?: number } {
+  const threshold = parseThreshold(block.tryMoreAfterWorkouts) ?? programThreshold;
+  if (block.sessionsDone == null || threshold == null) return {};
+  return { sessionsDone: Math.min(block.sessionsDone, threshold) };
+}
+
 // '' / '0' / junk -> null (inherit), otherwise the positive integer.
 function parseThreshold(value: string): number | null {
   const n = Number(value.trim());
@@ -388,7 +397,7 @@ function ProgramForm({
         exerciseId: b.exerciseId,
         targetSets: Number(b.targetSets),
         tryMoreAfterWorkouts: parseThreshold(b.tryMoreAfterWorkouts),
-        ...(b.sessionsDone != null ? { sessionsDone: b.sessionsDone } : {}),
+        ...sessionsDoneToSend(b, parseThreshold(trimmedTryMore)),
       })),
       tryMoreAfterWorkouts: trimmedTryMore === '' ? null : Number(trimmedTryMore),
     };
@@ -471,6 +480,7 @@ function ProgramForm({
                   value={block.tryMoreAfterWorkouts}
                   programValue={parseThreshold(tryMoreAfterWorkouts)}
                   progression={progressionById?.get(block.exerciseId)}
+                  progressionLoaded={progressionById != null}
                   sessionsDone={block.sessionsDone}
                   onChange={(v) => updateBlock(block.exerciseId, { tryMoreAfterWorkouts: v })}
                   onSessionsDoneChange={(v) => updateBlock(block.exerciseId, { sessionsDone: v })}
@@ -525,6 +535,7 @@ function ExerciseTryMoreField({
   value,
   programValue,
   progression,
+  progressionLoaded,
   sessionsDone,
   onChange,
   onSessionsDoneChange,
@@ -532,6 +543,7 @@ function ExerciseTryMoreField({
   value: string;
   programValue: number | null;
   progression: ExerciseProgression | undefined;
+  progressionLoaded: boolean;
   // Where the slider was dragged in this form; null = untouched.
   sessionsDone: number | null;
   onChange: (value: string) => void;
@@ -552,8 +564,14 @@ function ExerciseTryMoreField({
   // scale - only meaningful with a workout count and some history.
   let disabledHint: string | null = null;
   if (threshold == null) disabledHint = t('programs.form.exerciseTryMoreNeedsThreshold');
+  else if (!progressionLoaded) disabledHint = t('common.loading');
+  // Missing from the overview = archived exercise; no_data = never done.
   else if (done == null) disabledHint = t('programs.form.exerciseTryMoreNoHistory');
   const due = threshold != null && done != null && done >= threshold;
+  // The nudge fires at the smallest count across all programs with this
+  // exercise - warn when another program's is below this scale.
+  const effective = progression?.tryMoreAfterWorkouts ?? null;
+  const earlierElsewhere = threshold != null && effective != null && effective < threshold ? effective : null;
 
   return (
     <div className="min-w-[14rem] flex-1 space-y-2">
@@ -597,6 +615,11 @@ function ExerciseTryMoreField({
           onChange={(e) => onSessionsDoneChange(Number(e.target.value))}
         />
         <p className="mt-1 text-xs text-slate-500">{disabledHint ?? t('programs.form.exerciseTryMoreSliderHint')}</p>
+        {earlierElsewhere != null && (
+          <p className="mt-1 text-xs text-warn">
+            {t('programs.form.exerciseTryMoreEarlierElsewhere', { count: earlierElsewhere })}
+          </p>
+        )}
       </div>
       <p className="text-xs text-slate-500">{t('programs.form.exerciseTryMoreHint')}</p>
     </div>

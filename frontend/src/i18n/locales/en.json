@@ -124,7 +124,9 @@
       "exerciseTryMoreSliderHint": "Drag back to postpone \"Try more\", forward to bring it closer. The next real progress starts the count from zero.",
       "exerciseTryMoreNeedsThreshold": "Set a workout count (here or for the program) to use the slider.",
       "exerciseTryMoreNoHistory": "No workouts with this exercise yet.",
-      "exerciseTryMoreUndo": "Undo"
+      "exerciseTryMoreUndo": "Undo",
+      "exerciseTryMoreEarlierElsewhere_one": "Another program with this exercise nudges sooner: after {{count}} workout.",
+      "exerciseTryMoreEarlierElsewhere_other": "Another program with this exercise nudges sooner: after {{count}} workouts."
     },
     "countdown": {
       "sessionsLeft_one": "{{count}} workout to \"Try more\"",

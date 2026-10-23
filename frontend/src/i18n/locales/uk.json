@@ -130,7 +130,11 @@
       "exerciseTryMoreSliderHint": "Потягни назад, щоб відкласти «Спробуй більше», вперед — щоб наблизити. Наступний справжній прогрес почне відлік з нуля.",
       "exerciseTryMoreNeedsThreshold": "Вкажи кількість тренувань (тут або для програми), щоб користуватись повзунком.",
       "exerciseTryMoreNoHistory": "Ще не було тренувань із цією вправою.",
-      "exerciseTryMoreUndo": "Скасувати"
+      "exerciseTryMoreUndo": "Скасувати",
+      "exerciseTryMoreEarlierElsewhere_one": "Інша програма з цією вправою нагадає раніше: після {{count}} тренування.",
+      "exerciseTryMoreEarlierElsewhere_few": "Інша програма з цією вправою нагадає раніше: після {{count}} тренувань.",
+      "exerciseTryMoreEarlierElsewhere_many": "Інша програма з цією вправою нагадає раніше: після {{count}} тренувань.",
+      "exerciseTryMoreEarlierElsewhere_other": "Інша програма з цією вправою нагадає раніше: після {{count}} тренування."
     },
     "countdown": {
       "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",
