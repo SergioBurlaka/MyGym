@@ -555,7 +555,7 @@
     "progressTitle": "{{done}} of {{total}} without progress",
     "first": "First time",
     "progress": "✓ Progress",
-    "fractionSessions": "{{done}} / {{total}} until adding weight or reps",
-    "fractionDays": "{{done}} / {{total}} days until adding weight or reps"
+    "fractionSessions": "{{done}} / {{total}} to progress",
+    "fractionDays": "{{done}} / {{total}} days to progress"
   }
 }
