@@ -42,10 +42,10 @@ export default function TryMoreStatusBadge({
 
   return (
     <span
-      className="flex items-center gap-2"
+      className="flex min-w-0 items-center gap-2"
       title={t('progressStatus.progressTitle', { done: status.done, total: status.total })}
     >
-      <span className={`whitespace-nowrap text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>{text}</span>
+      <span className={`min-w-0 text-xs ${label === 'fraction' ? 'whitespace-nowrap' : ''} ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>{text}</span>
       <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-surface-border" aria-hidden="true">
         <span className={`block h-full rounded-full ${due ? 'bg-warn' : 'bg-accent'}`} style={{ width: `${percent}%` }} />
       </span>
