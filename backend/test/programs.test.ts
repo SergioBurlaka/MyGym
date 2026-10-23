@@ -158,6 +158,37 @@ describe('try-more slider (sessionsDone)', () => {
     expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 1, suggestion: 'ok' });
   });
 
+  it('ignores a position for an exercise with no history yet', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 3, sessionsDone: 2 }] },
+    });
+    expect(res.statusCode).toBe(201);
+    await logSession(auth, a, '2026-10-01', [8, 8]);
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 0 });
+  });
+
+  it('dragging back to the real count clears the shift', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    for (const date of ['2026-10-01', '2026-10-03', '2026-10-05']) await logSession(auth, a, date, [8, 8]);
+    const body = (sessionsDone: number) => ({
+      name: 'A',
+      exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: 5, sessionsDone }],
+    });
+    const created = await app.inject({ method: 'POST', url: '/api/programs', headers: auth, payload: body(0) });
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 0 });
+
+    await app.inject({ method: 'PUT', url: `/api/programs/${created.json().id}`, headers: auth, payload: body(2) });
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 2 });
+    await logSession(auth, a, '2026-10-07', [8, 8]);
+    expect(await counter(auth, a)).toMatchObject({ sessionsSinceProgress: 3 }); // no leftover shift
+  });
+
   it('rejects an out-of-range position', async () => {
     const { auth } = await registerUser(app);
     const [a] = await exerciseIds(auth);

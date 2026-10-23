@@ -132,8 +132,12 @@ async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<st
   return byExercise;
 }
 
-async function buildHistory(exerciseId: string): Promise<HistoryPoint[]> {
-  const rows = await db
+// `executor` lets a caller inside a transaction read through it (`tx`)
+// instead of taking a second pool connection.
+type Executor = Pick<typeof db, 'select'>;
+
+async function buildHistory(exerciseId: string, executor: Executor = db): Promise<HistoryPoint[]> {
+  const rows = await executor
     .select({
       date: workouts.date,
       weightPerUnitKg: workoutExercises.weightPerUnitKg,
@@ -311,8 +315,12 @@ export function applyCounterShift(
 
 // The shift that makes the counter read `sessionsDone` right now (what the
 // slider was dragged to), or null if the exercise has no history yet.
-export async function computeCounterShift(exerciseId: string, sessionsDone: number): Promise<CounterShift | null> {
-  const lastProgress = findLastProgress(await buildHistory(exerciseId));
+export async function computeCounterShift(
+  exerciseId: string,
+  sessionsDone: number,
+  executor: Executor = db,
+): Promise<CounterShift | null> {
+  const lastProgress = findLastProgress(await buildHistory(exerciseId, executor));
   if (!lastProgress) return null;
   const adjust = sessionsDone - lastProgress.sessionsSince;
   return adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date };

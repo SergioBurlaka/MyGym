@@ -12,7 +12,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 async function applySessionsDone(tx: Tx, input: SaveProgramInput) {
   for (const ex of input.exercises) {
     if (ex.sessionsDone == null) continue;
-    const shift = await computeCounterShift(ex.exerciseId, ex.sessionsDone);
+    const shift = await computeCounterShift(ex.exerciseId, ex.sessionsDone, tx);
     if (!shift) continue;
     await tx
       .update(exercises)
