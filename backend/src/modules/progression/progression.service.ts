@@ -354,8 +354,9 @@ export type HistoryRow = {
   reps: number;
 };
 
-// Pure part of buildHistory: one row per logged set in, one point per
-// workout date out (chronological). Kept DB-free so it can be unit-tested.
+// One exercise's rows from loadHistoryRows in - one row per logged set -
+// one point per workout date out (chronological). Kept DB-free so it can
+// be unit-tested.
 export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
   const byDate = new Map<string, { weightPerUnitKg: string | null; weightUnits: number | null; reps: number[] }>();
   for (const row of rows) {
@@ -369,7 +370,7 @@ export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
   const sorted = [...byDate.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
   // Running bests, walked chronologically, to flag PRs (task 5) - reset per
-  // exercise since buildHistory is called once per exerciseId.
+  // exercise since this is called once per exercise.
   let bestWeightKg: number | null = null;
   let bestReps: number | null = null;
 
@@ -707,7 +708,7 @@ function isoWeekStart(dateStr: string): string {
 
 // Volume per category per ISO week, for the balance-check chart on the
 // Progress page: for weighted exercises, volume = weight * reps per set
-// (sums to the same totalWeightKg * totalReps as buildHistory's volumeKg);
+// (sums to the same totalWeightKg * totalReps as buildHistoryPoints' volumeKg);
 // for bodyweight exercises (no weight logged), volume = reps.
 export async function getVolumeByCategory(userId: string, weeks: number): Promise<WeeklyCategoryVolume[]> {
   const cutoff = new Date();
