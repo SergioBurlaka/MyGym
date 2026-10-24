@@ -19,6 +19,9 @@ export const useSaveWorkoutExercisesMutation = (
     onSuccess: async (data) => {
       queryClient.setQueryData(workoutsKeys.detail(id).queryKey, data);
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      // Another workout's progressAt depends on this one - mark every open
+      // workout page stale (refetched when next shown), without fetching now.
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.detail._def, refetchType: 'none' });
       // The try-more countdowns on the Programs page come from here.
       await queryClient.invalidateQueries({ queryKey: progressionKeys._def });
     },
