@@ -10,6 +10,7 @@ import {
   saveWorkoutExercises,
   updateWorkout,
   listWorkoutTemplates,
+  withProgressAt,
 } from './workouts.service.js';
 
 export default async function workoutsRoutes(fastify: FastifyInstance) {
@@ -66,13 +67,17 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: 'validation_error', issues: parsed.error.issues });
     }
+    let workout: Awaited<ReturnType<typeof saveWorkoutExercises>>;
     try {
-      const workout = await saveWorkoutExercises(request.userId, request.params.id, parsed.data);
-      if (!workout) return reply.code(404).send({ error: 'not_found' });
-      return workout;
+      workout = await saveWorkoutExercises(request.userId, request.params.id, parsed.data);
     } catch (err) {
       return reply.code(400).send({ error: 'invalid_exercises', message: (err as Error).message });
     }
+    if (!workout) return reply.code(404).send({ error: 'not_found' });
+    // Outside the try: a failure here isn't an invalid save - it's committed.
+    return withProgressAt(request.userId, workout, (err) =>
+      request.log.error({ err }, 'progressAt after workout save failed'),
+    );
   });
 
   fastify.post<{ Params: { id: string } }>('/:id/finish', async (request, reply) => {

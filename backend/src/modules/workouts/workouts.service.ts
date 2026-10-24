@@ -394,10 +394,24 @@ export async function saveWorkoutExercises(
       },
     });
   });
-  if (!saved) return null;
-  // After the commit - attachProgressAt reads history through `db`. The
-  // workout page puts this response straight into its cache, so without
-  // progressAt the try-more scale would vanish on every autosave.
-  const [withProgress] = await attachProgressAt(userId, [saved]);
-  return withProgress;
+  return saved ?? null;
+}
+
+// progressAt for a just-saved workout, read after the commit (attachProgressAt
+// goes through `db`). The workout page puts the save response straight into
+// its cache, so without it the try-more scale would vanish on every autosave.
+// The sets are already committed by now: a failed read just leaves the
+// counter off this response instead of reporting the save as failed.
+export async function withProgressAt<W extends Parameters<typeof attachProgressAt>[1][number]>(
+  userId: string,
+  workout: W,
+  onError: (err: unknown) => void,
+) {
+  try {
+    const [withProgress] = await attachProgressAt(userId, [workout]);
+    return withProgress;
+  } catch (err) {
+    onError(err);
+    return workout;
+  }
 }
