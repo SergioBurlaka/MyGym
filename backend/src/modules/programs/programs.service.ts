@@ -2,22 +2,24 @@ import { and, eq, asc, desc, isNotNull, count, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { programs, programExercises, exercises, workouts } from '../../db/schema.js';
 import type { SaveProgramInput } from './programs.schema.js';
-import { computeCounterShift } from '../progression/progression.service.js';
+import { computeCounterShifts } from '../progression/progression.service.js';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Applies the try-more slider positions sent with a program save to the
 // exercises themselves - the counter is per exercise, shared by every
 // program that includes it.
-async function applySessionsDone(tx: Tx, input: SaveProgramInput) {
-  for (const ex of input.exercises) {
-    if (ex.sessionsDone == null) continue;
-    const shift = await computeCounterShift(ex.exerciseId, ex.sessionsDone, tx);
-    if (!shift) continue;
+async function applySessionsDone(tx: Tx, userId: string, input: SaveProgramInput) {
+  const positions = input.exercises.flatMap((ex) =>
+    ex.sessionsDone == null ? [] : [{ exerciseId: ex.exerciseId, sessionsDone: ex.sessionsDone }],
+  );
+  const shifts = await computeCounterShifts(userId, positions, tx);
+  // Still one UPDATE per exercise: each gets its own values.
+  for (const [exerciseId, shift] of shifts) {
     await tx
       .update(exercises)
       .set({ tryMoreCounterAdjust: shift.adjust, tryMoreCounterAnchor: shift.anchor })
-      .where(eq(exercises.id, ex.exerciseId));
+      .where(eq(exercises.id, exerciseId));
   }
 }
 
@@ -102,7 +104,7 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
       })),
     );
 
-    await applySessionsDone(tx, input);
+    await applySessionsDone(tx, userId, input);
 
     // Read back via tx, not the module-level `db` - the inserts above
     // aren't committed yet, so a query on a separate connection wouldn't
@@ -145,7 +147,7 @@ export async function updateProgram(userId: string, programId: string, input: Sa
       })),
     );
 
-    await applySessionsDone(tx, input);
+    await applySessionsDone(tx, userId, input);
 
     return tx.query.programs.findFirst({
       where: eq(programs.id, programId),
