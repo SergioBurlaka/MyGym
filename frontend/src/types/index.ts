@@ -29,8 +29,8 @@ export type WorkoutExercise = {
   orderIndex: number;
   exercise: Exercise;
   sets: SetRow[];
-  // Only on journal listings (GET /api/workouts): the try-more counter as
-  // of this workout.
+  // On the journal listing, a single workout and its save response: the
+  // try-more counter as of this workout.
   progressAt?: WorkoutProgressAt | null;
 };
 

@@ -15,9 +15,13 @@ export const useUpdateWorkoutMutation = (
       const { data } = await WorkoutsApi.update(id, patch);
       return data;
     },
-    onSuccess: async (data) => {
-      queryClient.setQueryData(workoutsKeys.detail(id).queryKey, data);
+    onSuccess: async (data, patch) => {
+      // The response is the bare workout row - keep the cached exercises.
+      queryClient.setQueryData<Workout>(workoutsKeys.detail(id).queryKey, (old) => (old ? { ...old, ...data } : data));
       await Promise.all([
+        // A new date moves the workout on the progress timeline (progressAt);
+        // a label change doesn't, so no refetch racing the autosave then.
+        patch.date !== undefined && queryClient.invalidateQueries({ queryKey: workoutsKeys.detail(id).queryKey }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.templates.queryKey }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.dates._def }),

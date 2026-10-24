@@ -16,6 +16,8 @@ import { labelColor } from '../utils/labelColor.js';
 import { translateApiError } from '../utils/apiError.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
+import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
+import { journalTryMoreStatus } from '../utils/tryMoreCountdown.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 
@@ -118,6 +120,13 @@ export default function WorkoutFormPage() {
   const progressionByExerciseId = useMemo(
     () => new Map(progression.map((p) => [p.exerciseId, p])),
     [progression],
+  );
+  // The try-more counter after this workout, as the journal cards show it -
+  // from the saved state, so it moves with every autosave. An exercise not
+  // saved yet has none.
+  const progressAtByExerciseId = useMemo(
+    () => new Map((workoutQuery.data?.workoutExercises ?? []).map((we) => [we.exerciseId, we.progressAt])),
+    [workoutQuery.data],
   );
   const usedIds = useMemo(() => new Set(blocks.map((b) => b.exerciseId)), [blocks]);
   const availableExercises = exercises.filter((e) => !usedIds.has(e.id));
@@ -422,6 +431,7 @@ export default function WorkoutFormPage() {
           if (!exercise) return null;
           const prog = progressionByExerciseId.get(block.exerciseId);
           const isBodyweight = exercise.category === 'bodyweight';
+          const tryMore = journalTryMoreStatus(progressAtByExerciseId.get(block.exerciseId));
 
           return (
             <div key={block.exerciseId} className="card">
@@ -442,6 +452,12 @@ export default function WorkoutFormPage() {
                   <button className="btn-ghost text-red-400">{t('workout.removeExercise')}</button>
                 </Popconfirm>
               </div>
+
+              {tryMore.kind !== 'unknown' && (
+                <div className="-mt-1 mb-3">
+                  <TryMoreStatusBadge status={tryMore} label="fraction" />
+                </div>
+              )}
 
               <div className="mb-4 flex flex-wrap items-end gap-3">
                 <div>

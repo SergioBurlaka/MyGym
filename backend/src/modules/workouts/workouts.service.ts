@@ -298,8 +298,10 @@ export async function listWorkoutDates(userId: string, from: string, to: string)
   }));
 }
 
+// With progressAt on every exercise, as in the journal - the workout page
+// shows the same try-more scale.
 export async function getWorkout(userId: string, workoutId: string) {
-  return db.query.workouts.findFirst({
+  const workout = await db.query.workouts.findFirst({
     where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
     with: {
       workoutExercises: {
@@ -312,6 +314,9 @@ export async function getWorkout(userId: string, workoutId: string) {
       program: true,
     },
   });
+  if (!workout) return undefined;
+  const [withProgress] = await attachProgressAt(userId, [workout]);
+  return withProgress;
 }
 
 export async function deleteWorkout(userId: string, workoutId: string) {
@@ -331,7 +336,7 @@ export async function saveWorkoutExercises(
   workoutId: string,
   input: SaveWorkoutExercisesInput,
 ) {
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const workout = await tx.query.workouts.findFirst({
       where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
     });
@@ -389,4 +394,24 @@ export async function saveWorkoutExercises(
       },
     });
   });
+  return saved ?? null;
+}
+
+// progressAt for a just-saved workout, read after the commit (attachProgressAt
+// goes through `db`). The workout page puts the save response straight into
+// its cache, so without it the try-more scale would vanish on every autosave.
+// The sets are already committed by now: a failed read just leaves the
+// counter off this response instead of reporting the save as failed.
+export async function withProgressAt<W extends Parameters<typeof attachProgressAt>[1][number]>(
+  userId: string,
+  workout: W,
+  onError: (err: unknown) => void,
+) {
+  try {
+    const [withProgress] = await attachProgressAt(userId, [workout]);
+    return withProgress;
+  } catch (err) {
+    onError(err);
+    return workout;
+  }
 }

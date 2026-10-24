@@ -22,6 +22,9 @@ export const useCreateProgramMutation = (): UseMutationResult<Program, Error, Sa
       await queryClient.invalidateQueries({ queryKey: progressionKeys.list.queryKey });
       // Journal cards carry progressAt, judged by program thresholds.
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      // Workout pages' progressAt depends on program thresholds - mark them
+      // stale (refetched when next shown), without fetching now.
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.detail._def, refetchType: 'none' });
     },
   });
 };

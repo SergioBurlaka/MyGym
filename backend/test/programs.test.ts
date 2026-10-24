@@ -301,6 +301,40 @@ describe('journal progressAt', () => {
     expect(shifted.get(day(-8))).toMatchObject({ sessionsSinceProgress: 0 });
   });
 
+  it('comes with a single workout and with its save response', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    await logWorkout(auth, day(-4), a, [8, 8]);
+    const started = await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: { date: day(-2) } });
+    const id = started.json().id as string;
+
+    function save(reps: number[]) {
+      return app.inject({
+        method: 'PUT',
+        url: `/api/workouts/${id}/exercises`,
+        headers: auth,
+        payload: {
+          exercises: [
+            { exerciseId: a, weightPerUnitKg: 20, weightUnits: 2, sets: reps.map((r, i) => ({ setNumber: i + 1, reps: r })) },
+          ],
+        },
+      });
+    }
+
+    // Same as last time -> no progress yet; the response already counts it.
+    const same = await save([8, 8]);
+    expect(same.statusCode).toBe(200);
+    expect(same.json().workoutExercises[0].progressAt).toMatchObject({ isProgress: false, sessionsSinceProgress: 1 });
+
+    // One more rep -> progress, as soon as it's saved.
+    const better = await save([8, 9]);
+    expect(better.json().workoutExercises[0].progressAt).toMatchObject({ isProgress: true, sessionsSinceProgress: 0 });
+
+    const fetched = await app.inject({ method: 'GET', url: `/api/workouts/${id}`, headers: auth });
+    expect(fetched.statusCode).toBe(200);
+    expect(fetched.json().workoutExercises[0].progressAt).toMatchObject({ isProgress: true, sessionsSinceProgress: 0 });
+  });
+
   it('shows the count, not "first time", once the slider moved the latest session', async () => {
     const { auth } = await registerUser(app);
     const [a] = await exerciseIds(auth);
