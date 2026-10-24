@@ -1,0 +1,2 @@
+ALTER TABLE "workout_exercises" DROP CONSTRAINT "workout_exercises_weight_units_check";--> statement-breakpoint
+ALTER TABLE "workout_exercises" ADD CONSTRAINT "workout_exercises_weight_units_check" CHECK ("workout_exercises"."weight_units" IS NULL OR ("workout_exercises"."weight_units" IN (1, 2) AND "workout_exercises"."weight_per_unit_kg" IS NOT NULL));

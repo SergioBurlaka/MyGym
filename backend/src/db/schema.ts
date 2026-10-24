@@ -337,10 +337,11 @@ export const workoutExercises = pgTable('workout_exercises', {
   workoutIdx: index('workout_exercises_workout_idx').on(table.workoutId),
   exerciseIdx: index('workout_exercises_exercise_idx').on(table.exerciseId),
   weightCheck: check('workout_exercises_weight_check', sql`${table.weightPerUnitKg} BETWEEN 0 AND 500`),
-  // No weight -> no units; with weight, 1 or 2 units.
+  // Units are 1 or 2, and only with a weight. A weight without units is
+  // allowed - old rows have it, readers fall back to 2.
   weightUnitsCheck: check(
     'workout_exercises_weight_units_check',
-    sql`(${table.weightPerUnitKg} IS NULL AND ${table.weightUnits} IS NULL) OR ${table.weightUnits} IN (1, 2)`,
+    sql`${table.weightUnits} IS NULL OR (${table.weightUnits} IN (1, 2) AND ${table.weightPerUnitKg} IS NOT NULL)`,
   ),
 }));
 
