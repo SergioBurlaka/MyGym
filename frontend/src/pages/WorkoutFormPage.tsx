@@ -328,8 +328,13 @@ export default function WorkoutFormPage() {
             )}
           </div>
           <p className="text-sm text-slate-400">
-            {workout.timeEnd ? t('workout.finishedDuration', { duration: duration ?? '—' }) : t('workout.inProgress')}
+            {workout.timeEnd
+              ? t(workout.autoFinished ? 'workout.autoFinishedDuration' : 'workout.finishedDuration', {
+                  duration: duration ?? '—',
+                })
+              : t('workout.inProgress')}
           </p>
+          {workout.autoFinished && <p className="text-xs text-slate-500">{t('workout.autoFinishedHint')}</p>}
           <div className="mt-2 flex items-center gap-2">
             <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
               {t('workout.nameLabel')}

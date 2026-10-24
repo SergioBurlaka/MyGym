@@ -88,7 +88,8 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
     'finish_workout',
     {
       title: 'Finish workout',
-      description: 'Marks the workout as finished (records its end time).',
+      description:
+        'Marks the workout as finished (records its end time). An already finished workout is returned unchanged. A workout nobody finishes closes itself 1.5 hours after its last change (autoFinished: true).',
       inputSchema: { workoutId: id },
     },
     async ({ workoutId }) => apiResult(() => api.post(`/workouts/${workoutId}/finish`)),

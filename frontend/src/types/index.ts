@@ -53,6 +53,8 @@ export type Workout = {
   date: string;
   timeStart: string | null;
   timeEnd: string | null;
+  // timeEnd was set by the server after 1.5 hours without activity.
+  autoFinished: boolean;
   programLabel: string | null;
   programId: string | null;
   // Only present (non-null) while the linked Program still exists.

@@ -141,6 +141,13 @@
       "when": 1792770389917,
       "tag": "0019_deferrable_exercise_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792798451906,
+      "tag": "0020_workout_auto_finished",
+      "breakpoints": true
     }
   ]
 }

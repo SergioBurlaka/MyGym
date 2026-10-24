@@ -128,6 +128,12 @@ export default function DashboardPage() {
                 </span>
                 <span className="text-xs text-slate-400">
                   {duration ?? (w.timeEnd ? '' : t('dashboard.inProgress'))}
+                  {w.autoFinished && (
+                    <span title={t('workout.autoFinishedHint')}>
+                      {duration ? ' · ' : ''}
+                      {t('dashboard.autoFinished')}
+                    </span>
+                  )}
                 </span>
               </div>
               {w.workoutExercises.length === 0 ? (
@@ -372,13 +378,21 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
         </div>
       )}
 
-      {duration && (
+      {(duration || workout.autoFinished) && (
         <div className="flex items-center gap-2 border-t border-surface-border pt-2.5 text-xs text-slate-400">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M12 7v5l3 2" />
           </svg>
-          <span>{duration}</span>
+          <span>
+            {duration}
+            {workout.autoFinished && (
+              <span title={t('workout.autoFinishedHint')}>
+                {duration ? ' · ' : ''}
+                {t('dashboard.autoFinished')}
+              </span>
+            )}
+          </span>
         </div>
       )}
     </div>
