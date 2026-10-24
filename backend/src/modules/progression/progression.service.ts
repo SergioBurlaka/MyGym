@@ -315,9 +315,19 @@ const HISTORY_ORDER = [asc(workouts.date), asc(workouts.createdAt), asc(workoutE
 // instead of taking a second pool connection.
 type Executor = Pick<typeof db, 'select' | 'selectDistinct'>;
 
-async function buildHistory(exerciseId: string, executor: Executor = db): Promise<HistoryPoint[]> {
+// One query for the logged sets of several exercises, grouped by exercise
+// (in HISTORY_ORDER within each) - instead of one query per exercise.
+async function loadHistoryRows(
+  userId: string,
+  exerciseIds: string[],
+  executor: Executor = db,
+): Promise<Map<string, HistoryRow[]>> {
+  const byExercise = new Map<string, HistoryRow[]>();
+  if (exerciseIds.length === 0) return byExercise;
+
   const rows = await executor
     .select({
+      exerciseId: workoutExercises.exerciseId,
       date: workouts.date,
       weightPerUnitKg: workoutExercises.weightPerUnitKg,
       weightUnits: workoutExercises.weightUnits,
@@ -326,10 +336,15 @@ async function buildHistory(exerciseId: string, executor: Executor = db): Promis
     .from(workoutExercises)
     .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
     .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
-    .where(eq(workoutExercises.exerciseId, exerciseId))
+    .where(and(eq(workouts.userId, userId), inArray(workoutExercises.exerciseId, exerciseIds)))
     .orderBy(...HISTORY_ORDER);
 
-  return buildHistoryPoints(rows);
+  for (const { exerciseId, ...row } of rows) {
+    const list = byExercise.get(exerciseId);
+    if (list) list.push(row);
+    else byExercise.set(exerciseId, [row]);
+  }
+  return byExercise;
 }
 
 export type HistoryRow = {
@@ -426,20 +441,8 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
     return rows.map((w) => ({ ...w, workoutExercises: w.workoutExercises.map((we) => ({ ...we, progressAt: null })) }));
   }
 
-  const [historyRows, peRows, smallestThresholds, workoutDates, today] = await Promise.all([
-    db
-      .select({
-        exerciseId: workoutExercises.exerciseId,
-        date: workouts.date,
-        weightPerUnitKg: workoutExercises.weightPerUnitKg,
-        weightUnits: workoutExercises.weightUnits,
-        reps: sets.reps,
-      })
-      .from(workoutExercises)
-      .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
-      .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
-      .where(and(eq(workouts.userId, userId), inArray(workoutExercises.exerciseId, exerciseIds)))
-      .orderBy(...HISTORY_ORDER),
+  const [rowsByExercise, peRows, smallestThresholds, workoutDates, today] = await Promise.all([
+    loadHistoryRows(userId, exerciseIds),
     programIds.length > 0
       ? db
           .select({
@@ -457,11 +460,6 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
     getUserToday(userId),
   ]);
 
-  const rowsByExercise = new Map<string, HistoryRow[]>();
-  for (const row of historyRows) {
-    if (!rowsByExercise.has(row.exerciseId)) rowsByExercise.set(row.exerciseId, []);
-    rowsByExercise.get(row.exerciseId)!.push(row);
-  }
   const programThresholds = new Map<string, number | null>();
   for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.exerciseValue ?? r.programValue);
 
@@ -519,7 +517,8 @@ export async function getExerciseHistory(userId: string, exerciseId: string): Pr
     where: and(eq(exercises.id, exerciseId), eq(exercises.userId, userId)),
   });
   if (!exercise) return [];
-  return buildHistory(exerciseId);
+  const rows = await loadHistoryRows(userId, [exerciseId]);
+  return buildHistoryPoints(rows.get(exerciseId) ?? []);
 }
 
 export async function getProgressionOverview(userId: string): Promise<ExerciseProgression[]> {
@@ -528,7 +527,8 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     orderBy: (ex, { asc: ascOrder }) => [ascOrder(ex.name)],
   });
 
-  const [tryMoreAfterWorkoutsByExercise, workoutDates, today] = await Promise.all([
+  const [rowsByExercise, tryMoreAfterWorkoutsByExercise, workoutDates, today] = await Promise.all([
+    loadHistoryRows(userId, userExercises.map((ex) => ex.id)),
     getTryMoreAfterWorkoutsByExercise(userId),
     getWorkoutDates(userId),
     getUserToday(userId),
@@ -538,7 +538,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
   const results: ExerciseProgression[] = [];
 
   for (const ex of userExercises) {
-    const history = await buildHistory(ex.id);
+    const history = buildHistoryPoints(rowsByExercise.get(ex.id) ?? []);
     const weightStepKg = Number(ex.weightStepKg);
     const fromPrograms = tryMoreAfterWorkoutsByExercise.get(ex.id);
     const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(fromPrograms, ex.category);
@@ -627,25 +627,27 @@ export function applyCounterShift(
   return Math.max(0, lastProgress.sessionsSince + shift.adjust);
 }
 
-// The shift that makes the counter read `sessionsDone` right now (what the
-// slider was dragged to), or null if the exercise has no history yet.
-export async function computeCounterShift(
-  exerciseId: string,
-  sessionsDone: number,
+// The shift that makes each exercise's counter read its `sessionsDone`
+// right now (where the slider was dragged to). Exercises with no history
+// yet are left out. The caller has checked the exercises are the user's.
+export async function computeCounterShifts(
+  userId: string,
+  positions: { exerciseId: string; sessionsDone: number }[],
   executor: Executor = db,
-): Promise<CounterShift | null> {
-  const [exercise] = await executor
-    .select({ userId: exercises.userId })
-    .from(exercises)
-    .where(eq(exercises.id, exerciseId));
-  if (!exercise) return null;
+): Promise<Map<string, CounterShift>> {
+  const shifts = new Map<string, CounterShift>();
+  if (positions.length === 0) return shifts;
   // Sequential: `executor` may be a transaction (one connection).
-  const workoutDates = await getWorkoutDates(exercise.userId, executor);
-  const today = await getUserToday(exercise.userId, executor);
-  const lastProgress = findLastProgress(await buildHistory(exerciseId, executor), workoutDates, today);
-  if (!lastProgress) return null;
-  const adjust = sessionsDone - lastProgress.sessionsSince;
-  return adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date };
+  const workoutDates = await getWorkoutDates(userId, executor);
+  const today = await getUserToday(userId, executor);
+  const rowsByExercise = await loadHistoryRows(userId, positions.map((p) => p.exerciseId), executor);
+  for (const { exerciseId, sessionsDone } of positions) {
+    const lastProgress = findLastProgress(buildHistoryPoints(rowsByExercise.get(exerciseId) ?? []), workoutDates, today);
+    if (!lastProgress) continue;
+    const adjust = sessionsDone - lastProgress.sessionsSince;
+    shifts.set(exerciseId, adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date });
+  }
+  return shifts;
 }
 
 // The progression rules (see README "Progression logic"), DB-free:
