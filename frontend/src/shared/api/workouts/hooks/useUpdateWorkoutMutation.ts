@@ -16,8 +16,11 @@ export const useUpdateWorkoutMutation = (
       return data;
     },
     onSuccess: async (data) => {
-      queryClient.setQueryData(workoutsKeys.detail(id).queryKey, data);
+      // The response is the bare workout row - keep the cached exercises.
+      queryClient.setQueryData<Workout>(workoutsKeys.detail(id).queryKey, (old) => (old ? { ...old, ...data } : data));
       await Promise.all([
+        // A new date moves the workout on the progress timeline (progressAt).
+        queryClient.invalidateQueries({ queryKey: workoutsKeys.detail(id).queryKey }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.templates.queryKey }),
         queryClient.invalidateQueries({ queryKey: workoutsKeys.dates._def }),
