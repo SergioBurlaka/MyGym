@@ -109,6 +109,27 @@ describe('start a workout from a program', () => {
     ]);
   });
 
+  it('skips a later entry with no sets (copied from a template, never logged)', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    await logWorkout(auth, day(-3), [{ exerciseId: a, weightPerUnitKg: 20, weightUnits: 2, reps: [8, 7] }]);
+    const workouts = await app.inject({ method: 'GET', url: '/api/workouts', headers: auth });
+    const sourceId = (workouts.json() as { data: { id: string }[] }).data[0].id;
+    // A template copy carries the exercise and weight, but no sets.
+    const copied = await app.inject({
+      method: 'POST',
+      url: '/api/workouts',
+      headers: auth,
+      payload: { date: day(-1), copyFromWorkoutId: sourceId },
+    });
+    expect(copied.statusCode).toBe(201);
+
+    const program = await createProgram(auth, [{ exerciseId: a, targetSets: 2 }]);
+    expect((await startFromProgram(auth, program.id)).map(shape)).toEqual([
+      { exerciseId: a, weightPerUnitKg: 20, weightUnits: 2, reps: [[1, 8], [2, 7]] },
+    ]);
+  });
+
   it("never takes another user's history", async () => {
     const owner = await registerUser(app);
     const other = await registerUser(app);
