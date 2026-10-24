@@ -1,4 +1,4 @@
-import { and, eq, desc, count, isNotNull, gte, lte, asc, inArray } from 'drizzle-orm';
+import { and, eq, desc, count, isNotNull, gte, lte, asc, inArray, exists, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
@@ -18,6 +18,8 @@ type LatestEntry = { weightPerUnitKg: string | null; weightUnits: number | null;
 // instead of blanks or a stale "starting weight" set once in the program.
 // Two queries for all exercises: the latest row of each (DISTINCT ON), then
 // their sets. An exercise twice in one workout: the one lower in the list.
+// Only entries with sets count - one added but never logged (or copied from
+// a template, which carries no sets) would prefill every set with 0 reps.
 async function findLatestWorkoutExercises(userId: string, exerciseIds: string[]): Promise<Map<string, LatestEntry>> {
   const byExercise = new Map<string, LatestEntry>();
   if (exerciseIds.length === 0) return byExercise;
@@ -31,7 +33,13 @@ async function findLatestWorkoutExercises(userId: string, exerciseIds: string[])
     })
     .from(workoutExercises)
     .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
-    .where(and(eq(workouts.userId, userId), inArray(workoutExercises.exerciseId, exerciseIds)))
+    .where(
+      and(
+        eq(workouts.userId, userId),
+        inArray(workoutExercises.exerciseId, exerciseIds),
+        exists(db.select({ one: sql`1` }).from(sets).where(eq(sets.workoutExerciseId, workoutExercises.id))),
+      ),
+    )
     .orderBy(
       workoutExercises.exerciseId,
       desc(workouts.date),
