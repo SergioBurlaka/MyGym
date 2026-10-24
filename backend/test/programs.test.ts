@@ -368,3 +368,34 @@ describe('program exercises', () => {
     expect(res.json()).toMatchObject({ error: 'validation_error', issues: [{ message: 'duplicate_exercise' }] });
   });
 });
+
+describe('renaming a program', () => {
+  it('renames the label of its workouts, except hand-edited ones and other workouts', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const exercises = [{ exerciseId: a, targetSets: 1 }];
+    const created = await app.inject({ method: 'POST', url: '/api/programs', headers: auth, payload: { name: 'А', exercises } });
+    const programId = created.json().id as string;
+
+    const start = async (payload: Record<string, unknown>) =>
+      (await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload })).json().id as string;
+    const fromProgram = await start({ programId });
+    const handEdited = await start({ programId });
+    await app.inject({ method: 'PATCH', url: `/api/workouts/${handEdited}`, headers: auth, payload: { programLabel: 'А-легке' } });
+    const sameLabelNoProgram = await start({ programLabel: 'А' });
+
+    const renamed = await app.inject({
+      method: 'PUT',
+      url: `/api/programs/${programId}`,
+      headers: auth,
+      payload: { name: 'Ноги', exercises },
+    });
+    expect(renamed.statusCode).toBe(200);
+
+    const label = async (id: string) =>
+      (await app.inject({ method: 'GET', url: `/api/workouts/${id}`, headers: auth })).json().programLabel;
+    expect(await label(fromProgram)).toBe('Ноги');
+    expect(await label(handEdited)).toBe('А-легке');
+    expect(await label(sameLabelNoProgram)).toBe('А');
+  });
+});

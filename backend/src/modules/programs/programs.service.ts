@@ -135,6 +135,19 @@ export async function updateProgram(userId: string, programId: string, input: Sa
       .update(programs)
       .set({ name: input.name, tryMoreAfterWorkouts: input.tryMoreAfterWorkouts ?? null })
       .where(eq(programs.id, programId));
+
+    // Starting from a program copies its name into the workout's label, so a
+    // rename would leave older cards under the old name (and colour). Carry it
+    // over - but only where the label is still that copy, not hand-edited.
+    if (input.name !== existing.name) {
+      await tx
+        .update(workouts)
+        .set({ programLabel: input.name })
+        .where(
+          and(eq(workouts.userId, userId), eq(workouts.programId, programId), eq(workouts.programLabel, existing.name)),
+        );
+    }
+
     await tx.delete(programExercises).where(eq(programExercises.programId, programId));
 
     await tx.insert(programExercises).values(

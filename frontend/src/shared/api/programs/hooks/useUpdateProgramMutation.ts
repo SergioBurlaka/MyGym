@@ -22,8 +22,9 @@ export const useUpdateProgramMutation = (
       await queryClient.invalidateQueries({ queryKey: programsKeys.suggestion.queryKey });
       // The try-more countdowns on the Programs page come from here.
       await queryClient.invalidateQueries({ queryKey: progressionKeys.list.queryKey });
-      // Journal cards carry progressAt, judged by program thresholds.
-      await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      // Journal cards carry progressAt, judged by program thresholds; a rename
+      // also relabels the program's workouts (journal, calendar, templates).
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys._def });
     },
   });
 };
