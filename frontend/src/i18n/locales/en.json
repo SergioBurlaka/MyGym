@@ -333,7 +333,9 @@
     "google_account_mismatch": "This email is already linked to a different Google account",
     "session_required": "Log in to manage access tokens",
     "too_many_tokens": "Too many active tokens - revoke one you no longer use",
-    "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app."
+    "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app.",
+    "exercise_name_taken": "An exercise with this name already exists.",
+    "rep_range_invalid": "Max. reps must be at least min. reps."
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
