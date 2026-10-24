@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import type { Exercise } from '../../../../types/index.js';
 import { ExercisesApi } from '../exercises.api.js';
 import { exercisesKeys } from '../exercises.keys.js';
+import { progressionKeys } from '../../progression/progression.keys.js';
 import type { CreateExerciseBody } from '../exercises.types.js';
 
 export const useCreateExerciseMutation = (): UseMutationResult<Exercise, Error, CreateExerciseBody> => {
@@ -15,6 +16,8 @@ export const useCreateExerciseMutation = (): UseMutationResult<Exercise, Error, 
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: exercisesKeys.list.queryKey });
+      // Re-creating an archived exercise's name brings it back with its history.
+      await queryClient.invalidateQueries({ queryKey: progressionKeys.list.queryKey });
     },
   });
 };
