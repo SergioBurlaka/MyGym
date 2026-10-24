@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
   boolean,
+  check,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -53,6 +54,9 @@ export const users = pgTable('users', {
   emailIdx: uniqueIndex('users_email_idx').on(sql`lower(${table.email})`),
   googleSubIdx: uniqueIndex('users_google_sub_idx').on(table.googleSub),
   calendarFeedTokenIdx: uniqueIndex('users_calendar_feed_token_idx').on(table.calendarFeedTokenHash),
+  // Mirrors the settings Zod schema; the DB checks too so data coming in some
+  // other way (MCP, import, manual SQL) can't break the invariants.
+  trainingDurationCheck: check('users_training_duration_min_check', sql`${table.trainingDurationMin} BETWEEN 15 AND 300`),
 }));
 
 export const refreshTokens = pgTable('refresh_tokens', {
@@ -88,6 +92,8 @@ export const apiTokens = pgTable('api_tokens', {
   tokenHashIdx: uniqueIndex('api_tokens_token_hash_idx').on(table.tokenHash),
   userIdx: index('api_tokens_user_idx').on(table.userId),
   grantIdx: index('api_tokens_grant_idx').on(table.grantId),
+  // Either a PAT (no grant, no expiry) or an OAuth access token (both).
+  kindCheck: check('api_tokens_kind_check', sql`(${table.grantId} IS NULL) = (${table.expiresAt} IS NULL)`),
 }));
 
 // ---------- OAuth (MCP clients signing in: Claude, ChatGPT) ----------
@@ -213,6 +219,14 @@ export const exercises = pgTable('exercises', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('exercises_user_idx').on(table.userId),
+  // Archived ones included: CSV import and exercise creation match names
+  // case-insensitively across all of a user's exercises.
+  userNameIdx: uniqueIndex('exercises_user_name_idx').on(table.userId, sql`lower(btrim(${table.name}))`),
+  repRangeCheck: check(
+    'exercises_rep_range_check',
+    sql`${table.repRangeMin} >= 1 AND ${table.repRangeMax} <= 100 AND ${table.repRangeMin} <= ${table.repRangeMax}`,
+  ),
+  weightStepCheck: check('exercises_weight_step_check', sql`${table.weightStepKg} BETWEEN 0 AND 50`),
 }));
 
 // ---------- programs ----------
@@ -236,6 +250,7 @@ export const programs = pgTable('programs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('programs_user_idx').on(table.userId),
+  tryMoreCheck: check('programs_try_more_check', sql`${table.tryMoreAfterWorkouts} BETWEEN 1 AND 60`),
 }));
 
 export const programExercises = pgTable('program_exercises', {
@@ -261,6 +276,12 @@ export const programExercises = pgTable('program_exercises', {
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({
   programIdx: index('program_exercises_program_idx').on(table.programId),
+  // The program form keys rows by exerciseId - a duplicate would break it.
+  programExerciseIdx: uniqueIndex('program_exercises_program_exercise_idx').on(table.programId, table.exerciseId),
+  // FK lookups when an exercise is deleted, and the threshold joins.
+  exerciseIdx: index('program_exercises_exercise_idx').on(table.exerciseId),
+  targetSetsCheck: check('program_exercises_target_sets_check', sql`${table.targetSets} BETWEEN 1 AND 20`),
+  tryMoreCheck: check('program_exercises_try_more_check', sql`${table.tryMoreAfterWorkouts} BETWEEN 1 AND 60`),
 }));
 
 // ---------- workouts ----------
@@ -306,13 +327,22 @@ export const workoutExercises = pgTable('workout_exercises', {
   weightPerUnitKg: numeric('weight_per_unit_kg', { precision: 6, scale: 2 }),
   // How many units the weight applies to - normally 2 (both dumbbells / both
   // sides of the bar). Null when weightPerUnitKg is null.
-  weightUnits: smallint('weight_units').default(2),
+  // No default: every insert sets it explicitly (null without weight), and a
+  // default of 2 would break the weight_units check for a bodyweight row.
+  weightUnits: smallint('weight_units'),
   orderIndex: smallint('order_index').notNull().default(0),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   workoutIdx: index('workout_exercises_workout_idx').on(table.workoutId),
   exerciseIdx: index('workout_exercises_exercise_idx').on(table.exerciseId),
+  weightCheck: check('workout_exercises_weight_check', sql`${table.weightPerUnitKg} BETWEEN 0 AND 500`),
+  // Units are 1 or 2, and only with a weight. A weight without units is
+  // allowed - old rows have it, readers fall back to 2.
+  weightUnitsCheck: check(
+    'workout_exercises_weight_units_check',
+    sql`${table.weightUnits} IS NULL OR (${table.weightUnits} IN (1, 2) AND ${table.weightPerUnitKg} IS NOT NULL)`,
+  ),
 }));
 
 export const sets = pgTable('sets', {
@@ -324,6 +354,8 @@ export const sets = pgTable('sets', {
 }, (table) => ({
   workoutExerciseIdx: index('sets_workout_exercise_idx').on(table.workoutExerciseId),
   uniqueSetNumber: uniqueIndex('sets_workout_exercise_set_number_idx').on(table.workoutExerciseId, table.setNumber),
+  repsCheck: check('sets_reps_check', sql`${table.reps} BETWEEN 0 AND 200`),
+  setNumberCheck: check('sets_set_number_check', sql`${table.setNumber} >= 1`),
 }));
 
 // ---------- relations (for query API convenience) ----------

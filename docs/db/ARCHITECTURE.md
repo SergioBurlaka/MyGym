@@ -69,7 +69,7 @@ erDiagram
     program_exercises {
         uuid id PK
         uuid program_id FK
-        uuid exercise_id FK
+        uuid exercise_id FK "unique (program_id, exercise_id)"
         smallint target_sets
         smallint order_index
     }
@@ -88,7 +88,7 @@ erDiagram
         uuid workout_id FK
         uuid exercise_id FK
         numeric weight_per_unit_kg "null = без ваги"
-        smallint weight_units "зазвичай 2"
+        smallint weight_units "1 або 2, лише з вагою"
         smallint order_index
         text notes
     }
@@ -207,7 +207,8 @@ dimension (type 2)**: замість перезапису історії дод�
 
 - `weight_per_unit_kg` — вага **однієї** гантелі або дисків з **одного** боку
   грифа, без самого грифа (як у CSV-таблиці: `2*20`).
-- `weight_units` — скільки таких одиниць, зазвичай 2.
+- `weight_units` — скільки таких одиниць, 1 або 2 (зазвичай 2). Default у БД
+  немає (з міграції 0021): бекенд завжди пише його явно, а без ваги — `null`.
 - Загальна вага = `weight_per_unit_kg × weight_units`. Обсяг = вага × сума повторень.
 - `weight_per_unit_kg IS NULL` означає безвагову вправу.
 
@@ -237,6 +238,34 @@ dimension (type 2)**: замість перезапису історії дод�
 історії чи програмі, — так само помилка `23503`. Drizzle не вміє `DEFERRABLE`, тому
 його дописано в міграцію вручну.
 
+## Обмеження (CHECK і UNIQUE, міграції 0021–0022)
+
+Межі значень дублюють Zod-схеми API, щоб некоректні дані не потрапили в БД і
+повз API (ручний SQL, майбутній код, MCP). Перевірено на проді перед міграцією:
+порушень 0, дублікатів назв 0.
+
+| Обмеження | Правило |
+|---|---|
+| `users_training_duration_min_check` | 15…300 хв |
+| `api_tokens_kind_check` | `grant_id` і `expires_at` або обидва є (OAuth-токен), або обох нема (PAT) |
+| `exercises_user_name_idx` UNIQUE | `(user_id, lower(btrim(name)))` — **разом з архівними** |
+| `exercises_rep_range_check` | `1 ≤ min ≤ max ≤ 100` |
+| `exercises_weight_step_check` | 0…50 кг |
+| `programs_try_more_check`, `program_exercises_try_more_check` | 1…60 (або `null`) |
+| `program_exercises_program_exercise_idx` UNIQUE | одна вправа — один раз у програмі |
+| `program_exercises_target_sets_check` | 1…20 |
+| `workout_exercises_weight_check` | 0…500 кг |
+| `workout_exercises_weight_units_check` | `units` — `null` або 1/2 **лише з вагою**; вага без `units` дозволена (старі рядки, читачі беруть 2) |
+| `sets_reps_check`, `sets_set_number_check` | повторення 0…200, номер підходу ≥ 1 |
+
+Унікальна назва вправи разом з архівними: інакше `UNIQUE` довелося б робити
+частковим (`WHERE archived_at IS NULL`), і після архівування з'являлися б дві
+однойменні вправи з окремими історіями. Тому створення вправи з назвою
+архівної **відновлює** ту саму вправу (той самий id, нові параметри,
+`archived_at = null`) разом з історією; назва активної → 409
+`exercise_name_taken`. Бекенд ловить `23505` (`utils/pgErrors.ts`) і на гонці
+двох створень.
+
 ## Індекси
 
 | Індекс | Під який запит |
@@ -246,6 +275,7 @@ dimension (type 2)**: замість перезапису історії дод�
 | `workouts_user_label_idx` `(user_id, program_label)` | `GET /workouts/templates`: останнє тренування на кожну мітку |
 | `workout_exercises_exercise_idx` | історія й графік прогресу однієї вправи, «останнє виконання вправи» |
 | `workout_exercises_workout_idx`, `sets_workout_exercise_idx`, `program_exercises_program_idx` | завантаження дочірніх рядків |
+| `program_exercises_exercise_idx` | у яких програмах вправа (поріг `try_more`), перевірка FK при видаленні вправи |
 | `*_user_idx` | списки «все моє» (вправи, програми, токени, історія розкладу) |
 
 Postgres **не створює** індекси на FK-колонках автоматично (на відміну від

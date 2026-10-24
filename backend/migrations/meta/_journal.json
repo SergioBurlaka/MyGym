@@ -148,6 +148,20 @@
       "when": 1792798451906,
       "tag": "0020_workout_auto_finished",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792841783881,
+      "tag": "0021_integrity_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792846656688,
+      "tag": "0022_weight_units_need_weight",
+      "breakpoints": true
     }
   ]
 }

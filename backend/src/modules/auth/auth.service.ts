@@ -3,6 +3,7 @@ import { db } from '../../db/client.js';
 import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
 import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
+import { isUniqueViolation } from '../../utils/pgErrors.js';
 import type { GoogleProfile } from './google.client.js';
 import {
   signAccessToken,
@@ -17,14 +18,6 @@ export class AuthError extends Error {
   }
 }
 
-// Postgres unique_violation - see isUniqueViolation below.
-const PG_UNIQUE_VIOLATION = '23505';
-
-function isUniqueViolation(err: unknown): boolean {
-  // drizzle wraps driver errors, so the pg error may sit on `cause`.
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e?.code === PG_UNIQUE_VIOLATION || e?.cause?.code === PG_UNIQUE_VIOLATION;
-}
 
 // Creates a user with everything a fresh account starts with. Shared by
 // password registration and the first Google sign-in.

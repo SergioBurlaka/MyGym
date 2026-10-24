@@ -37,6 +37,10 @@ function parseSheetDate(raw: string): string | null {
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
+// Same bounds as the API and the DB checks (workout_exercises_*_check, sets_reps_check).
+const MAX_WEIGHT_PER_UNIT_KG = 500;
+const MAX_REPS = 200;
+
 // "2*16.25" -> { units: 2, perUnit: 16.25 }; "20" -> { units: 1, perUnit: 20 }
 function parseWeightCell(raw: string): { units: number; perUnit: number } | null {
   const trimmed = raw.trim();
@@ -98,6 +102,24 @@ export function parseWorkoutCsv(fileContent: string): { workouts: ParsedWorkout[
       if (isBlank(repsRaw)) continue;
       const reps = Number(String(repsRaw).trim());
       if (!Number.isFinite(reps)) continue;
+      // A typo the DB checks would refuse: skip the cell instead of failing the import.
+      if (!Number.isInteger(reps) || reps < 0 || reps > MAX_REPS) {
+        rowsSkipped++;
+        continue;
+      }
+
+      let parsedWeight: { units: number; perUnit: number } | null = null;
+      const weightRaw = col.hasWeight && col.weightIdx !== null ? row[col.weightIdx] : undefined;
+      if (!isBlank(weightRaw)) {
+        parsedWeight = parseWeightCell(String(weightRaw));
+        if (
+          parsedWeight &&
+          (![1, 2].includes(parsedWeight.units) || parsedWeight.perUnit < 0 || parsedWeight.perUnit > MAX_WEIGHT_PER_UNIT_KG)
+        ) {
+          rowsSkipped++;
+          continue;
+        }
+      }
 
       let entry = current.exercisesByName.get(col.name);
       if (!entry) {
@@ -106,15 +128,9 @@ export function parseWorkoutCsv(fileContent: string): { workouts: ParsedWorkout[
       }
       entry.sets.push({ setNumber, reps });
 
-      if (col.hasWeight && col.weightIdx !== null && entry.weightPerUnitKg === null) {
-        const weightRaw = row[col.weightIdx];
-        if (!isBlank(weightRaw)) {
-          const parsedWeight = parseWeightCell(String(weightRaw));
-          if (parsedWeight) {
-            entry.weightPerUnitKg = parsedWeight.perUnit;
-            entry.weightUnits = parsedWeight.units;
-          }
-        }
+      if (parsedWeight && entry.weightPerUnitKg === null) {
+        entry.weightPerUnitKg = parsedWeight.perUnit;
+        entry.weightUnits = parsedWeight.units;
       }
     }
   }

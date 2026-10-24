@@ -353,3 +353,18 @@ describe('journal progressAt', () => {
     expect(res.json().data[0].workoutExercises).toEqual([]);
   });
 });
+
+describe('program exercises', () => {
+  it('refuses the same exercise twice with a validation error, not a SQL one', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 3 }, { exerciseId: a, targetSets: 2 }] },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({ error: 'validation_error', issues: [{ message: 'duplicate_exercise' }] });
+  });
+});
