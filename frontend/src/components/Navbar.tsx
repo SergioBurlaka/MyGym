@@ -21,7 +21,7 @@ function initials(email: string): string {
 
 const mobileLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-    isActive ? 'bg-accent text-white' : 'text-slate-300 hover:text-white hover:bg-surface-raised'
+    isActive ? 'bg-accent text-surface' : 'text-slate-300 hover:text-white hover:bg-surface-raised'
   }`;
 
 export default function Navbar() {

@@ -343,7 +343,7 @@ export default function WorkoutFormPage() {
                 })
               : t('workout.inProgress')}
           </p>
-          {workout.autoFinished && <p className="text-xs text-slate-500">{t('workout.autoFinishedHint')}</p>}
+          {workout.autoFinished && <p className="text-xs text-slate-400">{t('workout.autoFinishedHint')}</p>}
           <div className="mt-2 flex items-center gap-2">
             <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
               {t('workout.nameLabel')}
@@ -498,7 +498,7 @@ export default function WorkoutFormPage() {
               <div className="flex flex-wrap gap-2">
                 {block.sets.map((s, i) => (
                   <div key={i} className="flex items-center gap-1">
-                    <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
+                    <span className="w-5 text-center text-xs text-slate-400">{i + 1}</span>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -509,7 +509,7 @@ export default function WorkoutFormPage() {
                       onBlur={requestSave}
                     />
                     <button
-                      className="text-slate-500 hover:text-red-400"
+                      className="text-slate-400 hover:text-red-400"
                       title={t('workout.removeSetTitle')}
                       onClick={() => removeSet(block.exerciseId, i)}
                     >

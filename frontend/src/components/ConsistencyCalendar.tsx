@@ -100,7 +100,7 @@ export default function ConsistencyCalendar() {
       <div className="flex gap-[3px] pb-2">
         <div className="flex flex-col gap-[3px] pr-1">
           {WEEKDAY_KEYS.map((key) => (
-            <div key={key} className="h-3.5 text-[10px] leading-3.5 text-slate-500">
+            <div key={key} className="h-3.5 text-[11px] leading-3.5 text-slate-400">
               {t(`weekdays.${key}`)}
             </div>
           ))}
@@ -123,7 +123,7 @@ export default function ConsistencyCalendar() {
                         {info.exerciseNames.join(', ') || t('calendar.tooltip.noExercises')}
                       </p>
                     ) : (
-                      <p className="mt-1 text-slate-500">
+                      <p className="mt-1 text-slate-400">
                         {state === 'missed_planned' ? t('calendar.tooltip.missedPlannedDay') : t('calendar.tooltip.noWorkout')}
                       </p>
                     )}
