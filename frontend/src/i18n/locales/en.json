@@ -564,6 +564,8 @@
   },
   "progressStatus": {
     "sessionsLeft_one": "{{count}} workout to \"Try more\"",
+    "sessionsLeftShort_one": "{{count}} left",
+    "sessionsLeftShort_other": "{{count}} left",
     "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
     "due": "Time to try more",
     "addWeight": "Time to add weight",
