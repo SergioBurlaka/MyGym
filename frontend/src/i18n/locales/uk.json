@@ -576,10 +576,12 @@
     "due": "Час спробувати більше",
     "addWeight": "Час додати вагу",
     "noData": "Ще не виконувалась",
-    "progressTitle": "{{done}} з {{total}} без прогресу",
+    "progressTitle_one": "Без прогресу: {{done}} з {{count}} тренування",
+    "progressTitle_few": "Без прогресу: {{done}} з {{count}} тренувань",
+    "progressTitle_many": "Без прогресу: {{done}} з {{count}} тренувань",
+    "progressTitle_other": "Без прогресу: {{done}} з {{count}} тренування",
     "first": "Перше виконання",
     "afterBreak": "Після перерви — відлік з нуля",
-    "progress": "✓ Прогрес",
-    "fractionSessions": "{{done}} / {{total}} тр. до прогресу"
+    "progress": "✓ Прогрес"
   }
 }
