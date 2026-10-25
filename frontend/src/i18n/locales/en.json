@@ -35,7 +35,8 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "profileMenu": "Profile menu",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "schedule": "Schedule"
   },
   "auth": {
     "login": {
@@ -297,7 +298,8 @@
       "trainedPlanned": "Plan done",
       "trainedExtra": "Bonus workout",
       "missedPlanned": "Missed",
-      "rest": "Rest day"
+      "rest": "Rest day",
+      "changeSchedule": "Change schedule"
     },
     "tooltip": {
       "noExercises": "no exercises",
@@ -574,5 +576,8 @@
     "first": "First time",
     "afterBreak": "After a break - count restarts",
     "progress": "✓ Progress"
+  },
+  "schedule": {
+    "title": "Schedule"
   }
 }

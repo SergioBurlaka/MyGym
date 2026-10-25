@@ -12,6 +12,7 @@ import ImportPage from './pages/ImportPage.js';
 import ProgramsPage from './pages/ProgramsPage.js';
 import PrivacyPage from './pages/PrivacyPage.js';
 import IntegrationsPage from './pages/IntegrationsPage.js';
+import SchedulePage from './pages/SchedulePage.js';
 import OAuthConsentPage from './pages/OAuthConsentPage.js';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -84,6 +85,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <SchedulePage />
               </ProtectedRoute>
             }
           />

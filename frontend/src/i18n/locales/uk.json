@@ -35,7 +35,8 @@
     "openMenu": "Відкрити меню",
     "closeMenu": "Закрити меню",
     "profileMenu": "Меню профілю",
-    "integrations": "Інтеграції"
+    "integrations": "Інтеграції",
+    "schedule": "Розклад"
   },
   "auth": {
     "login": {
@@ -317,7 +318,8 @@
       "trainedPlanned": "План виконано",
       "trainedExtra": "Бонусне тренування",
       "missedPlanned": "Пропущено",
-      "rest": "Вихідний"
+      "rest": "Вихідний",
+      "changeSchedule": "Змінити розклад"
     },
     "tooltip": {
       "noExercises": "без вправ",
@@ -598,5 +600,8 @@
     "first": "Перше виконання",
     "afterBreak": "Після перерви — відлік з нуля",
     "progress": "✓ Прогрес"
+  },
+  "schedule": {
+    "title": "Розклад"
   }
 }

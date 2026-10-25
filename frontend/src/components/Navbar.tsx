@@ -140,6 +140,9 @@ export default function Navbar() {
                 {item.label}
               </NavLink>
             ))}
+            <NavLink to="/schedule" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
+              {t('nav.schedule')}
+            </NavLink>
             <NavLink to="/integrations" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
               {t('nav.integrations')}
             </NavLink>
@@ -205,6 +208,13 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-56 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-2 shadow-xl">
           <p className="truncate px-2 py-1.5 text-sm text-slate-400">{email}</p>
+          <Link
+            to="/schedule"
+            className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
+            onClick={() => setOpen(false)}
+          >
+            {t('nav.schedule')}
+          </Link>
           <Link
             to="/integrations"
             className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
