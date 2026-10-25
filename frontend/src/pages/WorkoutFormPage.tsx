@@ -23,7 +23,31 @@ import Select from '../components/Select.js';
 
 const todayIso = new Date().toISOString().slice(0, 10);
 
-type EditableSet = { reps: string };
+// `removing`: the set's remove button was pressed and its "Undo" row is still
+// showing. Until the removal is committed the set is saved as if still there,
+// so an undo never needs a request and a mis-tap never reaches the server.
+// `key`: a client-only id, stable while sets around it come and go - an
+// index key would shift rows under the person's finger when a pending
+// removal is committed mid-typing, sending reps into the neighbouring set.
+type EditableSet = { key: string; reps: string; removing?: boolean };
+
+const UNDO_REMOVE_SET_MS = 5000;
+
+let setKeySeq = 0;
+function newSet(reps = ''): EditableSet {
+  setKeySeq += 1;
+  return { key: `set-${setKeySeq}`, reps };
+}
+
+// What gets saved and compared for "dirty": reps only - keys and `removing`
+// marks dropped (a set pending removal still counts as present).
+function withoutRemovalMarks(blocks: EditableExercise[]): EditableExercise[] {
+  return blocks.map((b) => ({ ...b, sets: b.sets.map((s) => ({ reps: s.reps }) as EditableSet) }));
+}
+
+function withRemovalsApplied(blocks: EditableExercise[]): EditableExercise[] {
+  return blocks.map((b) => ({ ...b, sets: b.sets.filter((s) => !s.removing) }));
+}
 type EditableExercise = {
   exerciseId: string;
   weightPerUnitKg: string; // '' = bodyweight / no external load
@@ -85,16 +109,18 @@ export default function WorkoutFormPage() {
 
   useEffect(() => {
     if (!workoutQuery.data) return;
+    // A removal pending on the previous workout must not fire into this one.
+    clearTimeout(removalTimerRef.current);
     const initial = workoutQuery.data.workoutExercises.map((we) => ({
       exerciseId: we.exerciseId,
       weightPerUnitKg: we.weightPerUnitKg ?? '',
       weightUnits: (we.weightUnits as 1 | 2) ?? 2,
       sets: we.sets
         .sort((a, b) => a.setNumber - b.setNumber)
-        .map((s) => ({ reps: String(s.reps) })),
+        .map((s) => newSet(String(s.reps))),
     }));
     setBlocks(initial);
-    setSavedBlocks(initial);
+    setSavedBlocks(withoutRemovalMarks(initial));
     setLabelDraft(workoutQuery.data.programLabel ?? '');
     setDateDraft(workoutQuery.data.date);
     // Only re-seed local edit state when we land on a (new) workout — not on
@@ -114,7 +140,10 @@ export default function WorkoutFormPage() {
     updateMutation.mutate({ date: value });
   }
 
-  const dirty = useMemo(() => JSON.stringify(blocks) !== JSON.stringify(savedBlocks), [blocks, savedBlocks]);
+  const dirty = useMemo(
+    () => JSON.stringify(withoutRemovalMarks(blocks)) !== JSON.stringify(savedBlocks),
+    [blocks, savedBlocks],
+  );
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const progressionByExerciseId = useMemo(
@@ -133,7 +162,7 @@ export default function WorkoutFormPage() {
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, sets: [{ reps: '' }] }]);
+    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, sets: [newSet()] }]);
     setAddExerciseId('');
     requestSave();
   }
@@ -149,28 +178,67 @@ export default function WorkoutFormPage() {
 
   function addSet(exerciseId: string) {
     setBlocks((prev) =>
-      prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, { reps: '' }] } : b)),
+      prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, newSet()] } : b)),
     );
     requestSave();
   }
 
-  function updateSetReps(exerciseId: string, index: number, reps: string) {
+  function updateSetReps(exerciseId: string, setKey: string, reps: string) {
     setBlocks((prev) =>
       prev.map((b) =>
         b.exerciseId === exerciseId
-          ? { ...b, sets: b.sets.map((s, i) => (i === index ? { reps } : s)) }
+          ? { ...b, sets: b.sets.map((s) => (s.key === setKey ? { ...s, reps } : s)) }
           : b,
       ),
     );
   }
 
-  function removeSet(exerciseId: string, index: number) {
+  // Removing a set only marks it and shows "Undo" in its place; the removal
+  // is committed (and saved) once the undo window passes - or right away on
+  // Save / Finish / leaving the page. Each new removal restarts the window.
+  const removalTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Undo puts focus back on the restored set's remove button (its ref
+  // callback picks this up), instead of dropping it to <body>.
+  const focusSetKeyRef = useRef<string | null>(null);
+
+  function markSet(exerciseId: string, setKey: string, removing: boolean) {
     setBlocks((prev) =>
       prev.map((b) =>
-        b.exerciseId === exerciseId ? { ...b, sets: b.sets.filter((_, i) => i !== index) } : b,
+        b.exerciseId === exerciseId
+          ? {
+              ...b,
+              sets: b.sets.map((s) =>
+                s.key === setKey ? { key: s.key, reps: s.reps, ...(removing && { removing }) } : s,
+              ),
+            }
+          : b,
       ),
     );
-    requestSave();
+  }
+
+  function removeSet(exerciseId: string, setKey: string) {
+    markSet(exerciseId, setKey, true);
+    clearTimeout(removalTimerRef.current);
+    removalTimerRef.current = setTimeout(() => {
+      setBlocks(withRemovalsApplied);
+      requestSave();
+    }, UNDO_REMOVE_SET_MS);
+  }
+
+  function undoRemoveSet(exerciseId: string, setKey: string) {
+    focusSetKeyRef.current = setKey;
+    markSet(exerciseId, setKey, false);
+  }
+
+  const hasPendingRemoval = blocks.some((b) => b.sets.some((s) => s.removing));
+
+  // For Save / Finish / unmount, which read blocksRef right away instead of
+  // waiting for a render.
+  function commitRemovalsNow() {
+    clearTimeout(removalTimerRef.current);
+    blocksRef.current = withRemovalsApplied(blocksRef.current);
+    setBlocks(withRemovalsApplied);
   }
 
   function buildPayload(source: EditableExercise[]) {
@@ -198,6 +266,7 @@ export default function WorkoutFormPage() {
   const savedRef = useRef(savedBlocks);
   savedRef.current = savedBlocks;
   const saveLoopRef = useRef<Promise<void> | null>(null);
+  const deletedRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const [saveTick, setSaveTick] = useState(0);
 
@@ -217,6 +286,11 @@ export default function WorkoutFormPage() {
   // running after unmount.
   useEffect(
     () => () => {
+      if (deletedRef.current) {
+        clearTimeout(removalTimerRef.current);
+        return;
+      }
+      commitRemovalsNow();
       void flushSave({ silentIfIncomplete: true });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,7 +313,7 @@ export default function WorkoutFormPage() {
   }
 
   async function saveOnce(silentIfIncomplete: boolean) {
-    const snapshot = blocksRef.current;
+    const snapshot = withoutRemovalMarks(blocksRef.current);
     if (JSON.stringify(snapshot) === JSON.stringify(savedRef.current)) return;
 
     const payload = buildPayload(snapshot);
@@ -262,16 +336,20 @@ export default function WorkoutFormPage() {
 
   function handleSave() {
     setError(null);
+    commitRemovalsNow();
     void flushSave({ silentIfIncomplete: false });
   }
 
   async function handleFinish() {
+    commitRemovalsNow();
     await flushSave({ silentIfIncomplete: false });
     await finishMutation.mutateAsync();
   }
 
   async function handleDelete() {
     await deleteMutation.mutateAsync();
+    // Nothing left to save into - skip the leave-the-page save on unmount.
+    deletedRef.current = true;
     navigate('/');
   }
 
@@ -291,7 +369,7 @@ export default function WorkoutFormPage() {
     // form - a new workout started from this program will prefill that
     // many sets (with reps/weight pulled from history at that time, not
     // copied from here).
-    const programExercises = blocks
+    const programExercises = withRemovalsApplied(blocks)
       .filter((b) => b.sets.length > 0)
       .map((b) => ({ exerciseId: b.exerciseId, targetSets: b.sets.length }));
     if (programExercises.length === 0) {
@@ -409,7 +487,7 @@ export default function WorkoutFormPage() {
           <button
             className="btn-primary inline-flex items-center gap-2"
             onClick={handleSave}
-            disabled={saving || !dirty}
+            disabled={saving || (!dirty && !hasPendingRemoval)}
             aria-busy={saving}
           >
             {saving && (
@@ -496,27 +574,56 @@ export default function WorkoutFormPage() {
 
               <label className="label">{t('workout.setsLabel')}</label>
               <div className="flex flex-wrap gap-2">
-                {block.sets.map((s, i) => (
-                  <div key={i} className="flex items-center gap-1">
-                    <span className="w-5 text-center text-xs text-slate-400">{i + 1}</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className="input w-16 text-center"
-                      aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
-                      value={s.reps}
-                      onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}
-                      onBlur={requestSave}
-                    />
-                    <button
-                      className="text-slate-400 hover:text-red-400"
-                      title={t('workout.removeSetTitle')}
-                      onClick={() => removeSet(block.exerciseId, i)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                {block.sets.map((s, i) =>
+                  s.removing ? (
+                    // Own key, so this row mounts fresh and autoFocus moves focus
+                    // from the vanished remove button onto "Undo".
+                    <div key={`${s.key}-removed`} className="flex min-h-11 items-center gap-2 text-sm text-slate-400">
+                      {t('workout.setRemoved', { set: i + 1 })}
+                      <button
+                        type="button"
+                        autoFocus
+                        className="min-h-11 rounded-lg px-2 font-semibold text-accent hover:bg-surface-border"
+                        aria-label={t('workout.undoRemoveSetAria', { set: i + 1 })}
+                        onClick={() => undoRemoveSet(block.exerciseId, s.key)}
+                      >
+                        {t('workout.undoRemoveSet')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div key={s.key} className="flex items-center gap-1">
+                      <span className="w-5 text-center text-xs text-slate-400">{i + 1}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="input w-16 text-center"
+                        aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
+                        value={s.reps}
+                        onChange={(e) => updateSetReps(block.exerciseId, s.key, e.target.value)}
+                        onBlur={requestSave}
+                      />
+                      {/* 44x44 target 8px from the field: a mis-tap in the gym
+                          shouldn't hit it, and "−" doesn't read as "12 ×". */}
+                      <button
+                        type="button"
+                        className="ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
+                        aria-label={t('workout.removeSetAria', { set: i + 1 })}
+                        title={t('workout.removeSetAria', { set: i + 1 })}
+                        ref={(el) => {
+                          if (el && focusSetKeyRef.current === s.key) {
+                            focusSetKeyRef.current = null;
+                            el.focus();
+                          }
+                        }}
+                        onClick={() => removeSet(block.exerciseId, s.key)}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                          <path d="M6 12h12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ),
+                )}
                 <button className="btn-ghost text-accent" onClick={() => addSet(block.exerciseId)}>
                   {t('workout.addSet')}
                 </button>

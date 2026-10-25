@@ -188,7 +188,10 @@
     "unitsOne": "1",
     "setsLabel": "Підходи (повторення)",
     "addSet": "+ підхід",
-    "removeSetTitle": "Прибрати підхід",
+    "removeSetAria": "Прибрати підхід {{set}}",
+    "setRemoved": "Підхід {{set}} прибрано",
+    "undoRemoveSet": "Повернути",
+    "undoRemoveSetAria": "Повернути підхід {{set}}",
     "repsAria": "{{exercise}}, підхід {{set}}, повторення",
     "addExercisePlaceholder": "Оберіть вправу…",
     "addExerciseButton": "+ Додати вправу"
