@@ -120,6 +120,10 @@ export default function Navbar() {
         className={`absolute inset-x-0 top-full grid bg-surface/95 shadow-xl backdrop-blur transition-[grid-template-rows,opacity] duration-300 ease-in-out sm:hidden ${
           mobileOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
+        // Collapsed, the menu stays in the DOM for the animation - inert keeps
+        // its invisible links (Log out included) out of the Tab order.
+        inert={mobileOpen ? undefined : ''}
+        aria-hidden={!mobileOpen}
       >
         {/* min-h-0 lets this grid row actually shrink to 0 instead of clamping
             to the content's height - without it grid-rows-[0fr] has no effect. */}
