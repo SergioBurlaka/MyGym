@@ -134,6 +134,7 @@ function ProgramCard({
   const { t } = useTranslation();
   const deleteMutation = useDeleteProgramMutation(program.id);
   const [menuOpen, setMenuOpen] = useState(false);
+  const inheriting = program.programExercises.filter((pe) => pe.tryMoreAfterWorkouts == null).length;
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -231,13 +232,23 @@ function ProgramCard({
         ))}
       </div>
 
-      {program.tryMoreAfterWorkouts != null && (
+      {/* An exercise's own threshold wins over the program's, so the program
+          value only matters for exercises without one - say so, or hide the
+          row when no exercise inherits it (it would show a number nothing uses). */}
+      {program.tryMoreAfterWorkouts != null && inheriting > 0 && (
         <div className="flex items-center gap-2 border-t border-surface-border pt-2.5 text-xs text-slate-400">
           <svg className="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f5a524" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 17l6-6 4 4 8-8" />
             <path d="M15 7h6v6" />
           </svg>
-          <span className="min-w-0">{t('programs.tryMoreAfterWorkoutsBadge', { count: program.tryMoreAfterWorkouts })}</span>
+          <span className="min-w-0">
+            {t(
+              inheriting === program.programExercises.length
+                ? 'programs.tryMoreAfterWorkoutsBadge'
+                : 'programs.tryMoreAfterWorkoutsBadgePartial',
+              { count: program.tryMoreAfterWorkouts },
+            )}
+          </span>
         </div>
       )}
     </div>
@@ -395,6 +406,12 @@ function ProgramForm({
 
   const saving = createMutation.isPending || updateMutation.isPending;
 
+  // Every exercise has its own threshold -> the program value applies to none.
+  const programThresholdUnused =
+    parseThreshold(tryMoreAfterWorkouts) != null &&
+    blocks.length > 0 &&
+    blocks.every((b) => parseThreshold(b.tryMoreAfterWorkouts) != null);
+
   return (
     <div className="card space-y-4 border-accent/40">
       <div>
@@ -495,6 +512,9 @@ function ProgramForm({
           value={tryMoreAfterWorkouts}
           onChange={(e) => setTryMoreAfterWorkouts(e.target.value)}
         />
+        {programThresholdUnused && (
+          <p className="mt-1 text-xs text-warn">{t('programs.form.tryMoreAfterWorkoutsUnused')}</p>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="text-slate-400">{t('programs.form.tryMoreRecommendedLabel')}</span>
           {(['large', 'small', 'bodyweight'] as const).map((c) => (
