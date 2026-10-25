@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useProgressionHistoryQuery,
@@ -29,8 +29,14 @@ export default function ProgressPage() {
   );
   const progression = useMemo(() => chips.map((c) => c.p), [chips]);
 
+  // The default is taken once, from the first load - a refetch that reorders
+  // the chips must not swap the charts under someone who hasn't clicked yet.
   const [manualSelectedId, setManualSelectedId] = useState<string | null>(null);
-  const defaultSelectedId = progression[0]?.exerciseId ?? null;
+  const [initialSelectedId, setInitialSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (initialSelectedId == null && progression.length > 0) setInitialSelectedId(progression[0].exerciseId);
+  }, [initialSelectedId, progression]);
+  const defaultSelectedId = initialSelectedId ?? progression[0]?.exerciseId ?? null;
   const selectedId = manualSelectedId ?? defaultSelectedId;
 
   const historyQuery = useProgressionHistoryQuery(selectedId);

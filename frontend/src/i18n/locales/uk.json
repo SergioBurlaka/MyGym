@@ -584,10 +584,10 @@
     }
   },
   "progressStatus": {
-    "sessionsLeftShort_one": "ще {{count}}",
-    "sessionsLeftShort_few": "ще {{count}}",
-    "sessionsLeftShort_many": "ще {{count}}",
-    "sessionsLeftShort_other": "ще {{count}}",
+    "sessionsLeftShort_one": "ще {{count}} тр.",
+    "sessionsLeftShort_few": "ще {{count}} тр.",
+    "sessionsLeftShort_many": "ще {{count}} тр.",
+    "sessionsLeftShort_other": "ще {{count}} тр.",
     "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",
     "sessionsLeft_few": "ще {{count}} тренування до «Спробуй більше»",
     "sessionsLeft_many": "ще {{count}} тренувань до «Спробуй більше»",

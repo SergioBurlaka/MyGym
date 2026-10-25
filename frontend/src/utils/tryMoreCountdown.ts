@@ -57,7 +57,7 @@ export function journalTryMoreStatus(p: WorkoutProgressAt | null | undefined): T
 
 // Sort order for the Progress chips - what needs doing today first: add
 // weight, then "try more" already due, then closest to the nudge (fewest
-// workouts left), then no data. Ties keep the caller's order.
+// workouts left), then no data. Ties are left to the caller.
 export function tryMoreUrgency(status: TryMoreStatus): number {
   switch (status.kind) {
     case 'add_weight':
