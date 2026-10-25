@@ -18,6 +18,13 @@ export function formatDuration(start: string | null, end: string | null): string
   return h > 0 ? i18n.t('duration.hoursMinutes', { h, m }) : i18n.t('duration.minutes', { m });
 }
 
+// Short axis labels for charts: 12000 -> "12K" / "12 тис." - a full
+// five-digit number doesn't fit the narrow Y axis on a phone.
+export function formatCompactNumber(value: number): string {
+  const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
+  return new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
+
 // Locale-aware date formatter driven by the current UI language, not a
 // fixed 'uk-UA' - used everywhere a workout/history date is shown.
 export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' }): string {

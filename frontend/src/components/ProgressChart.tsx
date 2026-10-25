@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { formatDate } from '../utils/weight.js';
+import { formatCompactNumber, formatDate } from '../utils/weight.js';
 
 type Point = { date: string; value: number | null; isPR?: boolean };
 
@@ -77,7 +77,7 @@ export default function ProgressChart({
   return (
     <div role="img" aria-label={summary}>
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={points} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+        <LineChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
           <XAxis
             dataKey="date"
@@ -85,7 +85,7 @@ export default function ProgressChart({
             stroke="#898781"
             tick={{ fontSize: 11 }}
           />
-          <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={40} />
+          <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={48} tickFormatter={formatCompactNumber} />
           <Tooltip content={<ChartTooltip unit={unit} />} />
           <Line
             type="monotone"
