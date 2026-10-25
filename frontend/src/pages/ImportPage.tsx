@@ -34,7 +34,7 @@ export default function ImportPage() {
           ref={fileRef}
           type="file"
           accept=".csv,text/csv"
-          className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-accent-hover"
+          className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-surface hover:file:bg-accent-hover"
         />
         <button className="btn-primary" onClick={handleUpload} disabled={importMutation.isPending}>
           {importMutation.isPending ? t('import.importing') : t('import.uploadButton')}

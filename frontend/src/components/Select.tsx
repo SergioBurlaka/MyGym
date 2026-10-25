@@ -79,7 +79,7 @@ export default function Select({
         <div className="min-h-0 overflow-hidden">
           <div className="max-h-64 overflow-auto p-1">
             {options.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-slate-500">{t('common.noOptionsAvailable')}</p>
+              <p className="px-3 py-2 text-sm text-slate-400">{t('common.noOptionsAvailable')}</p>
             ) : (
               options.map((o) => (
                 <button

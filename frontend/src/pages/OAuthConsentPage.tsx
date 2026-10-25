@@ -102,7 +102,7 @@ function ConsentForLoggedInUser({ requestId }: { requestId: string | null }) {
           {t('oauth.consent.deny')}
         </button>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-400">
         {t('oauth.consent.revokeHint')}{' '}
         <Link to="/integrations" className="text-accent hover:underline">{t('nav.integrations')}</Link>
       </p>

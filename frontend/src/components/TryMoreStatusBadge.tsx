@@ -12,9 +12,9 @@ export default function TryMoreStatusBadge({ status }: { status: TryMoreStatus }
     case 'unknown':
       return null;
     case 'no_data':
-      return <span className="text-xs text-slate-500">{t('progressStatus.noData')}</span>;
+      return <span className="text-xs text-slate-400">{t('progressStatus.noData')}</span>;
     case 'first':
-      return <span className="text-xs text-slate-500">{t('progressStatus.first')}</span>;
+      return <span className="text-xs text-slate-400">{t('progressStatus.first')}</span>;
     case 'progress':
       return <span className="text-xs font-semibold text-good">{t('progressStatus.progress')}</span>;
     case 'after_break':

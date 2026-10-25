@@ -147,7 +147,7 @@ export default function NewWorkoutButton({
                     ? t('newWorkoutButton.programLabel', { name: entry.label })
                     : t('dashboard.startFromTemplate', { label: entry.label })}
                 </span>{' '}
-                {entry.kind === 'template' && <span className="text-slate-500">({formatDate(entry.date)})</span>}
+                {entry.kind === 'template' && <span className="text-slate-400">({formatDate(entry.date)})</span>}
               </span>
               <div className="mt-0.5 truncate text-xs text-slate-400">{entry.exerciseNames.join(', ')}</div>
             </button>
