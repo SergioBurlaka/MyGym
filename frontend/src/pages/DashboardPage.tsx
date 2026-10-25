@@ -109,7 +109,7 @@ export default function DashboardPage() {
       <div className="hidden space-y-3 sm:block">
         {workouts.length === 0 && <p className="text-slate-400">{t('dashboard.emptyJournal')}</p>}
         {workouts.map((w) => {
-          const duration = formatDuration(w.timeStart, w.timeEnd);
+          const duration = formatDuration(w.timeStart, w.timeEnd, w.autoFinished);
           const colors = w.programLabel ? labelColor(w.programLabel) : null;
           return (
             <button
@@ -260,7 +260,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
   }, [menuOpen]);
 
   const colors = workout.programLabel ? labelColor(workout.programLabel) : null;
-  const duration = formatDuration(workout.timeStart, workout.timeEnd);
+  const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished);
   const dateLabel = formatDate(workout.date, { day: 'numeric', month: 'long' });
   const weekday = formatDate(workout.date, { weekday: 'short' });
 

@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { eq, sql } from 'drizzle-orm';
@@ -139,5 +140,55 @@ describe('autoFinishStaleWorkouts', () => {
     const finished = await app.inject({ method: 'POST', url: `/api/workouts/${id}/finish`, headers: auth });
     expect(finished.statusCode).toBe(200);
     expect(await row(id)).toMatchObject({ timeEnd: endedAt, autoFinished: true });
+  });
+});
+
+// The migration runs once in globalSetup, before any data exists - so run its
+// SQL again here against rows shaped like the ones it was written for.
+describe('migration 0023: backfill of workouts finished long after the last save', () => {
+  async function runBackfill() {
+    const text = await readFile(new URL('../migrations/0023_backfill_stale_durations.sql', import.meta.url), 'utf8');
+    await db.execute(sql.raw(text));
+  }
+
+  async function finishedAt(id: string, minutesAgoEnd: number) {
+    await db.update(workouts).set({ timeEnd: minutesAgo(minutesAgoEnd) }).where(eq(workouts.id, id));
+  }
+
+  it('moves the end of a long-forgotten workout back to its last save', async () => {
+    const { auth } = await registerUser(app);
+    // Like the 2026-10-21 workout: saved, then "Finish" pressed two days later.
+    const id = await openWorkout(auth, { startedMinutesAgo: 3200, savedMinutesAgo: 3116 });
+    await finishedAt(id, 1);
+
+    await runBackfill();
+    const w = await row(id);
+    expect(w.autoFinished).toBe(true);
+    expect(Math.abs(w.timeEnd!.getTime() - minutesAgo(3116).getTime())).toBeLessThan(5_000);
+  });
+
+  it('ends a workout with nothing logged at its start', async () => {
+    const { auth } = await registerUser(app);
+    const id = await openWorkout(auth, { startedMinutesAgo: 200 });
+    await finishedAt(id, 80); // 2 h after the start, no saves at all
+
+    await runBackfill();
+    const w = await row(id);
+    expect(w.autoFinished).toBe(true);
+    expect(w.timeEnd!.getTime()).toBe(w.timeStart!.getTime());
+  });
+
+  it('leaves honest finishes, auto-finished and CSV-imported workouts alone', async () => {
+    const { auth } = await registerUser(app);
+    const honest = await openWorkout(auth, { startedMinutesAgo: 200, savedMinutesAgo: 120 });
+    await finishedAt(honest, 60); // 60 min after the last save - within 90
+    const auto = await openWorkout(auth, { startedMinutesAgo: 400, savedMinutesAgo: 300 });
+    await db.update(workouts).set({ timeEnd: minutesAgo(10), autoFinished: true }).where(eq(workouts.id, auto));
+    const imported = await openWorkout(auth, { startedMinutesAgo: 400 });
+    await db.update(workouts).set({ timeStart: null, timeEnd: minutesAgo(1) }).where(eq(workouts.id, imported));
+    const before = await Promise.all([honest, auto, imported].map(row));
+
+    await runBackfill();
+    expect(await Promise.all([honest, auto, imported].map(row))).toEqual(before);
   });
 });
