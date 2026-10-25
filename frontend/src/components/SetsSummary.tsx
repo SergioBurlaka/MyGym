@@ -6,7 +6,8 @@ import { setsSummary } from '../utils/weight.js';
 // exercise), then every set's reps, so a drop in reps is visible (user's
 // choice 2026-10-25, UX audit finding 06). Each number stays unbroken; the
 // line may wrap between sets on a narrow screen. `perSide` adds the
-// "16.25 kg × 2 per side" line for two-sided loads.
+// "16.25 kg per side" line for two-sided loads. No sets logged (e.g. copied
+// from a template) shows "—", not a bare weight that looks like a done set.
 export default function SetsSummary({
   workoutExercise,
   className = '',
@@ -18,7 +19,8 @@ export default function SetsSummary({
 }) {
   const { t } = useTranslation();
   const { totalKg, perSideKg, reps } = setsSummary(workoutExercise);
-  const parts = [...(totalKg != null ? [`${totalKg} ${t('common.kg')}`] : []), ...reps.map(String)];
+  const parts =
+    reps.length === 0 ? [] : [...(totalKg != null ? [`${totalKg} ${t('common.kg')}`] : []), ...reps.map(String)];
 
   return (
     <>
@@ -32,7 +34,7 @@ export default function SetsSummary({
               </span>
             ))}
       </span>
-      {perSideKg != null && (
+      {perSideKg != null && reps.length > 0 && (
         <span className={perSideClassName}>{t('dashboard.perSide', { weight: perSideKg })}</span>
       )}
     </>

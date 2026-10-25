@@ -353,11 +353,13 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
           {workout.workoutExercises.map((we) => {
             return (
               <div key={we.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
-                <span className="flex min-w-0 flex-col gap-1">
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="text-slate-200">{we.exercise.name}</span>
                   <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
                 </span>
-                <span className="flex shrink-0 flex-col items-end text-right leading-tight">
+                {/* Capped, not shrink-0: a long set list wraps between sets
+                    instead of squeezing the name or overflowing at 375px. */}
+                <span className="flex max-w-[60%] flex-col items-end text-right leading-tight">
                   <SetsSummary
                     workoutExercise={we}
                     className="font-semibold text-slate-100"
