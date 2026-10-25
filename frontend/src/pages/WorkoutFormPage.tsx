@@ -455,7 +455,7 @@ export default function WorkoutFormPage() {
 
               {tryMore.kind !== 'unknown' && (
                 <div className="-mt-1 mb-3">
-                  <TryMoreStatusBadge status={tryMore} label="fraction" />
+                  <TryMoreStatusBadge status={tryMore} />
                 </div>
               )}
 
