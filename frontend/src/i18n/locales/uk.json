@@ -353,7 +353,8 @@
   },
   "duration": {
     "hoursMinutes": "{{h}} год {{m}} хв",
-    "minutes": "{{m}} хв"
+    "minutes": "{{m}} хв",
+    "notClosedInTime": "понад {{h}} год, не закрито вчасно"
   },
   "passwordInput": {
     "show": "Показати пароль",

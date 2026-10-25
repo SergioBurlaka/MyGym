@@ -339,7 +339,8 @@
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
-    "minutes": "{{m}} min"
+    "minutes": "{{m}} min",
+    "notClosedInTime": "over {{h}} h, not closed in time"
   },
   "passwordInput": {
     "show": "Show password",
