@@ -85,7 +85,7 @@ export default function ProgressChart({
             stroke="#898781"
             tick={{ fontSize: 11 }}
           />
-          <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={48} tickFormatter={formatCompactNumber} />
+          <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={56} tickFormatter={formatCompactNumber} />
           <Tooltip content={<ChartTooltip unit={unit} />} />
           <Line
             type="monotone"
