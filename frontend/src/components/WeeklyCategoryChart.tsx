@@ -20,7 +20,7 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   const categoryLabel = (key: string) => t(`exercises.category.${key}`);
 
   if (data.length === 0) {
-    return <p className="py-8 text-center text-sm text-slate-500">{t('progress.noPeriodData')}</p>;
+    return <p className="py-8 text-center text-sm text-slate-400">{t('progress.noPeriodData')}</p>;
   }
 
   // The SVG itself says nothing to a screen reader - expose period totals as text.

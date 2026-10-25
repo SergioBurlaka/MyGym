@@ -112,7 +112,7 @@ export default function CalendarSubscription({
         </div>
       )}
 
-      <p className="text-[13px] text-slate-500">{t('exercises.calendar.hint')}</p>
+      <p className="text-[13px] text-slate-400">{t('exercises.calendar.hint')}</p>
     </div>
   );
 }

@@ -419,7 +419,7 @@ function ProgramForm({
                 <div className="flex items-center gap-2">
                   <div className="flex flex-col">
                     <button
-                      className="text-slate-500 hover:text-slate-200 disabled:opacity-30"
+                      className="text-slate-400 hover:text-slate-200 disabled:opacity-30"
                       title={t('programs.form.moveUp')}
                       disabled={index === 0}
                       onClick={() => moveBlock(block.exerciseId, -1)}
@@ -427,7 +427,7 @@ function ProgramForm({
                       ▲
                     </button>
                     <button
-                      className="text-slate-500 hover:text-slate-200 disabled:opacity-30"
+                      className="text-slate-400 hover:text-slate-200 disabled:opacity-30"
                       title={t('programs.form.moveDown')}
                       disabled={index === blocks.length - 1}
                       onClick={() => moveBlock(block.exerciseId, 1)}
@@ -503,7 +503,7 @@ function ProgramForm({
             </span>
           ))}
         </div>
-        <p className="mt-1 text-xs text-slate-500">{t('programs.form.tryMoreAfterWorkoutsHint')}</p>
+        <p className="mt-1 text-xs text-slate-400">{t('programs.form.tryMoreAfterWorkoutsHint')}</p>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -617,14 +617,14 @@ function ExerciseTryMoreField({
           value={done != null ? Math.min(done, threshold) : 0}
           onChange={(e) => onSessionsDoneChange(Number(e.target.value))}
         />
-        <p className="mt-1 text-xs text-slate-500">{disabledHint ?? t('programs.form.exerciseTryMoreSliderHint')}</p>
+        <p className="mt-1 text-xs text-slate-400">{disabledHint ?? t('programs.form.exerciseTryMoreSliderHint')}</p>
         {earlierElsewhere != null && (
           <p className="mt-1 text-xs text-warn">
             {t('programs.form.exerciseTryMoreEarlierElsewhere', { count: earlierElsewhere })}
           </p>
         )}
       </div>
-      <p className="text-xs text-slate-500">{t('programs.form.exerciseTryMoreHint')}</p>
+      <p className="text-xs text-slate-400">{t('programs.form.exerciseTryMoreHint')}</p>
     </div>
   );
 }

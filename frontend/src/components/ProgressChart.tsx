@@ -59,7 +59,7 @@ export default function ProgressChart({
   const points = data.filter((d) => d.value != null);
 
   if (points.length === 0) {
-    return <p className="py-8 text-center text-sm text-slate-500">{emptyLabel}</p>;
+    return <p className="py-8 text-center text-sm text-slate-400">{emptyLabel}</p>;
   }
 
   // The SVG itself says nothing to a screen reader - expose the trend as text.

@@ -40,7 +40,7 @@ export default function PasswordInput({
         type="button"
         tabIndex={-1}
         onClick={() => setVisible((v) => !v)}
-        className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-300"
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-300"
         aria-label={visible ? t('passwordInput.hide') : t('passwordInput.show')}
       >
         {visible ? <EyeOffIcon /> : <EyeIcon />}

@@ -137,7 +137,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               {w.workoutExercises.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">{t('dashboard.emptyWorkout')}</p>
+                <p className="mt-2 text-sm text-slate-400">{t('dashboard.emptyWorkout')}</p>
               ) : (
                 <ul className="mt-2 divide-y divide-surface-border text-sm text-slate-400">
                   {w.workoutExercises.map((we) => (
@@ -349,7 +349,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
       </div>
 
       {workout.workoutExercises.length === 0 ? (
-        <p className="text-sm text-slate-500">{t('dashboard.emptyWorkout')}</p>
+        <p className="text-sm text-slate-400">{t('dashboard.emptyWorkout')}</p>
       ) : (
         <div className="space-y-1.5">
           {workout.workoutExercises.map((we) => {

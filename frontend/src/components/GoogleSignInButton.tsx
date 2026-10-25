@@ -19,7 +19,7 @@ export default function GoogleSignInButton({ next }: { next?: string | null }) {
         <GoogleLogo />
         {t('auth.google.continue')}
       </a>
-      <div className="my-5 flex items-center gap-3 text-xs uppercase text-slate-500">
+      <div className="my-5 flex items-center gap-3 text-xs uppercase text-slate-400">
         <span className="h-px flex-1 bg-surface-border" />
         {t('auth.google.or')}
         <span className="h-px flex-1 bg-surface-border" />
