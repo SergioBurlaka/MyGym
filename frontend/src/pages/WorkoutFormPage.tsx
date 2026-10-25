@@ -23,7 +23,22 @@ import Select from '../components/Select.js';
 
 const todayIso = new Date().toISOString().slice(0, 10);
 
-type EditableSet = { reps: string };
+// `removing`: the set's remove button was pressed and its "Undo" row is still
+// showing. Until the removal is committed the set is saved as if still there,
+// so an undo never needs a request and a mis-tap never reaches the server.
+type EditableSet = { reps: string; removing?: boolean };
+
+const UNDO_REMOVE_SET_MS = 5000;
+
+// What gets saved and compared for "dirty": the `removing` marks dropped (a
+// set pending removal still counts as present).
+function withoutRemovalMarks(blocks: EditableExercise[]): EditableExercise[] {
+  return blocks.map((b) => ({ ...b, sets: b.sets.map((s) => ({ reps: s.reps })) }));
+}
+
+function withRemovalsApplied(blocks: EditableExercise[]): EditableExercise[] {
+  return blocks.map((b) => ({ ...b, sets: b.sets.filter((s) => !s.removing) }));
+}
 type EditableExercise = {
   exerciseId: string;
   weightPerUnitKg: string; // '' = bodyweight / no external load
@@ -114,7 +129,10 @@ export default function WorkoutFormPage() {
     updateMutation.mutate({ date: value });
   }
 
-  const dirty = useMemo(() => JSON.stringify(blocks) !== JSON.stringify(savedBlocks), [blocks, savedBlocks]);
+  const dirty = useMemo(
+    () => JSON.stringify(withoutRemovalMarks(blocks)) !== JSON.stringify(savedBlocks),
+    [blocks, savedBlocks],
+  );
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const progressionByExerciseId = useMemo(
@@ -164,13 +182,40 @@ export default function WorkoutFormPage() {
     );
   }
 
-  function removeSet(exerciseId: string, index: number) {
+  // Removing a set only marks it and shows "Undo" in its place; the removal
+  // is committed (and saved) once the undo window passes - or right away on
+  // Save / Finish / leaving the page. Each new removal restarts the window.
+  const removalTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  function markSet(exerciseId: string, index: number, removing: boolean) {
     setBlocks((prev) =>
       prev.map((b) =>
-        b.exerciseId === exerciseId ? { ...b, sets: b.sets.filter((_, i) => i !== index) } : b,
+        b.exerciseId === exerciseId
+          ? { ...b, sets: b.sets.map((s, i) => (i === index ? { reps: s.reps, ...(removing && { removing }) } : s)) }
+          : b,
       ),
     );
-    requestSave();
+  }
+
+  function removeSet(exerciseId: string, index: number) {
+    markSet(exerciseId, index, true);
+    clearTimeout(removalTimerRef.current);
+    removalTimerRef.current = setTimeout(() => {
+      setBlocks(withRemovalsApplied);
+      requestSave();
+    }, UNDO_REMOVE_SET_MS);
+  }
+
+  function undoRemoveSet(exerciseId: string, index: number) {
+    markSet(exerciseId, index, false);
+  }
+
+  // For Save / Finish / unmount, which read blocksRef right away instead of
+  // waiting for a render.
+  function commitRemovalsNow() {
+    clearTimeout(removalTimerRef.current);
+    blocksRef.current = withRemovalsApplied(blocksRef.current);
+    setBlocks(withRemovalsApplied);
   }
 
   function buildPayload(source: EditableExercise[]) {
@@ -217,6 +262,7 @@ export default function WorkoutFormPage() {
   // running after unmount.
   useEffect(
     () => () => {
+      commitRemovalsNow();
       void flushSave({ silentIfIncomplete: true });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,7 +285,7 @@ export default function WorkoutFormPage() {
   }
 
   async function saveOnce(silentIfIncomplete: boolean) {
-    const snapshot = blocksRef.current;
+    const snapshot = withoutRemovalMarks(blocksRef.current);
     if (JSON.stringify(snapshot) === JSON.stringify(savedRef.current)) return;
 
     const payload = buildPayload(snapshot);
@@ -262,10 +308,12 @@ export default function WorkoutFormPage() {
 
   function handleSave() {
     setError(null);
+    commitRemovalsNow();
     void flushSave({ silentIfIncomplete: false });
   }
 
   async function handleFinish() {
+    commitRemovalsNow();
     await flushSave({ silentIfIncomplete: false });
     await finishMutation.mutateAsync();
   }
@@ -496,27 +544,46 @@ export default function WorkoutFormPage() {
 
               <label className="label">{t('workout.setsLabel')}</label>
               <div className="flex flex-wrap gap-2">
-                {block.sets.map((s, i) => (
-                  <div key={i} className="flex items-center gap-1">
-                    <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className="input w-16 text-center"
-                      aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
-                      value={s.reps}
-                      onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}
-                      onBlur={requestSave}
-                    />
-                    <button
-                      className="text-slate-500 hover:text-red-400"
-                      title={t('workout.removeSetTitle')}
-                      onClick={() => removeSet(block.exerciseId, i)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                {block.sets.map((s, i) =>
+                  s.removing ? (
+                    <div key={i} role="status" className="flex min-h-11 items-center gap-2 text-sm text-slate-400">
+                      {t('workout.setRemoved', { set: i + 1 })}
+                      <button
+                        type="button"
+                        className="min-h-11 rounded-lg px-2 font-semibold text-accent hover:bg-surface-border"
+                        onClick={() => undoRemoveSet(block.exerciseId, i)}
+                      >
+                        {t('workout.undoRemoveSet')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div key={i} className="flex items-center gap-1">
+                      <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="input w-16 text-center"
+                        aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
+                        value={s.reps}
+                        onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}
+                        onBlur={requestSave}
+                      />
+                      {/* 44x44 target 8px from the field: a mis-tap in the gym
+                          shouldn't hit it, and "−" doesn't read as "12 ×". */}
+                      <button
+                        type="button"
+                        className="ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
+                        aria-label={t('workout.removeSetAria', { set: i + 1 })}
+                        title={t('workout.removeSetAria', { set: i + 1 })}
+                        onClick={() => removeSet(block.exerciseId, i)}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                          <path d="M6 12h12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ),
+                )}
                 <button className="btn-ghost text-accent" onClick={() => addSet(block.exerciseId)}>
                   {t('workout.addSet')}
                 </button>

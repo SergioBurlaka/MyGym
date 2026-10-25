@@ -165,7 +165,9 @@
     "unitsOne": "1",
     "setsLabel": "Sets (reps)",
     "addSet": "+ set",
-    "removeSetTitle": "Remove set",
+    "removeSetAria": "Remove set {{set}}",
+    "setRemoved": "Set {{set}} removed",
+    "undoRemoveSet": "Undo",
     "repsAria": "{{exercise}}, set {{set}}, reps",
     "addExercisePlaceholder": "Choose an exercise…",
     "addExerciseButton": "+ Add exercise"
