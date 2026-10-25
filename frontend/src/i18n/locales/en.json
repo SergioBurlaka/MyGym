@@ -77,7 +77,8 @@
     "emptyWorkout": "Empty — add exercises",
     "setsSummary": "{{count}} sets × {{weight}}",
     "setsOnly": "{{count}} sets",
-    "reminderSessions": "{{count}} wo",
+    "reminderSessions_one": "{{count}} workout",
+    "reminderSessions_other": "{{count}} workouts",
     "showAllReminders": "Show all {{count}}",
     "workoutMenuLabel": "Actions for {{date}}"
   },
@@ -555,8 +556,8 @@
     }
   },
   "progressStatus": {
-    "sessionsLeft_one": "{{count}} workout to \"Try more\"",
-    "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
+    "sessionsLeft_one": "{{count}} workout to \"Try more\"",
+    "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
     "due": "Time to try more",
     "addWeight": "Time to add weight",
     "noData": "No workouts yet",
