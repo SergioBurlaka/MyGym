@@ -88,7 +88,10 @@
     "emptyState": "No programs yet. Create one and you can start a workout from it in one click, even without prior history.",
     "deleteConfirmTitle": "Delete program",
     "deleteConfirmDescription": "«{{name}}» will be deleted. Workouts already created from it are unaffected.",
-    "tryMoreAfterWorkoutsBadge": "\"Try more\" after {{count}} workouts without progress",
+    "tryMoreAfterWorkoutsBadge_one": "\"Try more\" after {{count}} workout without progress",
+    "tryMoreAfterWorkoutsBadge_other": "\"Try more\" after {{count}} workouts without progress",
+    "tryMoreAfterWorkoutsBadgePartial_one": "\"Try more\" after {{count}} workout without progress - for exercises without their own threshold",
+    "tryMoreAfterWorkoutsBadgePartial_other": "\"Try more\" after {{count}} workouts without progress - for exercises without their own threshold",
     "exerciseCount_one": "{{count}} exercise",
     "exerciseCount_other": "{{count}} exercises",
     "cardMenuLabel": "Actions for {{name}}",
@@ -104,6 +107,7 @@
       "tryMoreAfterWorkoutsLabel": "\"Try more\" after N workouts without progress (default for all exercises)",
       "tryMoreAfterWorkoutsPlaceholder": "by group",
       "tryMoreRecommendedLabel": "Recommended:",
+      "tryMoreAfterWorkoutsUnused": "Not in effect right now: every exercise has its own threshold.",
       "tryMoreAfterWorkoutsHint": "Used for exercises whose own value is 0. Only actually-logged workouts with the exercise count - skipped days don't add to the count. After a 10-13 day break from training the first workout back doesn't count; after 14+ days the count starts over. Leave blank and each exercise uses the recommended value for its group.",
       "saveButton": "Save program",
       "saving": "Saving…",
@@ -343,7 +347,8 @@
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
-    "minutes": "{{m}} min"
+    "minutes": "{{m}} min",
+    "notClosedInTime": "over {{h}} h, not closed in time"
   },
   "passwordInput": {
     "show": "Show password",

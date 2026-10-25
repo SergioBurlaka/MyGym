@@ -8,11 +8,20 @@ export function formatTotalWeight(weightPerUnitKg: string | number | null, weigh
   return `${total} ${i18n.t('common.kg')} (${units}×${perUnit})`;
 }
 
-export function formatDuration(start: string | null, end: string | null): string | null {
+// Longer than this is not a real session but a workout closed late (e.g. a
+// "Finish" pressed days afterwards) - show that instead of "53 h 16 min".
+// The auto-finish sweep and migration 0023 prevent such rows; this is a guard.
+// An auto-finished workout was closed by the rule, so its hours are real.
+const MAX_PLAUSIBLE_DURATION_MIN = 4 * 60;
+
+export function formatDuration(start: string | null, end: string | null, autoFinished = false): string | null {
   if (!start || !end) return null;
   const ms = new Date(end).getTime() - new Date(start).getTime();
   if (ms <= 0) return null;
   const minutes = Math.round(ms / 60000);
+  if (minutes > MAX_PLAUSIBLE_DURATION_MIN && !autoFinished) {
+    return i18n.t('duration.notClosedInTime', { h: MAX_PLAUSIBLE_DURATION_MIN / 60 });
+  }
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? i18n.t('duration.hoursMinutes', { h, m }) : i18n.t('duration.minutes', { m });
