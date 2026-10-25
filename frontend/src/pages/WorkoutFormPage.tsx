@@ -26,14 +26,23 @@ const todayIso = new Date().toISOString().slice(0, 10);
 // `removing`: the set's remove button was pressed and its "Undo" row is still
 // showing. Until the removal is committed the set is saved as if still there,
 // so an undo never needs a request and a mis-tap never reaches the server.
-type EditableSet = { reps: string; removing?: boolean };
+// `key`: a client-only id, stable while sets around it come and go - an
+// index key would shift rows under the person's finger when a pending
+// removal is committed mid-typing, sending reps into the neighbouring set.
+type EditableSet = { key: string; reps: string; removing?: boolean };
 
 const UNDO_REMOVE_SET_MS = 5000;
 
-// What gets saved and compared for "dirty": the `removing` marks dropped (a
-// set pending removal still counts as present).
+let setKeySeq = 0;
+function newSet(reps = ''): EditableSet {
+  setKeySeq += 1;
+  return { key: `set-${setKeySeq}`, reps };
+}
+
+// What gets saved and compared for "dirty": reps only - keys and `removing`
+// marks dropped (a set pending removal still counts as present).
 function withoutRemovalMarks(blocks: EditableExercise[]): EditableExercise[] {
-  return blocks.map((b) => ({ ...b, sets: b.sets.map((s) => ({ reps: s.reps })) }));
+  return blocks.map((b) => ({ ...b, sets: b.sets.map((s) => ({ reps: s.reps }) as EditableSet) }));
 }
 
 function withRemovalsApplied(blocks: EditableExercise[]): EditableExercise[] {
@@ -106,10 +115,10 @@ export default function WorkoutFormPage() {
       weightUnits: (we.weightUnits as 1 | 2) ?? 2,
       sets: we.sets
         .sort((a, b) => a.setNumber - b.setNumber)
-        .map((s) => ({ reps: String(s.reps) })),
+        .map((s) => newSet(String(s.reps))),
     }));
     setBlocks(initial);
-    setSavedBlocks(initial);
+    setSavedBlocks(withoutRemovalMarks(initial));
     setLabelDraft(workoutQuery.data.programLabel ?? '');
     setDateDraft(workoutQuery.data.date);
     // Only re-seed local edit state when we land on a (new) workout — not on
@@ -151,7 +160,7 @@ export default function WorkoutFormPage() {
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, sets: [{ reps: '' }] }]);
+    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, sets: [newSet()] }]);
     setAddExerciseId('');
     requestSave();
   }
@@ -167,7 +176,7 @@ export default function WorkoutFormPage() {
 
   function addSet(exerciseId: string) {
     setBlocks((prev) =>
-      prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, { reps: '' }] } : b)),
+      prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, newSet()] } : b)),
     );
     requestSave();
   }
@@ -176,7 +185,7 @@ export default function WorkoutFormPage() {
     setBlocks((prev) =>
       prev.map((b) =>
         b.exerciseId === exerciseId
-          ? { ...b, sets: b.sets.map((s, i) => (i === index ? { reps } : s)) }
+          ? { ...b, sets: b.sets.map((s, i) => (i === index ? { ...s, reps } : s)) }
           : b,
       ),
     );
@@ -187,18 +196,27 @@ export default function WorkoutFormPage() {
   // Save / Finish / leaving the page. Each new removal restarts the window.
   const removalTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  function markSet(exerciseId: string, index: number, removing: boolean) {
+  // Undo puts focus back on the restored set's remove button (its ref
+  // callback picks this up), instead of dropping it to <body>.
+  const focusSetKeyRef = useRef<string | null>(null);
+
+  function markSet(exerciseId: string, setKey: string, removing: boolean) {
     setBlocks((prev) =>
       prev.map((b) =>
         b.exerciseId === exerciseId
-          ? { ...b, sets: b.sets.map((s, i) => (i === index ? { reps: s.reps, ...(removing && { removing }) } : s)) }
+          ? {
+              ...b,
+              sets: b.sets.map((s) =>
+                s.key === setKey ? { key: s.key, reps: s.reps, ...(removing && { removing }) } : s,
+              ),
+            }
           : b,
       ),
     );
   }
 
-  function removeSet(exerciseId: string, index: number) {
-    markSet(exerciseId, index, true);
+  function removeSet(exerciseId: string, setKey: string) {
+    markSet(exerciseId, setKey, true);
     clearTimeout(removalTimerRef.current);
     removalTimerRef.current = setTimeout(() => {
       setBlocks(withRemovalsApplied);
@@ -206,9 +224,12 @@ export default function WorkoutFormPage() {
     }, UNDO_REMOVE_SET_MS);
   }
 
-  function undoRemoveSet(exerciseId: string, index: number) {
-    markSet(exerciseId, index, false);
+  function undoRemoveSet(exerciseId: string, setKey: string) {
+    focusSetKeyRef.current = setKey;
+    markSet(exerciseId, setKey, false);
   }
+
+  const hasPendingRemoval = blocks.some((b) => b.sets.some((s) => s.removing));
 
   // For Save / Finish / unmount, which read blocksRef right away instead of
   // waiting for a render.
@@ -243,6 +264,7 @@ export default function WorkoutFormPage() {
   const savedRef = useRef(savedBlocks);
   savedRef.current = savedBlocks;
   const saveLoopRef = useRef<Promise<void> | null>(null);
+  const deletedRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const [saveTick, setSaveTick] = useState(0);
 
@@ -262,6 +284,10 @@ export default function WorkoutFormPage() {
   // running after unmount.
   useEffect(
     () => () => {
+      if (deletedRef.current) {
+        clearTimeout(removalTimerRef.current);
+        return;
+      }
       commitRemovalsNow();
       void flushSave({ silentIfIncomplete: true });
     },
@@ -320,6 +346,8 @@ export default function WorkoutFormPage() {
 
   async function handleDelete() {
     await deleteMutation.mutateAsync();
+    // Nothing left to save into - skip the leave-the-page save on unmount.
+    deletedRef.current = true;
     navigate('/');
   }
 
@@ -339,7 +367,7 @@ export default function WorkoutFormPage() {
     // form - a new workout started from this program will prefill that
     // many sets (with reps/weight pulled from history at that time, not
     // copied from here).
-    const programExercises = blocks
+    const programExercises = withRemovalsApplied(blocks)
       .filter((b) => b.sets.length > 0)
       .map((b) => ({ exerciseId: b.exerciseId, targetSets: b.sets.length }));
     if (programExercises.length === 0) {
@@ -457,7 +485,7 @@ export default function WorkoutFormPage() {
           <button
             className="btn-primary inline-flex items-center gap-2"
             onClick={handleSave}
-            disabled={saving || !dirty}
+            disabled={saving || (!dirty && !hasPendingRemoval)}
             aria-busy={saving}
           >
             {saving && (
@@ -546,18 +574,22 @@ export default function WorkoutFormPage() {
               <div className="flex flex-wrap gap-2">
                 {block.sets.map((s, i) =>
                   s.removing ? (
-                    <div key={i} role="status" className="flex min-h-11 items-center gap-2 text-sm text-slate-400">
+                    // Own key, so this row mounts fresh and autoFocus moves focus
+                    // from the vanished remove button onto "Undo".
+                    <div key={`${s.key}-removed`} className="flex min-h-11 items-center gap-2 text-sm text-slate-400">
                       {t('workout.setRemoved', { set: i + 1 })}
                       <button
                         type="button"
+                        autoFocus
                         className="min-h-11 rounded-lg px-2 font-semibold text-accent hover:bg-surface-border"
-                        onClick={() => undoRemoveSet(block.exerciseId, i)}
+                        aria-label={t('workout.undoRemoveSetAria', { set: i + 1 })}
+                        onClick={() => undoRemoveSet(block.exerciseId, s.key)}
                       >
                         {t('workout.undoRemoveSet')}
                       </button>
                     </div>
                   ) : (
-                    <div key={i} className="flex items-center gap-1">
+                    <div key={s.key} className="flex items-center gap-1">
                       <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
                       <input
                         type="text"
@@ -575,7 +607,13 @@ export default function WorkoutFormPage() {
                         className="ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
                         aria-label={t('workout.removeSetAria', { set: i + 1 })}
                         title={t('workout.removeSetAria', { set: i + 1 })}
-                        onClick={() => removeSet(block.exerciseId, i)}
+                        ref={(el) => {
+                          if (el && focusSetKeyRef.current === s.key) {
+                            focusSetKeyRef.current = null;
+                            el.focus();
+                          }
+                        }}
+                        onClick={() => removeSet(block.exerciseId, s.key)}
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                           <path d="M6 12h12" />

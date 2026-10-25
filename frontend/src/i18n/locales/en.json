@@ -168,6 +168,7 @@
     "removeSetAria": "Remove set {{set}}",
     "setRemoved": "Set {{set}} removed",
     "undoRemoveSet": "Undo",
+    "undoRemoveSetAria": "Bring back set {{set}}",
     "repsAria": "{{exercise}}, set {{set}}, reps",
     "addExercisePlaceholder": "Choose an exercise…",
     "addExerciseButton": "+ Add exercise"
