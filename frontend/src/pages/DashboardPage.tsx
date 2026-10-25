@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useWorkoutsQuery, useStartWorkoutMutation, useWorkoutTemplatesQuery, useDeleteWorkoutMutation } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { useProgramsQuery } from '../shared/api/programs/index.js';
-import { formatDate, formatDuration, formatTotalWeight } from '../utils/weight.js';
+import { formatDate, formatDuration } from '../utils/weight.js';
+import SetsSummary from '../components/SetsSummary.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import Pagination from '../components/Pagination.js';
@@ -144,10 +145,7 @@ export default function DashboardPage() {
                     <li key={we.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5">
                       <span>
                         {we.exercise.name}:{' '}
-                        {t('dashboard.setsSummary', {
-                          count: we.sets.length,
-                          weight: formatTotalWeight(we.weightPerUnitKg, we.weightUnits),
-                        })}
+                        <SetsSummary workoutExercise={we} perSideClassName="ml-2 text-xs text-slate-400" />
                       </span>
                       <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
                     </li>
@@ -353,25 +351,21 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
       ) : (
         <div className="space-y-1.5">
           {workout.workoutExercises.map((we) => {
-            const totalWeight = we.weightPerUnitKg != null ? Number(we.weightPerUnitKg) * (we.weightUnits ?? 2) : null;
             return (
               <div key={we.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
-                <span className="flex min-w-0 flex-col gap-1">
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="text-slate-200">{we.exercise.name}</span>
                   <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
                 </span>
-                {totalWeight != null ? (
-                  <span className="flex flex-col items-end whitespace-nowrap leading-tight">
-                    <b className="font-semibold text-slate-100">
-                      {we.sets.length} × {totalWeight} {t('common.kg')}
-                    </b>
-                    <span className="text-xs text-slate-400">
-                      {we.weightUnits ?? 2}×{we.weightPerUnitKg}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="whitespace-nowrap text-slate-400">{t('dashboard.setsOnly', { count: we.sets.length })}</span>
-                )}
+                {/* Capped, not shrink-0: a long set list wraps between sets
+                    instead of squeezing the name or overflowing at 375px. */}
+                <span className="flex max-w-[60%] flex-col items-end text-right leading-tight">
+                  <SetsSummary
+                    workoutExercise={we}
+                    className="font-semibold text-slate-100"
+                    perSideClassName="mt-0.5 text-xs text-slate-400"
+                  />
+                </span>
               </div>
             );
           })}

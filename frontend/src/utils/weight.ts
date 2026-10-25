@@ -1,11 +1,22 @@
 import i18n from '../i18n/index.js';
 
-export function formatTotalWeight(weightPerUnitKg: string | number | null, weightUnits: number | null): string {
-  if (weightPerUnitKg == null) return '—';
-  const perUnit = Number(weightPerUnitKg);
-  const units = weightUnits ?? 2;
-  const total = perUnit * units;
-  return `${total} ${i18n.t('common.kg')} (${units}×${perUnit})`;
+// The numbers behind a journal line (components/SetsSummary.tsx): total
+// weight (null without weight - 0 kg counts as none, as in the progression
+// rules), the per-side weight for two-sided loads, and reps in set order.
+export function setsSummary(we: {
+  weightPerUnitKg: string | number | null;
+  weightUnits: number | null;
+  sets: { setNumber: number; reps: number }[];
+}): { totalKg: number | null; perSideKg: number | null; reps: number[] } {
+  const perUnit = we.weightPerUnitKg == null ? 0 : Number(we.weightPerUnitKg);
+  const units = we.weightUnits ?? 2;
+  const weighted = perUnit > 0;
+  return {
+    // Rounded to grams so 16.25 × 2 can't print as 32.49999.
+    totalKg: weighted ? Math.round(perUnit * units * 1000) / 1000 : null,
+    perSideKg: weighted && units === 2 ? perUnit : null,
+    reps: [...we.sets].sort((a, b) => a.setNumber - b.setNumber).map((s) => s.reps),
+  };
 }
 
 // Longer than this is not a real session but a workout closed late (e.g. a
