@@ -47,7 +47,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 --schema-only` (перезнімати після міграцій, команда — в кінці ARCHITECTURE.md).
 Повні дампи з даними — тільки в `backups/` (у `.gitignore`: хеш пароля, refresh-токени).
 
-- `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, форма внизу сторінки "Вправи"); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" нижче)
+- `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, сторінка «Розклад» `/schedule`, `pages/SchedulePage.tsx` — з 2026-10-25 окремо від «Вправ», пункт у меню профілю й мобільному меню, посилання «Змінити розклад» у легенді календаря журналу); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" нижче)
 - `refresh_tokens` — хеші refresh-токенів (unique-індекс на `token_hash` — кожен refresh шукає за ним). Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" нижче)
 - `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" нижче. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
 - `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. `client_logo_uri` (nullable, лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`. `oauth_clients` — клієнти, зареєстровані через DCR (`id` = `mygym_cli_…`, хеш секрету, метод автентифікації, `redirect_uris` jsonb); не FK до grant-ів. Див. "OAuth для MCP-клієнтів" нижче
@@ -531,7 +531,7 @@ grace-вікна** — повтор старого refresh відкликає в
 
 Підписка на розклад тренувань у Google / Apple / Outlook Calendar через
 секретне посилання на ICS-фід (блок «Нагадування в календарі» у картці розкладу
-на сторінці «Вправи», `components/CalendarSubscription.tsx`).
+на сторінці «Розклад», `components/CalendarSubscription.tsx`).
 - Налаштування в `users`: `trainingTime` (`HH:MM`, default `18:00`),
   `trainingDurationMin` (60), `timezone` (IANA, default `Europe/Kyiv`). Пояс у
   формі не показується: фронтенд додає пояс браузера до кожного збереження
