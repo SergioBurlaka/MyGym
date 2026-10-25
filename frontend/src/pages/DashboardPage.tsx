@@ -137,7 +137,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               {w.workoutExercises.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">{t('dashboard.emptyWorkout')}</p>
+                <p className="mt-2 text-sm text-slate-400">{t('dashboard.emptyWorkout')}</p>
               ) : (
                 <ul className="mt-2 divide-y divide-surface-border text-sm text-slate-400">
                   {w.workoutExercises.map((we) => (
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                           weight: formatTotalWeight(we.weightPerUnitKg, we.weightUnits),
                         })}
                       </span>
-                      <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} label="fraction" />
+                      <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
                     </li>
                   ))}
                 </ul>
@@ -349,7 +349,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
       </div>
 
       {workout.workoutExercises.length === 0 ? (
-        <p className="text-sm text-slate-500">{t('dashboard.emptyWorkout')}</p>
+        <p className="text-sm text-slate-400">{t('dashboard.emptyWorkout')}</p>
       ) : (
         <div className="space-y-1.5">
           {workout.workoutExercises.map((we) => {
@@ -358,7 +358,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
               <div key={we.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
                 <span className="flex min-w-0 flex-col gap-1">
                   <span className="text-slate-200">{we.exercise.name}</span>
-                  <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} label="fraction" />
+                  <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
                 </span>
                 {totalWeight != null ? (
                   <span className="flex flex-col items-end whitespace-nowrap leading-tight">

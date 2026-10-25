@@ -18,7 +18,7 @@ export default function LanguageSwitcher() {
           type="button"
           onClick={() => i18n.changeLanguage(lng)}
           className={`rounded px-2 py-1 text-xs font-semibold transition-colors ${
-            current === lng ? 'bg-accent text-white' : 'text-slate-400 hover:text-slate-200'
+            current === lng ? 'bg-accent text-surface' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           {LANGUAGE_LABEL[lng]}

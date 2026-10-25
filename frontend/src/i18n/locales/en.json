@@ -77,7 +77,8 @@
     "emptyWorkout": "Empty — add exercises",
     "setsSummary": "{{count}} sets × {{weight}}",
     "setsOnly": "{{count}} sets",
-    "reminderSessions": "{{count}} wo",
+    "reminderSessions_one": "{{count}} workout",
+    "reminderSessions_other": "{{count}} workouts",
     "showAllReminders": "Show all {{count}}",
     "workoutMenuLabel": "Actions for {{date}}"
   },
@@ -200,9 +201,9 @@
       "oneRepMaxTitle": "Estimated 1RM, kg",
       "oneRepMaxDescription": "One-rep max — how much you could theoretically lift for 1 rep, via the Epley formula: weight × (1 + reps / 30). Combines weight and reps into a single strength metric, so it keeps rising even when weight drops for higher reps. A rough estimate — the formula gets unreliable past 15+ reps.",
       "oneRepMaxEmpty": "This exercise is done without weight",
-      "volumeTitle": "Session volume",
-      "volumeDescriptionWeighted": "Total work for the session: weight × sum of reps across all sets. Grows even when weight and max reps stay flat — from doing more sets.",
-      "volumeDescriptionBodyweight": "For bodyweight exercises — just the sum of reps across all sets in the session.",
+      "volumeTitle": "Workout volume",
+      "volumeDescriptionWeighted": "Total work for the workout: weight × sum of reps across all sets. Grows even when weight and max reps stay flat — from doing more sets.",
+      "volumeDescriptionBodyweight": "For bodyweight exercises — just the sum of reps across all sets in the workout.",
       "prBadge": "🏆 Personal record",
       "summary": "{{label}}: {{first}} → {{last}} {{unit}}, {{from}} – {{to}}",
       "summarySingle": "{{label}}: {{last}} {{unit}}, {{to}}"
@@ -563,15 +564,15 @@
     }
   },
   "progressStatus": {
-    "sessionsLeft_one": "{{count}} workout to \"Try more\"",
-    "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
+    "sessionsLeft_one": "{{count}} workout to \"Try more\"",
+    "sessionsLeft_other": "{{count}} workouts to \"Try more\"",
     "due": "Time to try more",
     "addWeight": "Time to add weight",
     "noData": "No workouts yet",
-    "progressTitle": "{{done}} of {{total}} without progress",
+    "progressTitle_one": "Without progress: {{done}} of {{count}} workout",
+    "progressTitle_other": "Without progress: {{done}} of {{count}} workouts",
     "first": "First time",
     "afterBreak": "After a break - count restarts",
-    "progress": "✓ Progress",
-    "fractionSessions": "{{done}} / {{total}} sessions to progress"
+    "progress": "✓ Progress"
   }
 }

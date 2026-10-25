@@ -77,7 +77,10 @@
     "emptyWorkout": "Порожньо — додайте вправи",
     "setsSummary": "{{count}} підх. × {{weight}}",
     "setsOnly": "{{count}} підх.",
-    "reminderSessions": "{{count}} трен.",
+    "reminderSessions_one": "{{count}} трен.",
+    "reminderSessions_few": "{{count}} трен.",
+    "reminderSessions_many": "{{count}} трен.",
+    "reminderSessions_other": "{{count}} трен.",
     "showAllReminders": "Показати всі {{count}}",
     "workoutMenuLabel": "Дії з тренуванням {{date}}"
   },
@@ -581,17 +584,19 @@
     }
   },
   "progressStatus": {
-    "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",
-    "sessionsLeft_few": "ще {{count}} тренування до «Спробуй більше»",
-    "sessionsLeft_many": "ще {{count}} тренувань до «Спробуй більше»",
-    "sessionsLeft_other": "ще {{count}} тренування до «Спробуй більше»",
+    "sessionsLeft_one": "ще {{count}} тренування до «Спробуй більше»",
+    "sessionsLeft_few": "ще {{count}} тренування до «Спробуй більше»",
+    "sessionsLeft_many": "ще {{count}} тренувань до «Спробуй більше»",
+    "sessionsLeft_other": "ще {{count}} тренування до «Спробуй більше»",
     "due": "Час спробувати більше",
     "addWeight": "Час додати вагу",
     "noData": "Ще не виконувалась",
-    "progressTitle": "{{done}} з {{total}} без прогресу",
+    "progressTitle_one": "Без прогресу: {{done}} з {{count}} тренування",
+    "progressTitle_few": "Без прогресу: {{done}} з {{count}} тренувань",
+    "progressTitle_many": "Без прогресу: {{done}} з {{count}} тренувань",
+    "progressTitle_other": "Без прогресу: {{done}} з {{count}} тренування",
     "first": "Перше виконання",
     "afterBreak": "Після перерви — відлік з нуля",
-    "progress": "✓ Прогрес",
-    "fractionSessions": "{{done}} / {{total}} тр. до прогресу"
+    "progress": "✓ Прогрес"
   }
 }

@@ -117,22 +117,22 @@ export default function ProgressPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-500">{t('progress.charts.workingWeightDescription')}</p>
+                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.workingWeightDescription')}</p>
                 <ProgressChart label={t('progress.charts.workingWeightTitle')} data={weightData} color="#ff5a36" unit={t('common.kg')} emptyLabel={t('progress.charts.workingWeightEmpty')} />
               </div>
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.maxRepsTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-500">{t('progress.charts.maxRepsDescription')}</p>
+                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.maxRepsDescription')}</p>
                 <ProgressChart label={t('progress.charts.maxRepsTitle')} data={repsData} color="#3ddc97" unit={t('common.reps')} emptyLabel={t('progress.charts.noData')} />
               </div>
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.oneRepMaxTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-500">{t('progress.charts.oneRepMaxDescription')}</p>
+                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.oneRepMaxDescription')}</p>
                 <ProgressChart label={t('progress.charts.oneRepMaxTitle')} data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
               </div>
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.volumeTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-500">
+                <p className="mb-2 mt-1 text-xs text-slate-400">
                   {hasWeightedVolume
                     ? t('progress.charts.volumeDescriptionWeighted')
                     : t('progress.charts.volumeDescriptionBodyweight')}

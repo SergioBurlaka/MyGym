@@ -38,7 +38,7 @@ export default function Pagination({
 
       {pageWindow(page, totalPages).map((p, i) =>
         p === 'ellipsis' ? (
-          <span key={`ellipsis-${i}`} className="px-2 text-sm text-slate-500">
+          <span key={`ellipsis-${i}`} className="px-2 text-sm text-slate-400">
             …
           </span>
         ) : (

@@ -419,7 +419,7 @@ export default function WorkoutFormPage() {
                 })
               : t('workout.inProgress')}
           </p>
-          {workout.autoFinished && <p className="text-xs text-slate-500">{t('workout.autoFinishedHint')}</p>}
+          {workout.autoFinished && <p className="text-xs text-slate-400">{t('workout.autoFinishedHint')}</p>}
           <div className="mt-2 flex items-center gap-2">
             <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
               {t('workout.nameLabel')}
@@ -531,7 +531,7 @@ export default function WorkoutFormPage() {
 
               {tryMore.kind !== 'unknown' && (
                 <div className="-mt-1 mb-3">
-                  <TryMoreStatusBadge status={tryMore} label="fraction" />
+                  <TryMoreStatusBadge status={tryMore} />
                 </div>
               )}
 
@@ -590,7 +590,7 @@ export default function WorkoutFormPage() {
                     </div>
                   ) : (
                     <div key={s.key} className="flex items-center gap-1">
-                      <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
+                      <span className="w-5 text-center text-xs text-slate-400">{i + 1}</span>
                       <input
                         type="text"
                         inputMode="numeric"

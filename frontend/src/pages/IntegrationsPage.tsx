@@ -140,7 +140,7 @@ function SetupGuides() {
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setTab(g.id)}
                 className={`min-h-11 rounded-lg px-4 text-sm font-semibold transition-colors ${
-                  selected ? 'bg-accent text-white' : 'text-slate-400 hover:text-white'
+                  selected ? 'bg-accent text-surface' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {t(`integrations.guide.${g.id}.tab`)}
@@ -161,7 +161,7 @@ function SetupGuides() {
           <ol className="space-y-5">
             {Array.from({ length: guide.steps }, (_, i) => i + 1).map((n) => (
               <li key={n} className="flex gap-4">
-                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent font-bold text-white">
+                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent font-bold text-surface">
                   {n}
                 </span>
                 <div className="min-w-0 flex-1 space-y-2.5">
