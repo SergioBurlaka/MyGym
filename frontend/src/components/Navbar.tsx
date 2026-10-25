@@ -163,6 +163,7 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -170,7 +171,10 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     function onEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      const focusInside = ref.current?.contains(document.activeElement);
+      setOpen(false);
+      if (focusInside) buttonRef.current?.focus();
     }
     document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onEscape);
@@ -183,10 +187,10 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={buttonRef}
         type="button"
         className="flex items-center gap-1.5 rounded-lg p-1 text-slate-400 hover:text-white"
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('nav.profileMenu')}
       >

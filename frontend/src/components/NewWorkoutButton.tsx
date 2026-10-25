@@ -84,8 +84,11 @@ export default function NewWorkoutButton({
     }
     function onEscape(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
+      // Only pull focus back if it was inside the menu - not if the person
+      // already tabbed away to something else on the page.
+      const focusInside = ref.current?.contains(document.activeElement);
       close();
-      buttonRef.current?.focus();
+      if (focusInside) buttonRef.current?.focus();
     }
     document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onEscape);
@@ -109,7 +112,6 @@ export default function NewWorkoutButton({
         className="btn-primary"
         onClick={toggle}
         disabled={busy}
-        aria-haspopup={entries.length > 0 ? 'menu' : undefined}
         aria-expanded={entries.length > 0 ? open && !closing : undefined}
       >
         {busy ? t('dashboard.creating') : t('dashboard.newWorkout')}

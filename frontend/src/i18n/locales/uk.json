@@ -188,7 +188,7 @@
     "weeklyVolumeDescription": "Баланс навантаження між великими й малими групами м'язів — чи не занедбані малі групи.",
     "noPeriodData": "Немає даних за цей період",
     "weekOf": "Тиждень з {{date}}",
-    "weeklyVolumeSummary": "Обсяг по категоріях за тиждень, {{from}} – {{to}}: велика група {{large}} кг, мала група {{small}} кг, без ваги {{bodyweight}} повт.",
+    "weeklyVolumeSummary": "Сумарний обсяг по категоріях за {{from}} – {{to}}: велика група {{large}} кг, мала група {{small}} кг, без ваги {{bodyweight}} повт.",
     "stats": {
       "lastWorkout": "Востаннє",
       "lastWeight": "Остання вага",
@@ -209,7 +209,8 @@
       "volumeDescriptionWeighted": "Сумарна робота за сесію: вага × сума повторень усіх підходів. Росте навіть коли вага й максимум повторень не змінюються — за рахунок більшої кількості підходів.",
       "volumeDescriptionBodyweight": "Для вправ без ваги — просто сума повторень усіх підходів за сесію.",
       "prBadge": "🏆 Особистий рекорд",
-      "summary": "{{label}}: {{first}} → {{last}} {{unit}}, {{from}} – {{to}}"
+      "summary": "{{label}}: {{first}} → {{last}} {{unit}}, {{from}} – {{to}}",
+      "summarySingle": "{{label}}: {{last}} {{unit}}, {{to}}"
     }
   },
   "exercises": {

@@ -65,7 +65,7 @@ export default function ProgressChart({
   // The SVG itself says nothing to a screen reader - expose the trend as text.
   const first = points[0];
   const last = points[points.length - 1];
-  const summary = t('progress.charts.summary', {
+  const summary = t(points.length === 1 ? 'progress.charts.summarySingle' : 'progress.charts.summary', {
     label,
     first: first.value,
     last: last.value,
