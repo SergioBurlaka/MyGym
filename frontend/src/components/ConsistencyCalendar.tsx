@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { useScheduleHistoryQuery } from '../shared/api/settings/index.js';
 import { useWorkoutDatesQuery } from '../shared/api/workouts/index.js';
 import { formatDate } from '../utils/weight.js';
@@ -147,6 +148,10 @@ export default function ConsistencyCalendar() {
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-surface-border" /> {t('calendar.legend.rest')}
         </span>
+        {/* "Missed" comes from the training schedule - say where it's set. */}
+        <Link to="/schedule" className="font-semibold text-accent hover:underline">
+          {t('calendar.legend.changeSchedule')}
+        </Link>
       </div>
     </div>
   );
