@@ -38,6 +38,12 @@ project has its own standards they outrank this skill's defaults. Ask at most
 one question, only if the core task or audience is truly unclear; otherwise
 state your assumptions at the top of the report and carry on.
 
+If the project has no principles file and the user works in its repository,
+offer once, after the report, to draft one from
+`assets/DESIGN_PRINCIPLES.template.md`, filled with the real tokens from the
+codebase and the decisions the review surfaced. Reviews against a written
+standard are more consistent than reviews from scratch.
+
 Pick a domain module if one fits: workout/fitness trackers →
 `references/domain-fitness.md`. Other domains: apply the general passes and
 think through the same questions the module asks (context of use, core loop
