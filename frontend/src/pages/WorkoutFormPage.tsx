@@ -109,6 +109,8 @@ export default function WorkoutFormPage() {
 
   useEffect(() => {
     if (!workoutQuery.data) return;
+    // A removal pending on the previous workout must not fire into this one.
+    clearTimeout(removalTimerRef.current);
     const initial = workoutQuery.data.workoutExercises.map((we) => ({
       exerciseId: we.exerciseId,
       weightPerUnitKg: we.weightPerUnitKg ?? '',
@@ -181,11 +183,11 @@ export default function WorkoutFormPage() {
     requestSave();
   }
 
-  function updateSetReps(exerciseId: string, index: number, reps: string) {
+  function updateSetReps(exerciseId: string, setKey: string, reps: string) {
     setBlocks((prev) =>
       prev.map((b) =>
         b.exerciseId === exerciseId
-          ? { ...b, sets: b.sets.map((s, i) => (i === index ? { ...s, reps } : s)) }
+          ? { ...b, sets: b.sets.map((s) => (s.key === setKey ? { ...s, reps } : s)) }
           : b,
       ),
     );
@@ -597,7 +599,7 @@ export default function WorkoutFormPage() {
                         className="input w-16 text-center"
                         aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
                         value={s.reps}
-                        onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}
+                        onChange={(e) => updateSetReps(block.exerciseId, s.key, e.target.value)}
                         onBlur={requestSave}
                       />
                       {/* 44x44 target 8px from the field: a mis-tap in the gym
