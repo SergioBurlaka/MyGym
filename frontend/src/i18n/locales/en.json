@@ -166,6 +166,7 @@
     "setsLabel": "Sets (reps)",
     "addSet": "+ set",
     "removeSetTitle": "Remove set",
+    "repsAria": "{{exercise}}, set {{set}}, reps",
     "addExercisePlaceholder": "Choose an exercise…",
     "addExerciseButton": "+ Add exercise"
   },

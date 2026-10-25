@@ -461,10 +461,11 @@ export default function WorkoutFormPage() {
 
               <div className="mb-4 flex flex-wrap items-end gap-3">
                 <div>
-                  <label className="label">
+                  <label className="label" htmlFor={`weight-${block.exerciseId}`}>
                     {isBodyweight ? t('workout.extraWeightLabel') : t('workout.weightPerUnitLabel')}
                   </label>
                   <input
+                    id={`weight-${block.exerciseId}`}
                     type="text"
                     inputMode="decimal"
                     className="input w-32"
@@ -502,6 +503,7 @@ export default function WorkoutFormPage() {
                       type="text"
                       inputMode="numeric"
                       className="input w-16 text-center"
+                      aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
                       value={s.reps}
                       onChange={(e) => updateSetReps(block.exerciseId, i, e.target.value)}
                       onBlur={requestSave}
