@@ -26,6 +26,7 @@ export default function NewWorkoutButton({
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const closeTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   // Programs are the authoritative, explicitly-authored version of a named
@@ -81,8 +82,20 @@ export default function NewWorkoutButton({
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
+    function onEscape(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      // Only pull focus back if it was inside the menu - not if the person
+      // already tabbed away to something else on the page.
+      const focusInside = ref.current?.contains(document.activeElement);
+      close();
+      if (focusInside) buttonRef.current?.focus();
+    }
     document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
   }, [open, closing]);
 
   useEffect(() => () => clearTimeout(closeTimeout.current), []);
@@ -94,7 +107,13 @@ export default function NewWorkoutButton({
 
   return (
     <div className="relative inline-block" ref={ref}>
-      <button className="btn-primary" onClick={toggle} disabled={busy}>
+      <button
+        ref={buttonRef}
+        className="btn-primary"
+        onClick={toggle}
+        disabled={busy}
+        aria-expanded={entries.length > 0 ? open && !closing : undefined}
+      >
         {busy ? t('dashboard.creating') : t('dashboard.newWorkout')}
       </button>
 

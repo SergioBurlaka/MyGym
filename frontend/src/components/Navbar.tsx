@@ -120,6 +120,10 @@ export default function Navbar() {
         className={`absolute inset-x-0 top-full grid bg-surface/95 shadow-xl backdrop-blur transition-[grid-template-rows,opacity] duration-300 ease-in-out sm:hidden ${
           mobileOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
+        // Collapsed, the menu stays in the DOM for the animation - inert keeps
+        // its invisible links (Log out included) out of the Tab order.
+        inert={mobileOpen ? undefined : ''}
+        aria-hidden={!mobileOpen}
       >
         {/* min-h-0 lets this grid row actually shrink to 0 instead of clamping
             to the content's height - without it grid-rows-[0fr] has no effect. */}
@@ -159,6 +163,7 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -166,7 +171,10 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     function onEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      const focusInside = ref.current?.contains(document.activeElement);
+      setOpen(false);
+      if (focusInside) buttonRef.current?.focus();
     }
     document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onEscape);
@@ -179,10 +187,10 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={buttonRef}
         type="button"
         className="flex items-center gap-1.5 rounded-lg p-1 text-slate-400 hover:text-white"
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('nav.profileMenu')}
       >

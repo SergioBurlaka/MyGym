@@ -26,4 +26,12 @@ i18n
     interpolation: { escapeValue: false },
   });
 
+// index.html ships a static lang="uk" - keep <html lang> in step with the
+// active language so screen readers pick the right voice.
+function syncHtmlLang(lng: string | undefined) {
+  if (lng) document.documentElement.lang = lng.split('-')[0];
+}
+syncHtmlLang(i18n.resolvedLanguage ?? i18n.language);
+i18n.on('languageChanged', (lng) => syncHtmlLang(i18n.resolvedLanguage ?? lng));
+
 export default i18n;
