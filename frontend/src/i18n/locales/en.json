@@ -578,6 +578,7 @@
     "progress": "✓ Progress"
   },
   "schedule": {
-    "title": "Schedule"
+    "title": "Schedule",
+    "loadError": "Couldn't load your schedule. Refresh the page to try again."
   }
 }

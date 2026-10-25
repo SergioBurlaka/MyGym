@@ -81,6 +81,9 @@ export default function SchedulePage() {
   }
 
   if (settingsQuery.isPending) return <p className="text-slate-400">{t('common.loading')}</p>;
+  // Without the saved settings the form would show no days picked, and one
+  // tap would overwrite the real schedule - so don't show it at all.
+  if (!settings) return <p className="text-red-400">{t('schedule.loadError')}</p>;
 
   return (
     <div className="space-y-6">
