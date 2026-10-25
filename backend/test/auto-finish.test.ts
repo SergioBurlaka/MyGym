@@ -167,6 +167,17 @@ describe('migration 0023: backfill of workouts finished long after the last save
     expect(Math.abs(w.timeEnd!.getTime() - minutesAgo(3116).getTime())).toBeLessThan(5_000);
   });
 
+  it('ends a workout with nothing logged at its start', async () => {
+    const { auth } = await registerUser(app);
+    const id = await openWorkout(auth, { startedMinutesAgo: 200 });
+    await finishedAt(id, 80); // 2 h after the start, no saves at all
+
+    await runBackfill();
+    const w = await row(id);
+    expect(w.autoFinished).toBe(true);
+    expect(w.timeEnd!.getTime()).toBe(w.timeStart!.getTime());
+  });
+
   it('leaves honest finishes, auto-finished and CSV-imported workouts alone', async () => {
     const { auth } = await registerUser(app);
     const honest = await openWorkout(auth, { startedMinutesAgo: 200, savedMinutesAgo: 120 });
