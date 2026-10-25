@@ -4,8 +4,10 @@ import type { TryMoreStatus } from '../utils/tryMoreCountdown.js';
 // Text + progress bar for an exercise's place on the "try more" scale -
 // shared by the Programs cards, the journal and the workout page. Everywhere
 // the same countdown in workouts: "N workouts to 'Try more'" (user's decision
-// 2026-10-25 - a "done / total" fraction read as "to progress").
-export default function TryMoreStatusBadge({ status }: { status: TryMoreStatus }) {
+// 2026-10-25 - a "done / total" fraction read as "to progress"). `compact`
+// (the narrow Progress chips) shortens the countdown to "3 left"; the full
+// sentence stays in the tooltip and for screen readers.
+export default function TryMoreStatusBadge({ status, compact = false }: { status: TryMoreStatus; compact?: boolean }) {
   const { t } = useTranslation();
 
   switch (status.kind) {
@@ -26,13 +28,21 @@ export default function TryMoreStatusBadge({ status }: { status: TryMoreStatus }
   const due = status.kind === 'due';
   const percent = Math.min(100, Math.round((status.done / status.total) * 100));
   const text = due ? t('progressStatus.due') : t('progressStatus.sessionsLeft', { count: status.left });
+  const progressTitle = t('progressStatus.progressTitle', { done: status.done, count: status.total });
+  const textClass = `min-w-0 text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`;
 
   return (
-    <span
-      className="flex min-w-0 items-center gap-2"
-      title={t('progressStatus.progressTitle', { done: status.done, count: status.total })}
-    >
-      <span className={`min-w-0 text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>{text}</span>
+    <span className="flex min-w-0 items-center gap-2" title={compact && !due ? `${text} · ${progressTitle}` : progressTitle}>
+      {compact && !due ? (
+        <>
+          <span className={textClass} aria-hidden="true">
+            {t('progressStatus.sessionsLeftShort', { count: status.left })}
+          </span>
+          <span className="sr-only">{text}</span>
+        </>
+      ) : (
+        <span className={textClass}>{text}</span>
+      )}
       <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-surface-border" aria-hidden="true">
         <span className={`block h-full rounded-full ${due ? 'bg-warn' : 'bg-accent'}`} style={{ width: `${percent}%` }} />
       </span>

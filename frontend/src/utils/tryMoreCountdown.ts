@@ -54,3 +54,22 @@ export function journalTryMoreStatus(p: WorkoutProgressAt | null | undefined): T
   if (done >= total) return { kind: 'due', done, total };
   return { kind: 'countdown', done, total, left: total - done };
 }
+
+// Sort order for the Progress chips - what needs doing today first: add
+// weight, then "try more" already due, then closest to the nudge (fewest
+// workouts left), then no data. Ties are left to the caller.
+export function tryMoreUrgency(status: TryMoreStatus): number {
+  switch (status.kind) {
+    case 'add_weight':
+      return -2;
+    case 'due':
+      return -1;
+    case 'countdown':
+      return status.left;
+    case 'no_data':
+    case 'unknown':
+      return Number.POSITIVE_INFINITY;
+    default:
+      return Number.MAX_SAFE_INTEGER;
+  }
+}

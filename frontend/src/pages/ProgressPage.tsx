@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useProgressionHistoryQuery,
@@ -8,19 +8,35 @@ import {
 import ProgressChart from '../components/ProgressChart.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import WeeklyCategoryChart from '../components/WeeklyCategoryChart.js';
+import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
+import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 
 export default function ProgressPage() {
   const { t } = useTranslation();
   const progressionQuery = useProgressionQuery();
-  const progression = progressionQuery.data ?? [];
   const volumeByCategoryQuery = useVolumeByCategoryQuery(12);
 
+  // Chips show the same countdown as the program cards (the backend's
+  // threshold - smallest across programs, else the category default) and are
+  // sorted by urgency, then name, so what needs attention today comes first.
+  const chips = useMemo(
+    () =>
+      (progressionQuery.data ?? [])
+        .map((p) => ({ p, status: tryMoreStatus(p, null) }))
+        .sort((a, b) => tryMoreUrgency(a.status) - tryMoreUrgency(b.status) || a.p.name.localeCompare(b.p.name)),
+    [progressionQuery.data],
+  );
+  const progression = useMemo(() => chips.map((c) => c.p), [chips]);
+
+  // The default is taken once, from the first load - a refetch that reorders
+  // the chips must not swap the charts under someone who hasn't clicked yet.
   const [manualSelectedId, setManualSelectedId] = useState<string | null>(null);
-  const defaultSelectedId = useMemo(() => {
-    const firstWithData = progression.find((p) => p.suggestion !== 'no_data');
-    return (firstWithData ?? progression[0])?.exerciseId ?? null;
-  }, [progression]);
+  const [initialSelectedId, setInitialSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (initialSelectedId == null && progression.length > 0) setInitialSelectedId(progression[0].exerciseId);
+  }, [initialSelectedId, progression]);
+  const defaultSelectedId = initialSelectedId ?? progression[0]?.exerciseId ?? null;
   const selectedId = manualSelectedId ?? defaultSelectedId;
 
   const historyQuery = useProgressionHistoryQuery(selectedId);
@@ -60,7 +76,7 @@ export default function ProgressPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {progression.map((p) => (
+        {chips.map(({ p, status }) => (
           <button
             key={p.exerciseId}
             onClick={() => setManualSelectedId(p.exerciseId)}
@@ -72,7 +88,7 @@ export default function ProgressPage() {
             }`}
           >
             <div className="font-medium text-slate-200">{p.name}</div>
-            <ProgressionBadge suggestion={p.suggestion} />
+            <TryMoreStatusBadge status={status} compact />
           </button>
         ))}
       </div>
