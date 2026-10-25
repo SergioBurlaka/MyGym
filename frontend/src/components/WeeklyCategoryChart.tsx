@@ -23,21 +23,33 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
     return <p className="py-8 text-center text-sm text-slate-500">{t('progress.noPeriodData')}</p>;
   }
 
+  // The SVG itself says nothing to a screen reader - expose period totals as text.
+  const total = (key: (typeof CATEGORY_SERIES)[number]['key']) => Math.round(data.reduce((sum, w) => sum + w[key], 0));
+  const summary = t('progress.weeklyVolumeSummary', {
+    from: formatDate(data[0].weekStart),
+    to: formatDate(data[data.length - 1].weekStart),
+    large: total('large'),
+    small: total('small'),
+    bodyweight: total('bodyweight'),
+  });
+
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
-        <XAxis dataKey="weekStart" tickFormatter={formatWeek} stroke="#898781" tick={{ fontSize: 11 }} />
-        <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={44} />
-        <Tooltip
-          contentStyle={{ background: '#1c2028', border: '1px solid #2a2f3a', borderRadius: 8, fontSize: 12 }}
-          labelFormatter={(v) => t('progress.weekOf', { date: formatWeek(v as string) })}
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value) => categoryLabel(value as string)} />
-        {CATEGORY_SERIES.map((s) => (
-          <Bar key={s.key} dataKey={s.key} name={s.key} fill={s.color} radius={[2, 2, 0, 0]} isAnimationActive={false} />
-        ))}
-      </BarChart>
-    </ResponsiveContainer>
+    <div role="img" aria-label={summary}>
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={data} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
+          <XAxis dataKey="weekStart" tickFormatter={formatWeek} stroke="#898781" tick={{ fontSize: 11 }} />
+          <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={44} />
+          <Tooltip
+            contentStyle={{ background: '#1c2028', border: '1px solid #2a2f3a', borderRadius: 8, fontSize: 12 }}
+            labelFormatter={(v) => t('progress.weekOf', { date: formatWeek(v as string) })}
+          />
+          <Legend wrapperStyle={{ fontSize: 12 }} formatter={(value) => categoryLabel(value as string)} />
+          {CATEGORY_SERIES.map((s) => (
+            <Bar key={s.key} dataKey={s.key} name={s.key} fill={s.color} radius={[2, 2, 0, 0]} isAnimationActive={false} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

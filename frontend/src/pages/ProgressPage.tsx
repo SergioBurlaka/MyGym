@@ -64,6 +64,7 @@ export default function ProgressPage() {
           <button
             key={p.exerciseId}
             onClick={() => setManualSelectedId(p.exerciseId)}
+            aria-pressed={selectedId === p.exerciseId}
             className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
               selectedId === p.exerciseId
                 ? 'border-accent bg-accent/10'
@@ -117,17 +118,17 @@ export default function ProgressPage() {
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
                 <p className="mb-2 mt-1 text-xs text-slate-500">{t('progress.charts.workingWeightDescription')}</p>
-                <ProgressChart data={weightData} color="#ff5a36" unit={t('common.kg')} emptyLabel={t('progress.charts.workingWeightEmpty')} />
+                <ProgressChart label={t('progress.charts.workingWeightTitle')} data={weightData} color="#ff5a36" unit={t('common.kg')} emptyLabel={t('progress.charts.workingWeightEmpty')} />
               </div>
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.maxRepsTitle')}</h3>
                 <p className="mb-2 mt-1 text-xs text-slate-500">{t('progress.charts.maxRepsDescription')}</p>
-                <ProgressChart data={repsData} color="#3ddc97" unit={t('common.reps')} emptyLabel={t('progress.charts.noData')} />
+                <ProgressChart label={t('progress.charts.maxRepsTitle')} data={repsData} color="#3ddc97" unit={t('common.reps')} emptyLabel={t('progress.charts.noData')} />
               </div>
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.oneRepMaxTitle')}</h3>
                 <p className="mb-2 mt-1 text-xs text-slate-500">{t('progress.charts.oneRepMaxDescription')}</p>
-                <ProgressChart data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
+                <ProgressChart label={t('progress.charts.oneRepMaxTitle')} data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
               </div>
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.volumeTitle')}</h3>
@@ -136,7 +137,7 @@ export default function ProgressPage() {
                     ? t('progress.charts.volumeDescriptionWeighted')
                     : t('progress.charts.volumeDescriptionBodyweight')}
                 </p>
-                <ProgressChart data={volumeData} color="#7dd3fc" unit={volumeUnit} emptyLabel={t('progress.charts.noData')} />
+                <ProgressChart label={t('progress.charts.volumeTitle')} data={volumeData} color="#7dd3fc" unit={volumeUnit} emptyLabel={t('progress.charts.noData')} />
               </div>
             </div>
           )}

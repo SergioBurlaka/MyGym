@@ -176,6 +176,7 @@
     "weeklyVolumeDescription": "Balance of load between large and small muscle groups — check small groups aren't neglected.",
     "noPeriodData": "No data for this period",
     "weekOf": "Week of {{date}}",
+    "weeklyVolumeSummary": "Weekly volume by category, {{from}} – {{to}}: large group {{large}} kg, small group {{small}} kg, no weight {{bodyweight}} reps",
     "stats": {
       "lastWorkout": "Last time",
       "lastWeight": "Last weight",
@@ -195,7 +196,8 @@
       "volumeTitle": "Session volume",
       "volumeDescriptionWeighted": "Total work for the session: weight × sum of reps across all sets. Grows even when weight and max reps stay flat — from doing more sets.",
       "volumeDescriptionBodyweight": "For bodyweight exercises — just the sum of reps across all sets in the session.",
-      "prBadge": "🏆 Personal record"
+      "prBadge": "🏆 Personal record",
+      "summary": "{{label}}: {{first}} → {{last}} {{unit}}, {{from}} – {{to}}"
     }
   },
   "exercises": {

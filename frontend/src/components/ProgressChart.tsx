@@ -46,40 +46,58 @@ export default function ProgressChart({
   color,
   unit,
   emptyLabel,
+  label,
 }: {
   data: Point[];
   color: string;
   unit: string;
   emptyLabel: string;
+  /** Chart name for the screen-reader summary, e.g. the card heading. */
+  label: string;
 }) {
+  const { t } = useTranslation();
   const points = data.filter((d) => d.value != null);
 
   if (points.length === 0) {
     return <p className="py-8 text-center text-sm text-slate-500">{emptyLabel}</p>;
   }
 
+  // The SVG itself says nothing to a screen reader - expose the trend as text.
+  const first = points[0];
+  const last = points[points.length - 1];
+  const summary = t('progress.charts.summary', {
+    label,
+    first: first.value,
+    last: last.value,
+    unit,
+    from: formatDate(first.date),
+    to: formatDate(last.date),
+  });
+
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={points} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
-        <XAxis
-          dataKey="date"
-          tickFormatter={(v) => formatDate(v, { day: '2-digit', month: '2-digit' })}
-          stroke="#898781"
-          tick={{ fontSize: 11 }}
-        />
-        <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={40} />
-        <Tooltip content={<ChartTooltip unit={unit} />} />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          strokeWidth={2}
-          dot={PrDot(color)}
-          activeDot={{ r: 5 }}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div role="img" aria-label={summary}>
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={points} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickFormatter={(v) => formatDate(v, { day: '2-digit', month: '2-digit' })}
+            stroke="#898781"
+            tick={{ fontSize: 11 }}
+          />
+          <YAxis stroke="#898781" tick={{ fontSize: 11 }} width={40} />
+          <Tooltip content={<ChartTooltip unit={unit} />} />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={2}
+            dot={PrDot(color)}
+            activeDot={{ r: 5 }}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
