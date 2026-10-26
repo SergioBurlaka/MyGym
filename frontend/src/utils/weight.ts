@@ -25,9 +25,15 @@ export function setsSummary(we: {
 // An auto-finished workout was closed by the rule, so its hours are real.
 const MAX_PLAUSIBLE_DURATION_MIN = 4 * 60;
 
-export function formatDuration(start: string | null, end: string | null, autoFinished = false): string | null {
+// pausedMs - time the header timer was paused, not part of the workout.
+export function formatDuration(
+  start: string | null,
+  end: string | null,
+  autoFinished = false,
+  pausedMs = 0,
+): string | null {
   if (!start || !end) return null;
-  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const ms = new Date(end).getTime() - new Date(start).getTime() - pausedMs;
   if (ms <= 0) return null;
   const minutes = Math.round(ms / 60000);
   if (minutes > MAX_PLAUSIBLE_DURATION_MIN && !autoFinished) {
