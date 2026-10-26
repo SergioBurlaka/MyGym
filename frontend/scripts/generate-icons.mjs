@@ -32,52 +32,18 @@ function fullBleed(scale, cx = viewBox / 2, cy = viewBox / 2) {
 </svg>`;
 }
 
-// Android masks a maskable icon to its launcher shape (circle, squircle...).
-// Fitting the text into the spec's guaranteed r = 40% circle made it look
-// clearly smaller than the "Add to Home screen" shortcut, so instead the
-// text is centred on its own bounds (the staircase sits a bit low in the
-// logo) and made as large as possible while
-//  - its bounds stay inside the central 80% square, and
-//  - no glyph pixel leaves a full-size circle mask (r = 50%, small margin),
-// which is what keeps round launchers from clipping the "y" / "G" corners.
-const MASKABLE_BOX = 0.8;
-const CIRCLE_MARGIN = 0.96;
+// Android shows a maskable icon as an adaptive icon: the launcher keeps only
+// the central 72/108 of it (the rest is room for its masks and parallax) and
+// then cuts its own shape (squircle, rounded square, circle...) out of that.
+// v2 stretched the text over almost the whole canvas, so the launcher clipped
+// "G", "m" and the top of "My" (user's Xiaomi, 2026-10-26). Instead the
+// approved "Сходинка" goes in unchanged - same composition and proportions
+// as the "any" icon - scaled so the logo square fills exactly that visible
+// zone, on a full-bleed background.
+const ADAPTIVE_VISIBLE = 72 / 108;
 
-async function maskableLayout() {
-  const size = 1024;
-  const contentOnly = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBox} ${viewBox}">${content}</svg>`;
-  const { data } = await sharp(Buffer.from(contentOnly), { density: 72 * (size / viewBox) })
-    .resize(size, size)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const glyphs = [];
-  let minX = size, minY = size, maxX = 0, maxY = 0;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      if (data[(y * size + x) * 4 + 3] < 128) continue;
-      glyphs.push(x, y);
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  if (glyphs.length === 0) {
-    throw new Error('favicon.svg: no logo text found after removing the background <rect>');
-  }
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  let farthest = 0;
-  for (let i = 0; i < glyphs.length; i += 2) {
-    farthest = Math.max(farthest, Math.hypot(glyphs[i] - cx, glyphs[i + 1] - cy));
-  }
-
-  const squareFit = (MASKABLE_BOX * size) / Math.max(maxX - minX, maxY - minY);
-  const circleFit = (0.5 * CIRCLE_MARGIN * size) / farthest;
-  const toViewBox = viewBox / size;
-  return { scale: Math.min(squareFit, circleFit), cx: cx * toViewBox, cy: cy * toViewBox };
+if (!/<path\b/.test(content)) {
+  throw new Error('favicon.svg: no logo text found after removing the background <rect>');
 }
 
 function render(source, size, file, { opaque = false } = {}) {
@@ -86,8 +52,7 @@ function render(source, size, file, { opaque = false } = {}) {
 }
 
 await mkdir(outDir, { recursive: true });
-const maskable = await maskableLayout();
-const maskableSvg = fullBleed(maskable.scale, maskable.cx, maskable.cy);
+const maskableSvg = fullBleed(ADAPTIVE_VISIBLE);
 
 await Promise.all([
   // "any" icons: the logo as is (rounded square, transparent corners).
@@ -95,10 +60,10 @@ await Promise.all([
   render(svg, 512, 'icon-512.png'),
   // -vN in the name: an installed WebAPK only re-fetches icons whose URL or
   // content changed on its periodic manifest check - bump N on every change.
-  render(maskableSvg, 192, 'icon-192-maskable-v2.png', { opaque: true }),
-  render(maskableSvg, 512, 'icon-512-maskable-v2.png', { opaque: true }),
+  render(maskableSvg, 192, 'icon-192-maskable-v3.png', { opaque: true }),
+  render(maskableSvg, 512, 'icon-512-maskable-v3.png', { opaque: true }),
   // iOS rounds the corners itself and fills transparency with black.
   render(fullBleed(1), 180, 'apple-touch-icon.png', { opaque: true }),
 ]);
 
-console.log(`Icons written to public/icons/ (maskable content scale ${maskable.scale.toFixed(3)})`);
+console.log(`Icons written to public/icons/ (maskable content scale ${ADAPTIVE_VISIBLE.toFixed(3)})`);
