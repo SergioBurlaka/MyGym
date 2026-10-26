@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict o1IBGZCzR5frVd8Hv9dBE8MiDjgIvAlf9A47pn2bNTqbcj5gD1jBXGhJSRsETDh
+\restrict t67vlzge3ig7tWgmKyiQemx7M6yrGE3ubya1z8wSCcVRFL16noaqaYgznRYlYBw
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -282,6 +282,8 @@ CREATE TABLE public.users (
     timezone text DEFAULT 'Europe/Kyiv'::text NOT NULL,
     calendar_feed_token_hash text,
     calendar_feed_created_at timestamp with time zone,
+    is_demo boolean DEFAULT false NOT NULL,
+    demo_reset_at timestamp with time zone,
     CONSTRAINT users_training_duration_min_check CHECK (((training_duration_min >= 15) AND (training_duration_min <= 300)))
 );
 
@@ -321,6 +323,7 @@ CREATE TABLE public.workouts (
     paused_ms integer DEFAULT 0 NOT NULL,
     paused_at timestamp with time zone,
     resumed_at timestamp with time zone,
+    is_sample boolean DEFAULT false NOT NULL,
     CONSTRAINT workouts_paused_ms_check CHECK ((paused_ms >= 0)),
     CONSTRAINT workouts_paused_open_check CHECK (((paused_at IS NULL) OR (time_end IS NULL)))
 );
@@ -594,6 +597,13 @@ CREATE UNIQUE INDEX users_calendar_feed_token_idx ON public.users USING btree (c
 
 
 --
+-- Name: users_demo_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX users_demo_idx ON public.users USING btree (is_demo) WHERE is_demo;
+
+
+--
 -- Name: users_email_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -767,5 +777,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict o1IBGZCzR5frVd8Hv9dBE8MiDjgIvAlf9A47pn2bNTqbcj5gD1jBXGhJSRsETDh
+\unrestrict t67vlzge3ig7tWgmKyiQemx7M6yrGE3ubya1z8wSCcVRFL16noaqaYgznRYlYBw
 
