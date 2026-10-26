@@ -307,7 +307,7 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
   const offset = (page - 1) * pageSize;
   const where = eq(workouts.userId, userId);
 
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [{ total }], [{ sampleCount }]] = await Promise.all([
     db.query.workouts.findMany({
       where,
       orderBy: [desc(workouts.date), desc(workouts.createdAt)],
@@ -320,6 +320,8 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
       },
     }),
     db.select({ total: count() }).from(workouts).where(where),
+    // For the journal's "these are samples - remove them" note.
+    db.select({ sampleCount: count() }).from(workouts).where(and(where, eq(workouts.isSample, true))),
   ]);
 
   return {
@@ -330,6 +332,7 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
     page,
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    sampleCount,
   };
 }
 

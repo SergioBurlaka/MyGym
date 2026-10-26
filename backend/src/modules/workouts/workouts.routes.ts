@@ -14,6 +14,7 @@ import {
   getActiveWorkout,
   setWorkoutPaused,
 } from './workouts.service.js';
+import { removeSampleWorkouts } from '../template/template.service.js';
 
 export default async function workoutsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', fastify.authenticate);
@@ -103,6 +104,11 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
       return workout;
     });
   }
+
+  // "Remove samples": every sample workout a new account started with.
+  fastify.delete('/samples', async (request) => {
+    return { removed: await removeSampleWorkouts(request.userId) };
+  });
 
   fastify.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const ok = await deleteWorkout(request.userId, request.params.id);
