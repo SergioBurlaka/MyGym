@@ -36,7 +36,13 @@
     "closeMenu": "Close menu",
     "profileMenu": "Profile menu",
     "integrations": "Integrations",
-    "schedule": "Schedule"
+    "schedule": "Schedule",
+    "timer": {
+      "open": "Open the workout in progress, {{time}}",
+      "pause": "Pause the workout timer",
+      "resume": "Resume the workout timer",
+      "paused": "paused"
+    }
   },
   "auth": {
     "login": {
@@ -348,7 +354,8 @@
     "too_many_tokens": "Too many active tokens - revoke one you no longer use",
     "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app.",
     "exercise_name_taken": "An exercise with this name already exists.",
-    "rep_range_invalid": "Max. reps must be at least min. reps."
+    "rep_range_invalid": "Max. reps must be at least min. reps.",
+    "workout_finished": "This workout is already finished"
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",

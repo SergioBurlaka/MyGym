@@ -5,6 +5,8 @@ export const workoutsKeys = createQueryKeys('workouts', {
   list: (params: WorkoutsListParams) => [params],
   detail: (id: string) => [id],
   templates: null,
+  active: null,
+  setPaused: null,
   dates: (from: string, to: string) => [from, to],
   start: null,
   saveExercises: null,

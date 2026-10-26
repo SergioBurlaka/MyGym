@@ -1,5 +1,5 @@
 import { api } from '../../../api/client.js';
-import type { Workout, WorkoutDateSummary, WorkoutTemplate } from '../../../types/index.js';
+import type { ActiveWorkout, Workout, WorkoutDateSummary, WorkoutTemplate } from '../../../types/index.js';
 import type {
   SaveWorkoutExercisesBody,
   StartWorkoutBody,
@@ -32,6 +32,12 @@ export const WorkoutsApi = {
   },
   async finish(id: string) {
     return api.post<Workout>(`/workouts/${id}/finish`);
+  },
+  async active() {
+    return api.get<{ workout: ActiveWorkout | null }>('/workouts/active');
+  },
+  async setPaused(id: string, paused: boolean) {
+    return api.post<Workout>(`/workouts/${id}/${paused ? 'pause' : 'resume'}`);
   },
   async remove(id: string) {
     return api.delete(`/workouts/${id}`);

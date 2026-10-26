@@ -55,12 +55,21 @@ export type Workout = {
   timeEnd: string | null;
   // timeEnd was set by the server after 1.5 hours without activity.
   autoFinished: boolean;
+  // Header-timer pause: closed pauses so far, and the start of the one in
+  // progress (null = running). Duration = timeEnd - timeStart - pausedMs.
+  pausedMs: number;
+  pausedAt: string | null;
   programLabel: string | null;
   programId: string | null;
   // Only present (non-null) while the linked Program still exists.
   program?: { id: string; name: string } | null;
   createdAt: string;
   workoutExercises: WorkoutExercise[];
+};
+
+// GET /workouts/active - the open workout the header timer counts.
+export type ActiveWorkout = Pick<Workout, 'id' | 'date' | 'programLabel' | 'pausedMs' | 'pausedAt'> & {
+  timeStart: string;
 };
 
 export type WorkoutTemplate = {

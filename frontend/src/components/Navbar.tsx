@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import LanguageSwitcher from './LanguageSwitcher.js';
+import WorkoutTimer from './WorkoutTimer.js';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `border-b-2 px-1 py-2 text-sm font-semibold transition-colors ${
@@ -71,7 +72,7 @@ export default function Navbar() {
     <header
       className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur"
     >
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:gap-4">
         <div className="flex items-center gap-6">
           {/* Icon + wordmark lockup from the design, text outlined as paths
               (an <img> SVG can't load the Barlow Condensed webfont). */}
@@ -83,6 +84,12 @@ export default function Navbar() {
               </NavLink>
             ))}
           </nav>
+        </div>
+
+        {/* Centred between the logo and the burger on a phone, next to the
+            language switcher on wider screens. */}
+        <div className="flex min-w-0 flex-1 justify-center sm:justify-end">
+          <WorkoutTimer />
         </div>
 
         <div className="hidden items-center gap-3 sm:flex">
