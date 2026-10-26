@@ -29,7 +29,6 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const headerRef = useRef<HTMLElement>(null);
 
   const NAV_ITEMS = [
     { to: '/', end: true, label: t('nav.journal') },
@@ -39,20 +38,16 @@ export default function Navbar() {
     { to: '/import', end: false, label: t('nav.import') },
   ];
 
+  // Outside taps are caught by the backdrop below, not a document listener:
+  // closing on mousedown let the same tap's click land on the page underneath
+  // (tapping the journal opened a workout instead of just closing the menu).
   useEffect(() => {
     if (!mobileOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) setMobileOpen(false);
-    }
     function onEscape(e: KeyboardEvent) {
       if (e.key === 'Escape') setMobileOpen(false);
     }
-    document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onEscape);
-    return () => {
-      document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('keydown', onEscape);
-    };
+    return () => document.removeEventListener('keydown', onEscape);
   }, [mobileOpen]);
 
   if (!user) return null;
@@ -64,10 +59,16 @@ export default function Navbar() {
   }
 
   return (
-    // pt-safe-area: in the installed (standalone) PWA the page runs under the
-    // status bar / camera cutout (viewport-fit=cover); 0 in a normal tab.
+    <>
+    {/* Swallows the outside tap that closes the mobile menu. Lives outside the
+        header: its backdrop-blur makes it the containing block for fixed
+        children, so a fixed overlay inside would cover only the header. */}
+    {mobileOpen && (
+      <div className="fixed inset-0 z-10 sm:hidden" aria-hidden onClick={() => setMobileOpen(false)} />
+    )}
+    {/* pt-safe-area: in the installed (standalone) PWA the page runs under the
+        status bar / camera cutout (viewport-fit=cover); 0 in a normal tab. */}
     <header
-      ref={headerRef}
       className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur"
     >
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
@@ -159,6 +160,7 @@ export default function Navbar() {
         </div>
       </nav>
     </header>
+    </>
   );
 }
 
