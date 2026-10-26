@@ -95,7 +95,7 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
-          <ProfileMenu email={user.email} onLogout={handleLogout} />
+          <ProfileMenu email={user.email} isDemo={user.isDemo} onLogout={handleLogout} />
         </div>
 
         <button
@@ -152,9 +152,12 @@ export default function Navbar() {
             <NavLink to="/schedule" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
               {t('nav.schedule')}
             </NavLink>
-            <NavLink to="/integrations" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
-              {t('nav.integrations')}
-            </NavLink>
+            {/* Tokens and connected apps are off for the shared demo account. */}
+            {!user.isDemo && (
+              <NavLink to="/integrations" className={mobileLinkClass} onClick={() => setMobileOpen(false)}>
+                {t('nav.integrations')}
+              </NavLink>
+            )}
             <div className="mt-2 flex items-center justify-between border-t border-surface-border pt-3">
               <span className="text-sm text-slate-400">{user.email}</span>
               <button className="btn-ghost" onClick={handleLogout}>
@@ -172,7 +175,7 @@ export default function Navbar() {
   );
 }
 
-function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void }) {
+function ProfileMenu({ email, isDemo, onLogout }: { email: string; isDemo: boolean; onLogout: () => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -225,13 +228,15 @@ function ProfileMenu({ email, onLogout }: { email: string; onLogout: () => void 
           >
             {t('nav.schedule')}
           </Link>
-          <Link
-            to="/integrations"
-            className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
-            onClick={() => setOpen(false)}
-          >
-            {t('nav.integrations')}
-          </Link>
+          {!isDemo && (
+            <Link
+              to="/integrations"
+              className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
+              onClick={() => setOpen(false)}
+            >
+              {t('nav.integrations')}
+            </Link>
+          )}
           <button
             className="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-surface-border"
             onClick={onLogout}

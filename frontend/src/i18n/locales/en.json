@@ -87,7 +87,19 @@
     "reminderSessions_one": "{{count}} workout",
     "reminderSessions_other": "{{count}} workouts",
     "showAllReminders": "Show all {{count}}",
-    "workoutMenuLabel": "Actions for {{date}}"
+    "workoutMenuLabel": "Actions for {{date}}",
+    "samples": {
+      "badge": "sample",
+      "title": "These are sample workouts",
+      "description_one": "{{count}} workout from a real journal, so you can see how the journal, calendar and progress look. Remove it when you start logging your own.",
+      "description_other": "{{count}} workouts from a real journal, so you can see how the journal, calendar and progress look. Remove them when you start logging your own.",
+      "remove": "Remove samples",
+      "removing": "Removing…",
+      "confirmTitle": "Remove the sample workouts?",
+      "confirmDescription": "Your programs stay. This can't be undone.",
+      "confirm": "Remove",
+      "error": "Couldn't remove the samples. Try again."
+    }
   },
   "programs": {
     "title": "Programs",
@@ -356,7 +368,9 @@
     "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app.",
     "exercise_name_taken": "An exercise with this name already exists.",
     "rep_range_invalid": "Max. reps must be at least min. reps.",
-    "workout_finished": "This workout is already finished"
+    "workout_finished": "This workout is already finished",
+    "demo_forbidden": "Not available in the demo account",
+    "demo_disabled": "The demo isn't available right now"
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
@@ -589,5 +603,11 @@
   "schedule": {
     "title": "Schedule",
     "loadError": "Couldn't load your schedule. Refresh the page to try again."
+  },
+  "demo": {
+    "try": "Try the demo",
+    "tryHint": "No sign-up: a real training journal to look around. Changes are reset daily.",
+    "banner": "This is a demo account with real training data — anyone can change it, and it resets daily.",
+    "createAccount": "Create your own account"
   }
 }

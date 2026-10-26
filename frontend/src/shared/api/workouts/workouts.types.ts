@@ -8,6 +8,9 @@ export type WorkoutsPage = {
   page: number;
   pageSize: number;
   totalPages: number;
+  // How many of the user's workouts are samples (any page) - drives the
+  // journal's "remove samples" note.
+  sampleCount: number;
 };
 
 export type StartWorkoutBody = {

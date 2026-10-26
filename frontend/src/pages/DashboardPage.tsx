@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useWorkoutsQuery, useStartWorkoutMutation, useWorkoutTemplatesQuery, useDeleteWorkoutMutation } from '../shared/api/workouts/index.js';
+import {
+  useWorkoutsQuery,
+  useStartWorkoutMutation,
+  useWorkoutTemplatesQuery,
+  useDeleteWorkoutMutation,
+  useRemoveSampleWorkoutsMutation,
+} from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { useProgramsQuery } from '../shared/api/programs/index.js';
 import { formatDate, formatDuration } from '../utils/weight.js';
@@ -102,6 +108,8 @@ export default function DashboardPage() {
       )}
       {needsAttention.length > 0 && <MobileRemindersCard items={needsAttention} />}
 
+      {(workoutsQuery.data?.sampleCount ?? 0) > 0 && <SamplesNote count={workoutsQuery.data!.sampleCount} />}
+
       <div className="card">
         <h2 className="mb-3 text-lg text-slate-100">{t('dashboard.calendarTitle')}</h2>
         <ConsistencyCalendar />
@@ -126,6 +134,7 @@ export default function DashboardPage() {
                   {w.programLabel && colors && (
                     <span className={`badge ${colors.badgeBg} ${colors.badgeText}`}>{w.programLabel}</span>
                   )}
+                  {w.isSample && <SampleBadge />}
                 </span>
                 <span className="text-xs text-slate-400">
                   {duration ?? (w.timeEnd ? '' : t('dashboard.inProgress'))}
@@ -285,6 +294,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
             {workout.programLabel && colors && (
               <span className={`badge ${colors.badgeBg} ${colors.badgeText}`}>{workout.programLabel}</span>
             )}
+            {workout.isSample && <SampleBadge />}
             <span className="text-xs text-slate-400">
               {t('programs.exerciseCount', { count: workout.workoutExercises.length })}
             </span>
@@ -389,6 +399,37 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+function SampleBadge() {
+  const { t } = useTranslation();
+  return <span className="badge bg-surface-border text-slate-300">{t('dashboard.samples.badge')}</span>;
+}
+
+// Above the calendar while a new account still has its sample workouts:
+// says what they are, and removes them all at once (programs stay).
+function SamplesNote({ count }: { count: number }) {
+  const { t } = useTranslation();
+  const removeSamples = useRemoveSampleWorkoutsMutation();
+  return (
+    <div className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 className="text-base font-semibold text-slate-100">{t('dashboard.samples.title')}</h2>
+        <p className="text-sm text-slate-400">{t('dashboard.samples.description', { count })}</p>
+        {removeSamples.isError && <p className="mt-1 text-sm text-red-400">{t('dashboard.samples.error')}</p>}
+      </div>
+      <Popconfirm
+        title={t('dashboard.samples.confirmTitle')}
+        description={t('dashboard.samples.confirmDescription')}
+        confirmText={t('dashboard.samples.confirm')}
+        onConfirm={() => removeSamples.mutate()}
+      >
+        <button className="btn-secondary shrink-0" disabled={removeSamples.isPending}>
+          {removeSamples.isPending ? t('dashboard.samples.removing') : t('dashboard.samples.remove')}
+        </button>
+      </Popconfirm>
     </div>
   );
 }

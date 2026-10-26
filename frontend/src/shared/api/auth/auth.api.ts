@@ -8,6 +8,9 @@ export const AuthApi = {
   async register(payload: AuthCredentials) {
     return api.post<AuthResponse>('/auth/register', payload);
   },
+  async demo() {
+    return api.post<AuthResponse>('/auth/demo');
+  },
   async logout() {
     return api.post('/auth/logout');
   },

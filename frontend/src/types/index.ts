@@ -59,6 +59,8 @@ export type Workout = {
   // progress (null = running). Duration = timeEnd - timeStart - pausedMs.
   pausedMs: number;
   pausedAt: string | null;
+  // Copied from the template account into a new account; "Remove samples" deletes it.
+  isSample: boolean;
   programLabel: string | null;
   programId: string | null;
   // Only present (non-null) while the linked Program still exists.

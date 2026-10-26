@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext.js';
 import Navbar from './components/Navbar.js';
+import DemoBanner from './components/DemoBanner.js';
 import LoginPage from './pages/LoginPage.js';
 import RegisterPage from './pages/RegisterPage.js';
 import DashboardPage from './pages/DashboardPage.js';
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <Navbar />
+      <DemoBanner />
       {/* Safe-area insets (viewport-fit=cover): home indicator / gesture bar
           at the bottom, camera cutout on the sides in landscape. The top one
           is on the Navbar, or on the page itself when there's no Navbar. */}
