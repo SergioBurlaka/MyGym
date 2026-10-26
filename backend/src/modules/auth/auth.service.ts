@@ -189,7 +189,7 @@ export async function issueTokenPair(user: { id: string; email: string; isDemo?:
       ),
     );
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, expiresAt };
 }
 
 export async function rotateRefreshToken(rawToken: string) {

@@ -41,13 +41,15 @@ export const DEMO_RATE_LIMIT = { max: 20, timeWindow: '1 hour' };
 // follows the actual scheme (X-Forwarded-Proto from nginx) - browsers silently
 // discard Secure cookies set over HTTP, which broke refresh entirely back when
 // prod nginx was plain HTTP; dev still is.
-function cookieOptions(request: FastifyRequest) {
+// expiresAt: the refresh token's own expiry - a demo session lives a day,
+// so its cookie shouldn't linger for the usual 30.
+function cookieOptions(request: FastifyRequest, expiresAt: Date = refreshTtlToDate()) {
   return {
     path: '/api/auth',
     httpOnly: true,
     sameSite: 'lax' as const,
     secure: request.protocol === 'https',
-    maxAge: Math.floor((refreshTtlToDate().getTime() - Date.now()) / 1000),
+    maxAge: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
   };
 }
 
@@ -74,8 +76,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/demo', { config: { rateLimit: DEMO_RATE_LIMIT } }, async (request, reply) => {
     const demo = await getDemoUser();
     if (!demo) return reply.code(404).send({ error: 'demo_disabled', message: 'The demo is not configured' });
-    const { accessToken, refreshToken } = await issueTokenPair(demo);
-    reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
+    const { accessToken, refreshToken, expiresAt } = await issueTokenPair(demo);
+    reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request, expiresAt));
     return reply.send({ accessToken, user: { id: demo.id, email: demo.email, isDemo: true } });
   });
 
@@ -189,8 +191,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      const { accessToken, refreshToken } = await rotateRefreshToken(rawToken);
-      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
+      const { accessToken, refreshToken, expiresAt } = await rotateRefreshToken(rawToken);
+      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request, expiresAt));
       return reply.send({ accessToken });
     } catch (err) {
       if (err instanceof AuthError) {

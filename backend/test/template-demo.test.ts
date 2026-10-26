@@ -310,11 +310,20 @@ describe('demo account', () => {
 
   it('gives a demo visitor a one-day session, not the usual 30 days', async () => {
     await setUpTemplate();
+    const res = await app.inject({ method: 'POST', url: '/api/auth/demo' });
+    const raw = res.headers['set-cookie'];
+    const cookie = (Array.isArray(raw) ? raw : [raw]).find((c) => String(c).startsWith('mygym_refresh='));
+    const maxAge = Number(/Max-Age=(\d+)/i.exec(String(cookie))?.[1]);
+    expect(maxAge).toBeLessThanOrEqual(DAY_MS / 1000);
+    expect(maxAge).toBeGreaterThan(DAY_MS / 1000 - 60);
+
     const demo = await demoLogin();
     const rows = await db.query.refreshTokens.findMany({ where: eq(refreshTokens.userId, demo.user.id) });
-    expect(rows).toHaveLength(1);
-    expect(rows[0].expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(DAY_MS);
-    expect(rows[0].expiresAt.getTime() - Date.now()).toBeGreaterThan(DAY_MS - 60_000);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(DAY_MS);
+      expect(row.expiresAt.getTime() - Date.now()).toBeGreaterThan(DAY_MS - 60_000);
+    }
   });
 
   it('keeps the demo session a demo across a refresh', async () => {
