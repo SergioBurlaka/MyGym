@@ -41,8 +41,10 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
   });
 
   // Wrapped, not a bare null: "no open workout" is a normal answer.
+  // serverNow lets the header timer correct for a phone clock that is off -
+  // timeStart and pausedAt are server times.
   fastify.get('/active', async (request) => {
-    return { workout: await getActiveWorkout(request.userId) };
+    return { workout: await getActiveWorkout(request.userId), serverNow: new Date().toISOString() };
   });
 
   fastify.get<{ Querystring: { from?: string; to?: string } }>('/dates', async (request, reply) => {

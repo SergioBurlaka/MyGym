@@ -41,7 +41,8 @@
       "open": "Open the workout in progress, {{time}}",
       "pause": "Pause the workout timer",
       "resume": "Resume the workout timer",
-      "paused": "paused"
+      "openPaused": "Open the paused workout, {{time}}",
+      "error": "Couldn't change the timer. Check the connection and try again."
     }
   },
   "auth": {

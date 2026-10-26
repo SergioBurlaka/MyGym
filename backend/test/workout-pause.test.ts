@@ -92,6 +92,15 @@ describe('workout pause', () => {
     expect((await post(auth, id, 'resume')).statusCode).toBe(409);
   });
 
+  it('refuses to pause a workout without a start time (CSV import)', async () => {
+    const { auth } = await registerUser(app);
+    const id = await start(auth);
+    await db.update(workouts).set({ timeStart: null }).where(eq(workouts.id, id));
+
+    expect((await post(auth, id, 'pause')).statusCode).toBe(409);
+    expect((await row(id)).pausedAt).toBeNull();
+  });
+
   it("can't pause another user's workout", async () => {
     const alice = await registerUser(app, 'alice@example.com');
     const bob = await registerUser(app, 'bob@example.com');
@@ -107,7 +116,8 @@ describe('GET /api/workouts/active', () => {
     const { auth } = await registerUser(app);
     const empty = await app.inject({ method: 'GET', url: '/api/workouts/active', headers: auth });
     expect(empty.statusCode).toBe(200);
-    expect(empty.json()).toEqual({ workout: null });
+    expect(empty.json().workout).toBeNull();
+    expect(typeof empty.json().serverNow).toBe('string');
 
     const id = await start(auth);
     await post(auth, id, 'pause');
@@ -117,7 +127,7 @@ describe('GET /api/workouts/active', () => {
 
     await post(auth, id, 'finish');
     const after = await app.inject({ method: 'GET', url: '/api/workouts/active', headers: auth });
-    expect(after.json()).toEqual({ workout: null });
+    expect(after.json().workout).toBeNull();
   });
 
   it("doesn't show another user's open workout", async () => {
@@ -126,7 +136,7 @@ describe('GET /api/workouts/active', () => {
     await start(alice.auth);
 
     const res = await app.inject({ method: 'GET', url: '/api/workouts/active', headers: bob.auth });
-    expect(res.json()).toEqual({ workout: null });
+    expect(res.json().workout).toBeNull();
   });
 });
 

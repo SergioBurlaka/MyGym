@@ -34,7 +34,7 @@ export const WorkoutsApi = {
     return api.post<Workout>(`/workouts/${id}/finish`);
   },
   async active() {
-    return api.get<{ workout: ActiveWorkout | null }>('/workouts/active');
+    return api.get<{ workout: ActiveWorkout | null; serverNow: string }>('/workouts/active');
   },
   async setPaused(id: string, paused: boolean) {
     return api.post<Workout>(`/workouts/${id}/${paused ? 'pause' : 'resume'}`);

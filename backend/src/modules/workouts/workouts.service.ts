@@ -272,7 +272,14 @@ export async function getActiveWorkout(userId: string) {
 // is settled, as with a late save).
 export async function setWorkoutPaused(userId: string, workoutId: string, paused: boolean) {
   const now = new Date();
-  const own = and(eq(workouts.id, workoutId), eq(workouts.userId, userId), isNull(workouts.timeEnd));
+  // No timeStart (CSV import): nothing to time, and the sweep would never
+  // close such a pause - treated like a finished workout.
+  const own = and(
+    eq(workouts.id, workoutId),
+    eq(workouts.userId, userId),
+    isNull(workouts.timeEnd),
+    isNotNull(workouts.timeStart),
+  );
   const [row] = paused
     ? await db
         .update(workouts)
@@ -290,7 +297,7 @@ export async function setWorkoutPaused(userId: string, workoutId: string, paused
     where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
   });
   if (!existing) return null;
-  if (existing.timeEnd) return 'finished' as const;
+  if (existing.timeEnd || !existing.timeStart) return 'finished' as const;
   return existing;
 }
 

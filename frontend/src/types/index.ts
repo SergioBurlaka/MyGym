@@ -72,6 +72,10 @@ export type ActiveWorkout = Pick<Workout, 'id' | 'date' | 'programLabel' | 'paus
   timeStart: string;
 };
 
+// What the header timer keeps: the workout plus server time minus this
+// device's clock, so a phone clock that is off doesn't shift the stopwatch.
+export type ActiveWorkoutState = { workout: ActiveWorkout | null; clockOffsetMs: number };
+
 export type WorkoutTemplate = {
   label: string;
   workoutId: string;

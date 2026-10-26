@@ -24,7 +24,7 @@ export async function autoFinishStaleWorkouts(now: Date = new Date()): Promise<n
     UPDATE workouts w
     SET time_end = activity.last_at,
         auto_finished = true,
-        paused_ms = w.paused_ms + COALESCE(ROUND(EXTRACT(EPOCH FROM (activity.last_at - w.paused_at)) * 1000)::int, 0),
+        paused_ms = w.paused_ms + COALESCE(GREATEST(0, ROUND(EXTRACT(EPOCH FROM (activity.last_at - w.paused_at)) * 1000))::int, 0),
         paused_at = NULL
     FROM (
       SELECT w2.id, GREATEST(w2.time_start, MAX(s.created_at), w2.paused_at, w2.resumed_at) AS last_at
@@ -37,6 +37,11 @@ export async function autoFinishStaleWorkouts(now: Date = new Date()): Promise<n
     WHERE w.id = activity.id
       AND w.time_end IS NULL
       AND activity.last_at <= ${now.toISOString()}::timestamptz - make_interval(mins => ${AUTO_FINISH_AFTER_MINUTES})
+      -- A pause/resume committed while this UPDATE waited on the row lock:
+      -- Postgres rechecks WHERE against the fresh w but keeps the stale
+      -- activity row, so that fresh activity must skip the row here.
+      AND COALESCE(w.paused_at, '-infinity') <= activity.last_at
+      AND COALESCE(w.resumed_at, '-infinity') <= activity.last_at
   `);
   return result.rowCount ?? 0;
 }
