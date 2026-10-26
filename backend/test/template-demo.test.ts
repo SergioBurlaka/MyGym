@@ -169,6 +169,17 @@ describe('starter data for a new account', () => {
     expect(history[0].effectiveFrom).toBe(data[data.length - 1].date);
   });
 
+  it('skips an empty template workout - a sample has to show something', async () => {
+    const { owner } = await setUpTemplate();
+    const empty = await app.inject({ method: 'POST', url: '/api/workouts', headers: owner.auth, payload: {} });
+    await app.inject({ method: 'POST', url: `/api/workouts/${empty.json().id}/finish`, headers: owner.auth });
+
+    const { auth } = await registerUser(app);
+    const { data } = await journal(auth);
+    expect(data).toHaveLength(SAMPLE_WORKOUT_COUNT);
+    expect(data.every((w) => w.workoutExercises.length > 0)).toBe(true);
+  });
+
   it('a template workout from today lands a week back, not in the future', async () => {
     await setUpTemplate(0);
     const { auth } = await registerUser(app);

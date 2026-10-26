@@ -61,7 +61,17 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
   const sourceWorkouts = await tx
     .select()
     .from(workouts)
-    .where(and(eq(workouts.userId, sourceId), finishedWorkout))
+    .where(
+      and(
+        eq(workouts.userId, sourceId),
+        finishedWorkout,
+        // A sample has to show something: an empty workout (started, nothing
+        // logged) is skipped. The demo copies everything as it is.
+        exact
+          ? undefined
+          : sql`EXISTS (SELECT 1 FROM ${workoutExercises} we JOIN ${sets} s ON s.workout_exercise_id = we.id WHERE we.workout_id = ${workouts.id})`,
+      ),
+    )
     .orderBy(desc(workouts.date), desc(workouts.createdAt))
     .limit(exact ? 100_000 : (opts.workouts as { latest: number }).latest);
   const workoutIds = sourceWorkouts.map((w) => w.id);

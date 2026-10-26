@@ -426,7 +426,7 @@ function SamplesNote({ count }: { count: number }) {
         confirmText={t('dashboard.samples.confirm')}
         onConfirm={() => removeSamples.mutate()}
       >
-        <button className="btn-secondary shrink-0" disabled={removeSamples.isPending}>
+        <button className="btn-secondary shrink-0 whitespace-nowrap" disabled={removeSamples.isPending}>
           {removeSamples.isPending ? t('dashboard.samples.removing') : t('dashboard.samples.remove')}
         </button>
       </Popconfirm>
