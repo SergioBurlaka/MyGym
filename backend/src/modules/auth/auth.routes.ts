@@ -12,6 +12,8 @@ import {
 import { createGoogleAuthRequest, exchangeCodeForProfile, isGoogleEnabled } from './google.client.js';
 import { refreshTtlToDate } from '../../utils/tokens.js';
 import { safeNext } from '../../utils/safeNext.js';
+import { getDemoUser } from '../template/demo.service.js';
+import { findTemplateUser } from '../template/template.service.js';
 
 const REFRESH_COOKIE = 'mygym_refresh';
 // "<state>.<PKCE verifier>" for the Google round trip (state is hex, so the
@@ -30,19 +32,24 @@ export const LOGIN_RATE_LIMIT = { max: 10, timeWindow: '1 minute' };
 export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: '15 minutes' };
 // Each Google round trip hits our server twice (start + callback).
 export const GOOGLE_RATE_LIMIT = { max: 20, timeWindow: '1 minute' };
+// Each demo login stores a refresh token for the one shared account; a
+// visitor needs one login, not dozens.
+export const DEMO_RATE_LIMIT = { max: 20, timeWindow: '1 hour' };
 
 // Persistent (maxAge) rather than a session cookie: mobile browsers drop
 // session cookies when they kill a backgrounded tab mid-workout. `secure`
 // follows the actual scheme (X-Forwarded-Proto from nginx) - browsers silently
 // discard Secure cookies set over HTTP, which broke refresh entirely back when
 // prod nginx was plain HTTP; dev still is.
-function cookieOptions(request: FastifyRequest) {
+// expiresAt: the refresh token's own expiry - a demo session lives a day,
+// so its cookie shouldn't linger for the usual 30.
+function cookieOptions(request: FastifyRequest, expiresAt: Date = refreshTtlToDate()) {
   return {
     path: '/api/auth',
     httpOnly: true,
     sameSite: 'lax' as const,
     secure: request.protocol === 'https',
-    maxAge: Math.floor((refreshTtlToDate().getTime() - Date.now()) / 1000),
+    maxAge: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
   };
 }
 
@@ -62,7 +69,17 @@ const googleDisabled = { error: 'google_disabled', message: 'Google sign-in is n
 
 export default async function authRoutes(fastify: FastifyInstance) {
   // Which sign-in methods the login page should offer.
-  fastify.get('/providers', async () => ({ google: isGoogleEnabled() }));
+  fastify.get('/providers', async () => ({ google: isGoogleEnabled(), demo: Boolean(await findTemplateUser()) }));
+
+  // "Try the demo": a session for the shared demo account, no credentials.
+  // Same cookie and response as a login.
+  fastify.post('/demo', { config: { rateLimit: DEMO_RATE_LIMIT } }, async (request, reply) => {
+    const demo = await getDemoUser();
+    if (!demo) return reply.code(404).send({ error: 'demo_disabled', message: 'The demo is not configured' });
+    const { accessToken, refreshToken, expiresAt } = await issueTokenPair(demo);
+    reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request, expiresAt));
+    return reply.send({ accessToken, user: { id: demo.id, email: demo.email, isDemo: true } });
+  });
 
   fastify.get('/google', { config: { rateLimit: GOOGLE_RATE_LIMIT } }, async (request, reply) => {
     if (!isGoogleEnabled()) return reply.code(404).send(googleDisabled);
@@ -174,8 +191,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      const { accessToken, refreshToken } = await rotateRefreshToken(rawToken);
-      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
+      const { accessToken, refreshToken, expiresAt } = await rotateRefreshToken(rawToken);
+      reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request, expiresAt));
       return reply.send({ accessToken });
     } catch (err) {
       if (err instanceof AuthError) {

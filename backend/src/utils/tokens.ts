@@ -5,6 +5,8 @@ import { env } from '../config/env.js';
 export type AccessTokenPayload = {
   sub: string; // user id
   email: string;
+  // The shared demo account - some actions are off for it (forbidDemo).
+  demo?: true;
 };
 
 export function signAccessToken(payload: AccessTokenPayload): string {

@@ -6,10 +6,12 @@ import PasswordInput from '../components/PasswordInput.js';
 import GoogleSignInButton from '../components/GoogleSignInButton.js';
 import { translateApiError } from '../utils/apiError.js';
 import { safeNext } from '../utils/safeNext.js';
+import { useAuthProvidersQuery } from '../shared/api/auth/index.js';
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const { login } = useAuth();
+  const { login, loginDemo } = useAuth();
+  const providersQuery = useAuthProvidersQuery();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +32,20 @@ export default function LoginPage() {
     try {
       await login(email, password);
       navigate(next ?? '/');
+    } catch (err) {
+      setError(translateApiError(err, t, 'auth.login.genericError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // No credentials: a session for the shared demo account, a copy of real data.
+  async function handleDemo() {
+    setError(null);
+    setBusy(true);
+    try {
+      await loginDemo();
+      navigate('/');
     } catch (err) {
       setError(translateApiError(err, t, 'auth.login.genericError'));
     } finally {
@@ -63,6 +79,14 @@ export default function LoginPage() {
             {t('auth.login.registerLink')}
           </Link>
         </p>
+        {providersQuery.data?.demo && (
+          <div className="mt-5 border-t border-surface-border pt-5 text-center">
+            <button type="button" className="btn-secondary w-full" onClick={handleDemo} disabled={busy}>
+              {t('demo.try')}
+            </button>
+            <p className="mt-2 text-xs text-slate-400">{t('demo.tryHint')}</p>
+          </div>
+        )}
         <p className="mt-3 text-center text-xs text-slate-400">
           <Link to="/privacy" className="hover:underline">
             {t('privacy.link')}

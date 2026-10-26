@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import formbody from '@fastify/formbody';
 import { z } from 'zod';
-import { requireSession } from '../../plugins/authenticate.js';
+import { forbidDemo, requireSession } from '../../plugins/authenticate.js';
 import {
   OAuthError,
   clientRedirect,
@@ -112,6 +112,7 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
   fastify.register(async (consent) => {
     consent.addHook('preHandler', consent.authenticate);
     consent.addHook('preHandler', requireSession);
+    consent.addHook('preHandler', forbidDemo);
 
     consent.get<{ Params: { id: string } }>('/requests/:id', async (request, reply) => {
       const info = await getConsentInfo(request.params.id, browserSecretOf(request));

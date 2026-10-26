@@ -50,11 +50,17 @@ export const users = pgTable('users', {
   // calendar connected. One feed per user: regenerating replaces the hash.
   calendarFeedTokenHash: text('calendar_feed_token_hash'),
   calendarFeedCreatedAt: timestamp('calendar_feed_created_at', { withTimezone: true }),
+  // The shared demo account (POST /api/auth/demo): a copy of the template
+  // account (TEMPLATE_ACCOUNT_EMAIL), re-copied once demoResetAt is a day old.
+  isDemo: boolean('is_demo').notNull().default(false),
+  demoResetAt: timestamp('demo_reset_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   emailIdx: uniqueIndex('users_email_idx').on(sql`lower(${table.email})`),
   googleSubIdx: uniqueIndex('users_google_sub_idx').on(table.googleSub),
   calendarFeedTokenIdx: uniqueIndex('users_calendar_feed_token_idx').on(table.calendarFeedTokenHash),
+  // At most one demo account - two concurrent first demo logins can't both create one.
+  demoIdx: uniqueIndex('users_demo_idx').on(table.isDemo).where(sql`${table.isDemo}`),
   // Mirrors the settings Zod schema; the DB checks too so data coming in some
   // other way (MCP, import, manual SQL) can't break the invariants.
   trainingDurationCheck: check('users_training_duration_min_check', sql`${table.trainingDurationMin} BETWEEN 15 AND 300`),
@@ -303,6 +309,9 @@ export const workouts = pgTable('workouts', {
   pausedMs: integer('paused_ms').notNull().default(0),
   pausedAt: timestamp('paused_at', { withTimezone: true }),
   resumedAt: timestamp('resumed_at', { withTimezone: true }),
+  // A sample copied from the template account into a new account, so its
+  // journal isn't empty; "Remove samples" deletes every one at once.
+  isSample: boolean('is_sample').notNull().default(false),
   // Free-text label the user assigns to a workout (e.g. "А" / "Б" for an
   // alternating split) so a future workout can be started "from" the latest
   // one with the same label, instead of re-adding every exercise by hand.

@@ -6,6 +6,7 @@ export * from './useStartWorkoutMutation.js';
 export * from './useSaveWorkoutExercisesMutation.js';
 export * from './useFinishWorkoutMutation.js';
 export * from './useDeleteWorkoutMutation.js';
+export * from './useRemoveSampleWorkoutsMutation.js';
 export * from './useUpdateWorkoutMutation.js';
 export * from './useActiveWorkoutQuery.js';
 export * from './useSetWorkoutPausedMutation.js';

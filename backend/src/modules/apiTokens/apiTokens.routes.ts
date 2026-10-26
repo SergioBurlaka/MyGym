@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { requireSession } from '../../plugins/authenticate.js';
+import { forbidDemo, requireSession } from '../../plugins/authenticate.js';
 import { createApiTokenSchema } from './apiTokens.schema.js';
 import { ApiTokenError, createApiToken, listApiTokens, revokeApiToken } from './apiTokens.service.js';
 
@@ -10,6 +10,7 @@ export default async function apiTokensRoutes(fastify: FastifyInstance) {
   // be able to mint itself fresh tokens (revoking the leaked one would then
   // achieve nothing) or revoke the owner's other integrations.
   fastify.addHook('preHandler', requireSession);
+  fastify.addHook('preHandler', forbidDemo);
 
   fastify.get('/', async (request) => {
     return listApiTokens(request.userId);

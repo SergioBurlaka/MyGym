@@ -27,6 +27,7 @@ export default fp(async function authenticatePlugin(fastify: FastifyInstance) {
       request.userId = owner.userId;
       request.userEmail = owner.email;
       request.authMethod = 'pat';
+      request.isDemo = false;
       return;
     }
 
@@ -35,6 +36,7 @@ export default fp(async function authenticatePlugin(fastify: FastifyInstance) {
       request.userId = payload.sub;
       request.userEmail = payload.email;
       request.authMethod = 'session';
+      request.isDemo = payload.demo === true;
     } catch {
       return reply.code(401).send({ error: 'invalid_token', message: 'Access token is invalid or expired' });
     }
@@ -47,5 +49,14 @@ export default fp(async function authenticatePlugin(fastify: FastifyInstance) {
 export async function requireSession(request: FastifyRequest, reply: FastifyReply) {
   if (request.authMethod !== 'session') {
     return reply.code(403).send({ error: 'session_required', message: 'Log in in the browser for this action' });
+  }
+}
+
+// preHandler for what the shared, public demo account must not do: mint
+// access tokens, calendar links or OAuth grants - anyone could then use the
+// demo as a free API, and the secrets would outlive the daily reset.
+export async function forbidDemo(request: FastifyRequest, reply: FastifyReply) {
+  if (request.isDemo) {
+    return reply.code(403).send({ error: 'demo_forbidden', message: 'Not available in the demo account' });
   }
 }

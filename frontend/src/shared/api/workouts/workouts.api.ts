@@ -39,6 +39,9 @@ export const WorkoutsApi = {
   async setPaused(id: string, paused: boolean) {
     return api.post<Workout>(`/workouts/${id}/${paused ? 'pause' : 'resume'}`);
   },
+  async removeSamples() {
+    return api.delete<{ removed: number }>('/workouts/samples');
+  },
   async remove(id: string) {
     return api.delete(`/workouts/${id}`);
   },

@@ -176,6 +176,13 @@
       "when": 1793010917652,
       "tag": "0024_workout_pause",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793014346984,
+      "tag": "0025_demo_and_samples",
+      "breakpoints": true
     }
   ]
 }

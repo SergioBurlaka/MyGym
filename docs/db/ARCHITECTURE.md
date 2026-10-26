@@ -33,6 +33,8 @@ erDiagram
         smallint training_duration_min
         text timezone "IANA"
         text calendar_feed_token_hash "unique, nullable"
+        boolean is_demo "unique where true"
+        timestamptz demo_reset_at "nullable"
         timestamptz created_at
     }
     refresh_tokens {
@@ -83,6 +85,7 @@ erDiagram
         int paused_ms
         timestamptz paused_at "nullable"
         timestamptz resumed_at "nullable"
+        boolean is_sample
         text program_label "вільний текст"
         uuid program_id FK "nullable"
     }
@@ -130,6 +133,8 @@ erDiagram
 | `training_time` | text | `HH:MM`, за замовчуванням `18:00` — початок тренування для календарного фіда |
 | `training_duration_min` | smallint | тривалість події у фіді, за замовчуванням 60 |
 | `timezone` | text | IANA-пояс (`Europe/Kyiv` за замовчуванням), у якому `training_time` — локальний час |
+| `is_demo` | boolean | спільний демо-акаунт (`POST /api/auth/demo`). Частковий unique-індекс `users_demo_idx` (`WHERE is_demo`) — не більше одного (міграція 0025) |
+| `demo_reset_at` | timestamptz, nullable | коли демо востаннє перекопійовано з акаунта-шаблону (`TEMPLATE_ACCOUNT_EMAIL`); через добу копіюється знову |
 | `calendar_feed_token_hash` | text, nullable, unique | SHA-256 секретного токена календарного фіда; `null` — календар не підключено |
 | `calendar_feed_created_at` | timestamptz, nullable | коли фід підключено / перегенеровано |
 | `created_at` | timestamptz | |
@@ -196,6 +201,11 @@ dimension (type 2)**: замість перезапису історії дод�
 зняття паузи. Тривалість = `time_end − time_start − paused_ms`. «Завершити» й
 автозавершення згортають відкриту паузу в `paused_ms`; пауза й зняття паузи для
 автозавершення — теж активність.
+
+`is_sample` (міграція 0025) — приклад, скопійований з акаунта-шаблону в новий
+акаунт при реєстрації (4 останні тренування шаблону, дати зсунуті на цілі
+тижні). «Прибрати приклади» (`DELETE /api/workouts/samples`) видаляє всі разом
+і повертає початок `training_schedule_history` на день реєстрації.
 
 Є два способи позначити, «що це було за тренування»:
 

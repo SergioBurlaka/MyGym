@@ -72,10 +72,10 @@ async function signInWithGoogle() {
 
 describe('Google sign-in: configuration', () => {
   it('tells the SPA whether Google is configured', async () => {
-    expect((await app.inject({ method: 'GET', url: '/api/auth/providers' })).json()).toEqual({ google: true });
+    expect((await app.inject({ method: 'GET', url: '/api/auth/providers' })).json()).toEqual({ google: true, demo: false });
 
     google.isGoogleEnabled.mockReturnValue(false);
-    expect((await app.inject({ method: 'GET', url: '/api/auth/providers' })).json()).toEqual({ google: false });
+    expect((await app.inject({ method: 'GET', url: '/api/auth/providers' })).json()).toEqual({ google: false, demo: false });
   });
 
   it('404s both Google routes when it is not configured', async () => {

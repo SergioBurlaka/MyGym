@@ -2,6 +2,8 @@ import { and, eq, lt, or, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
 import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
+import { DEMO_EMAIL } from '../template/demo.service.js';
+import { seedStarterData } from '../template/template.service.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
 import { isUniqueViolation } from '../../utils/pgErrors.js';
 import type { GoogleProfile } from './google.client.js';
@@ -51,11 +53,19 @@ async function createUserWithDefaults(values: typeof users.$inferInsert) {
       })),
     );
 
+    // The template account's programs and latest workouts (as samples), so
+    // the journal, calendar and progress pages aren't empty on day one.
+    await seedStarterData(tx, user.id);
+
     return user;
   });
 }
 
 export async function registerUser(email: string, password: string) {
+  // Reserved for the shared demo account, which is created on first use.
+  if (email.toLowerCase() === DEMO_EMAIL) {
+    throw new AuthError('email_taken', 'An account with this email already exists');
+  }
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
     throw new AuthError('email_taken', 'An account with this email already exists');
@@ -148,11 +158,15 @@ export async function validateCredentials(email: string, password: string) {
 
 const ROTATION_GRACE_MS = 60_000;
 
-export async function issueTokenPair(user: { id: string; email: string }) {
-  const accessToken = signAccessToken({ sub: user.id, email: user.email });
+// A demo session lives a day, not JWT_REFRESH_TTL: every anonymous demo
+// login adds a refresh-token row to the one shared account.
+const DEMO_REFRESH_TTL_MS = 24 * 60 * 60 * 1000;
+
+export async function issueTokenPair(user: { id: string; email: string; isDemo?: boolean }) {
+  const accessToken = signAccessToken({ sub: user.id, email: user.email, ...(user.isDemo ? { demo: true } : {}) });
   const refreshToken = generateRefreshToken();
   const tokenHash = hashRefreshToken(refreshToken);
-  const expiresAt = refreshTtlToDate();
+  const expiresAt = user.isDemo ? new Date(Date.now() + DEMO_REFRESH_TTL_MS) : refreshTtlToDate();
 
   await db.insert(refreshTokens).values({
     userId: user.id,
@@ -175,7 +189,7 @@ export async function issueTokenPair(user: { id: string; email: string }) {
       ),
     );
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, expiresAt };
 }
 
 export async function rotateRefreshToken(rawToken: string) {

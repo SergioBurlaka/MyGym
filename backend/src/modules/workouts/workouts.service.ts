@@ -3,6 +3,7 @@ import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
 import { attachProgressAt } from '../progression/progression.service.js';
+import { restoreScheduleStartIfNoSamples } from '../template/template.service.js';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -307,7 +308,7 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
   const offset = (page - 1) * pageSize;
   const where = eq(workouts.userId, userId);
 
-  const [rows, [{ total }]] = await Promise.all([
+  const [rows, [{ total }], [{ sampleCount }]] = await Promise.all([
     db.query.workouts.findMany({
       where,
       orderBy: [desc(workouts.date), desc(workouts.createdAt)],
@@ -320,6 +321,8 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
       },
     }),
     db.select({ total: count() }).from(workouts).where(where),
+    // For the journal's "these are samples - remove them" note.
+    db.select({ sampleCount: count() }).from(workouts).where(and(where, eq(workouts.isSample, true))),
   ]);
 
   return {
@@ -330,6 +333,7 @@ export async function listWorkouts(userId: string, opts: { page?: number; pageSi
     page,
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    sampleCount,
   };
 }
 
@@ -380,7 +384,11 @@ export async function deleteWorkout(userId: string, workoutId: string) {
     where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
   });
   if (!existing) return false;
-  await db.delete(workouts).where(eq(workouts.id, workoutId));
+  await db.transaction(async (tx) => {
+    await tx.delete(workouts).where(eq(workouts.id, workoutId));
+    // The last sample deleted by hand: same schedule fix as "remove samples".
+    if (existing.isSample) await restoreScheduleStartIfNoSamples(tx, userId);
+  });
   return true;
 }
 

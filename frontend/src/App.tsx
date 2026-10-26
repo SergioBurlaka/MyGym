@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext.js';
 import Navbar from './components/Navbar.js';
+import DemoBanner from './components/DemoBanner.js';
 import LoginPage from './pages/LoginPage.js';
 import RegisterPage from './pages/RegisterPage.js';
 import DashboardPage from './pages/DashboardPage.js';
@@ -34,10 +35,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Tokens and connected apps are off for the shared demo account (the API
+// answers 403) - a direct link lands on the journal instead.
+function NotForDemo({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.isDemo) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <div className="min-h-screen">
       <Navbar />
+      <DemoBanner />
       {/* Safe-area insets (viewport-fit=cover): home indicator / gesture bar
           at the bottom, camera cutout on the sides in landscape. The top one
           is on the Navbar, or on the page itself when there's no Navbar. */}
@@ -100,7 +110,9 @@ export default function App() {
             path="/integrations"
             element={
               <ProtectedRoute>
-                <IntegrationsPage />
+                <NotForDemo>
+                  <IntegrationsPage />
+                </NotForDemo>
               </ProtectedRoute>
             }
           />

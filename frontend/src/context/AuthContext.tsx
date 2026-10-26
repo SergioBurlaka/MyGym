@@ -1,14 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { refreshAccessToken, setAccessToken, setOnSessionLost } from '../api/client.js';
-import { useLoginMutation, useLogoutMutation, useRegisterMutation } from '../shared/api/auth/index.js';
+import {
+  useDemoLoginMutation,
+  useLoginMutation,
+  useLogoutMutation,
+  useRegisterMutation,
+} from '../shared/api/auth/index.js';
 
-type User = { id: string; email: string };
+// isDemo: the shared demo account (the `demo` claim of the access token).
+type User = { id: string; email: string; isDemo: boolean };
 
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
+  loginDemo: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -20,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
+  const demoLoginMutation = useDemoLoginMutation();
   const logoutMutation = useLogoutMutation();
 
   // On first load, try to silently refresh using the httpOnly cookie so a
@@ -32,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const accessToken = await refreshAccessToken();
       if (accessToken) {
         const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        setUser({ id: payload.sub, email: payload.email });
+        setUser({ id: payload.sub, email: payload.email, isDemo: payload.demo === true });
       }
       setLoading(false);
     })();
@@ -43,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const res = await loginMutation.mutateAsync({ email, password });
       setAccessToken(res.accessToken);
-      setUser(res.user);
+      setUser({ ...res.user, isDemo: false });
     },
     [loginMutation],
   );
@@ -52,10 +60,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const res = await registerMutation.mutateAsync({ email, password });
       setAccessToken(res.accessToken);
-      setUser(res.user);
+      setUser({ ...res.user, isDemo: false });
     },
     [registerMutation],
   );
+
+  const loginDemo = useCallback(async () => {
+    const res = await demoLoginMutation.mutateAsync();
+    setAccessToken(res.accessToken);
+    setUser({ ...res.user, isDemo: true });
+  }, [demoLoginMutation]);
 
   const logout = useCallback(async () => {
     await logoutMutation.mutateAsync();
@@ -64,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logoutMutation]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, register, loginDemo, logout }}>{children}</AuthContext.Provider>
   );
 }
 
