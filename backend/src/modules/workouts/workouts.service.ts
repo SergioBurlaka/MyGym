@@ -1,4 +1,4 @@
-import { and, eq, desc, count, isNotNull, gte, lte, asc, inArray, exists, sql } from 'drizzle-orm';
+import { and, eq, desc, count, isNotNull, isNull, gte, lte, asc, inArray, exists, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
@@ -237,12 +237,61 @@ export async function finishWorkout(userId: string, workoutId: string) {
   // "finish" (e.g. from an AI client hours later) would inflate the duration.
   if (existing.timeEnd) return existing;
 
+  // A pause in progress ends with the workout: it goes into pausedMs.
+  const now = new Date();
   const [row] = await db
     .update(workouts)
-    .set({ timeEnd: new Date() })
-    .where(eq(workouts.id, workoutId))
+    .set({ timeEnd: now, pausedMs: pausedMsUntil(now), pausedAt: null })
+    .where(and(eq(workouts.id, workoutId), isNull(workouts.timeEnd)))
     .returning();
-  return row;
+  // Finished by the auto-finish sweep in between - that end time stands.
+  return row ?? (await db.query.workouts.findFirst({ where: eq(workouts.id, workoutId) }));
+}
+
+// pausedMs plus the pause in progress up to `now` (if paused). In SQL, so a
+// concurrent pause/resume can't be lost to a read-modify-write.
+function pausedMsUntil(now: Date) {
+  return sql`${workouts.pausedMs} + COALESCE(GREATEST(0, ROUND(EXTRACT(EPOCH FROM (${now.toISOString()}::timestamptz - ${workouts.pausedAt})) * 1000))::int, 0)`;
+}
+
+// The open workout the header timer counts: the latest started one without
+// an end. Normally there is at most one; several (e.g. started via MCP) ->
+// the newest.
+export async function getActiveWorkout(userId: string) {
+  const row = await db.query.workouts.findFirst({
+    where: and(eq(workouts.userId, userId), isNull(workouts.timeEnd), isNotNull(workouts.timeStart)),
+    orderBy: [desc(workouts.timeStart)],
+    columns: { id: true, date: true, programLabel: true, timeStart: true, pausedMs: true, pausedAt: true },
+  });
+  return row ?? null;
+}
+
+// Pause/resume the header timer. Both are idempotent (pausing a paused
+// workout returns it as is). null = no such workout of this user,
+// 'finished' = it already has an end time (a finished workout's duration
+// is settled, as with a late save).
+export async function setWorkoutPaused(userId: string, workoutId: string, paused: boolean) {
+  const now = new Date();
+  const own = and(eq(workouts.id, workoutId), eq(workouts.userId, userId), isNull(workouts.timeEnd));
+  const [row] = paused
+    ? await db
+        .update(workouts)
+        .set({ pausedAt: now })
+        .where(and(own, isNull(workouts.pausedAt)))
+        .returning()
+    : await db
+        .update(workouts)
+        .set({ pausedMs: pausedMsUntil(now), pausedAt: null, resumedAt: now })
+        .where(and(own, isNotNull(workouts.pausedAt)))
+        .returning();
+  if (row) return row;
+
+  const existing = await db.query.workouts.findFirst({
+    where: and(eq(workouts.id, workoutId), eq(workouts.userId, userId)),
+  });
+  if (!existing) return null;
+  if (existing.timeEnd) return 'finished' as const;
+  return existing;
 }
 
 export async function listWorkouts(userId: string, opts: { page?: number; pageSize?: number } = {}) {
