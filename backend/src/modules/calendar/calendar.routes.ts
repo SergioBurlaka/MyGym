@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { requireSession } from '../../plugins/authenticate.js';
+import { forbidDemo, requireSession } from '../../plugins/authenticate.js';
 import { createCalendarTokenSchema, feedParamsSchema, feedQuerySchema } from './calendar.schema.js';
 import { createCalendarFeedToken, deleteCalendarFeedToken, renderCalendarFeed } from './calendar.service.js';
 
@@ -16,7 +16,7 @@ export const FEED_RATE_LIMIT = {
 export default async function calendarRoutes(fastify: FastifyInstance) {
   // Minting or dropping the secret URL needs the person, not a program - like
   // /api/tokens, a leaked PAT must not be able to mint itself more secrets.
-  const sessionOnly = { preHandler: [fastify.authenticate, requireSession] };
+  const sessionOnly = { preHandler: [fastify.authenticate, requireSession, forbidDemo] };
 
   fastify.post('/token', sessionOnly, async (request, reply) => {
     const parsed = createCalendarTokenSchema.safeParse(request.body ?? {});

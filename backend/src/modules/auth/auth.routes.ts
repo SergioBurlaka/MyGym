@@ -12,6 +12,8 @@ import {
 import { createGoogleAuthRequest, exchangeCodeForProfile, isGoogleEnabled } from './google.client.js';
 import { refreshTtlToDate } from '../../utils/tokens.js';
 import { safeNext } from '../../utils/safeNext.js';
+import { getDemoUser } from '../template/demo.service.js';
+import { findTemplateUser } from '../template/template.service.js';
 
 const REFRESH_COOKIE = 'mygym_refresh';
 // "<state>.<PKCE verifier>" for the Google round trip (state is hex, so the
@@ -30,6 +32,8 @@ export const LOGIN_RATE_LIMIT = { max: 10, timeWindow: '1 minute' };
 export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: '15 minutes' };
 // Each Google round trip hits our server twice (start + callback).
 export const GOOGLE_RATE_LIMIT = { max: 20, timeWindow: '1 minute' };
+// Each demo login stores a refresh token for the one shared account.
+export const DEMO_RATE_LIMIT = { max: 20, timeWindow: '1 minute' };
 
 // Persistent (maxAge) rather than a session cookie: mobile browsers drop
 // session cookies when they kill a backgrounded tab mid-workout. `secure`
@@ -62,7 +66,17 @@ const googleDisabled = { error: 'google_disabled', message: 'Google sign-in is n
 
 export default async function authRoutes(fastify: FastifyInstance) {
   // Which sign-in methods the login page should offer.
-  fastify.get('/providers', async () => ({ google: isGoogleEnabled() }));
+  fastify.get('/providers', async () => ({ google: isGoogleEnabled(), demo: Boolean(await findTemplateUser()) }));
+
+  // "Try the demo": a session for the shared demo account, no credentials.
+  // Same cookie and response as a login.
+  fastify.post('/demo', { config: { rateLimit: DEMO_RATE_LIMIT } }, async (request, reply) => {
+    const demo = await getDemoUser();
+    if (!demo) return reply.code(404).send({ error: 'demo_disabled', message: 'The demo is not configured' });
+    const { accessToken, refreshToken } = await issueTokenPair(demo);
+    reply.setCookie(REFRESH_COOKIE, refreshToken, cookieOptions(request));
+    return reply.send({ accessToken, user: { id: demo.id, email: demo.email, isDemo: true } });
+  });
 
   fastify.get('/google', { config: { rateLimit: GOOGLE_RATE_LIMIT } }, async (request, reply) => {
     if (!isGoogleEnabled()) return reply.code(404).send(googleDisabled);
