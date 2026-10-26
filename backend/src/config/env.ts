@@ -31,6 +31,10 @@ const envSchema = z.object({
     .transform((u) => u.replace(/\/+$/, '')),
   // Hosts allowed to act as OAuth clients via a Client ID Metadata Document
   // (client_id = https URL on one of these hosts). Comma-separated.
+  // Account whose data fills the demo account and a new account's starter
+  // programs + sample workouts. Unset (or no such user) = no demo, and new
+  // accounts start with the default exercises only.
+  TEMPLATE_ACCOUNT_EMAIL: optionalString,
   OAUTH_CLIENT_HOSTS: z
     .string()
     .default('claude.ai,claude.com,chatgpt.com')
