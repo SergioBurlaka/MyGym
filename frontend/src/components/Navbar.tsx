@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
 import LanguageSwitcher from './LanguageSwitcher.js';
+import WorkoutTimer from './WorkoutTimer.js';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `border-b-2 px-1 py-2 text-sm font-semibold transition-colors ${
@@ -64,19 +65,19 @@ export default function Navbar() {
         header: its backdrop-blur makes it the containing block for fixed
         children, so a fixed overlay inside would cover only the header. */}
     {mobileOpen && (
-      <div className="fixed inset-0 z-10 sm:hidden" aria-hidden onClick={() => setMobileOpen(false)} />
+      <div className="fixed inset-0 z-10 lg:hidden" aria-hidden onClick={() => setMobileOpen(false)} />
     )}
     {/* pt-safe-area: in the installed (standalone) PWA the page runs under the
         status bar / camera cutout (viewport-fit=cover); 0 in a normal tab. */}
     <header
       className="sticky top-0 z-10 border-b border-surface-border bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur"
     >
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:gap-4">
         <div className="flex items-center gap-6">
           {/* Icon + wordmark lockup from the design, text outlined as paths
               (an <img> SVG can't load the Barlow Condensed webfont). */}
           <img src="/logo.svg" alt="MyGym" className="h-9 w-auto" />
-          <nav className="hidden gap-6 sm:flex">
+          <nav className="hidden gap-6 lg:flex">
             {NAV_ITEMS.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
                 {item.label}
@@ -85,14 +86,21 @@ export default function Navbar() {
           </nav>
         </div>
 
-        <div className="hidden items-center gap-3 sm:flex">
+        {/* Centred between the logo and the burger on a phone, next to the
+            language switcher on wider screens. The burger layout runs up to
+            lg: below 1024 px the five links plus the timer don't fit. */}
+        <div className="flex min-w-0 flex-1 justify-center lg:justify-end">
+          <WorkoutTimer />
+        </div>
+
+        <div className="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
           <ProfileMenu email={user.email} onLogout={handleLogout} />
         </div>
 
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-200 hover:bg-surface-raised sm:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-200 hover:bg-surface-raised lg:hidden"
           onClick={() => setMobileOpen((v) => !v)}
           aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
           aria-expanded={mobileOpen}
@@ -118,7 +126,7 @@ export default function Navbar() {
       </div>
 
       <nav
-        className={`absolute inset-x-0 top-full grid bg-surface/95 shadow-xl backdrop-blur transition-[grid-template-rows,opacity] duration-300 ease-in-out sm:hidden ${
+        className={`absolute inset-x-0 top-full grid bg-surface/95 shadow-xl backdrop-blur transition-[grid-template-rows,opacity] duration-300 ease-in-out lg:hidden ${
           mobileOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
         // Collapsed, the menu stays in the DOM for the animation - inert keeps

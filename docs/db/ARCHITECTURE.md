@@ -80,6 +80,9 @@ erDiagram
         timestamptz time_start
         timestamptz time_end
         boolean auto_finished
+        int paused_ms
+        timestamptz paused_at "nullable"
+        timestamptz resumed_at "nullable"
         text program_label "вільний текст"
         uuid program_id FK "nullable"
     }
@@ -188,6 +191,12 @@ dimension (type 2)**: замість перезапису історії дод�
 «Завершити» або автоматично через 1,5 год без змін (`auto_finished = true`,
 `time_end` = момент останнього збереження; див. CLAUDE.md, «Автозавершення»).
 
+Пауза таймера в хедері (міграція 0024): `paused_ms` — сума закритих пауз,
+`paused_at` — початок поточної (`null` — таймер іде), `resumed_at` — останнє
+зняття паузи. Тривалість = `time_end − time_start − paused_ms`. «Завершити» й
+автозавершення згортають відкриту паузу в `paused_ms`; пауза й зняття паузи для
+автозавершення — теж активність.
+
 Є два способи позначити, «що це було за тренування»:
 
 | Поле | Що це | Навіщо |
@@ -257,6 +266,8 @@ dimension (type 2)**: замість перезапису історії дод�
 | `workout_exercises_weight_check` | 0…500 кг |
 | `workout_exercises_weight_units_check` | `units` — `null` або 1/2 **лише з вагою**; вага без `units` дозволена (старі рядки, читачі беруть 2) |
 | `sets_reps_check`, `sets_set_number_check` | повторення 0…200, номер підходу ≥ 1 |
+| `workouts_paused_ms_check` | `paused_ms ≥ 0` (міграція 0024) |
+| `workouts_paused_open_check` | у завершеного тренування нема відкритої паузи: `paused_at` або `time_end` — `null` (міграція 0024) |
 
 Унікальна назва вправи разом з архівними: інакше `UNIQUE` довелося б робити
 частковим (`WHERE archived_at IS NULL`), і після архівування з'являлися б дві

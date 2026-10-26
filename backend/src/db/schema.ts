@@ -5,6 +5,7 @@ import {
   timestamp,
   date,
   smallint,
+  integer,
   numeric,
   pgEnum,
   jsonb,
@@ -295,6 +296,13 @@ export const workouts = pgTable('workouts', {
   // True when timeEnd was set by autoFinishStaleWorkouts (the user never
   // pressed "Finish") rather than by the user.
   autoFinished: boolean('auto_finished').notNull().default(false),
+  // Header-timer pause. pausedMs = time already spent paused (closed pauses),
+  // pausedAt = start of the pause in progress (null = running), resumedAt =
+  // the last resume. Duration = timeEnd - timeStart - pausedMs; pausing and
+  // resuming also count as activity for the auto-finish sweep.
+  pausedMs: integer('paused_ms').notNull().default(0),
+  pausedAt: timestamp('paused_at', { withTimezone: true }),
+  resumedAt: timestamp('resumed_at', { withTimezone: true }),
   // Free-text label the user assigns to a workout (e.g. "А" / "Б" for an
   // alternating split) so a future workout can be started "from" the latest
   // one with the same label, instead of re-adding every exercise by hand.
@@ -308,6 +316,9 @@ export const workouts = pgTable('workouts', {
 }, (table) => ({
   userDateIdx: index('workouts_user_date_idx').on(table.userId, table.date),
   userLabelIdx: index('workouts_user_label_idx').on(table.userId, table.programLabel),
+  pausedMsCheck: check('workouts_paused_ms_check', sql`${table.pausedMs} >= 0`),
+  // A finished workout has no pause in progress - finishing folds it into pausedMs.
+  pausedOpenCheck: check('workouts_paused_open_check', sql`${table.pausedAt} IS NULL OR ${table.timeEnd} IS NULL`),
 }));
 
 // One row per exercise performed within a workout. The working weight is

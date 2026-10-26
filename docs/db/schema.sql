@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 4XlNgmzpemg77g7ZR8cHpCTobTqGrFIHKgihWofWOb5CNZ7BoKFLLUxZOht1fRl
+\restrict o1IBGZCzR5frVd8Hv9dBE8MiDjgIvAlf9A47pn2bNTqbcj5gD1jBXGhJSRsETDh
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -95,7 +95,8 @@ CREATE TABLE public.api_tokens (
     revoked_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     expires_at timestamp with time zone,
-    grant_id uuid
+    grant_id uuid,
+    CONSTRAINT api_tokens_kind_check CHECK (((grant_id IS NULL) = (expires_at IS NULL)))
 );
 
 
@@ -113,7 +114,11 @@ CREATE TABLE public.exercises (
     rep_range_max smallint NOT NULL,
     weight_step_kg numeric(5,2) DEFAULT 0.5 NOT NULL,
     archived_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    try_more_counter_adjust smallint DEFAULT 0 NOT NULL,
+    try_more_counter_anchor date,
+    CONSTRAINT exercises_rep_range_check CHECK (((rep_range_min >= 1) AND (rep_range_max <= 100) AND (rep_range_min <= rep_range_max))),
+    CONSTRAINT exercises_weight_step_check CHECK (((weight_step_kg >= (0)::numeric) AND (weight_step_kg <= (50)::numeric)))
 );
 
 
@@ -197,7 +202,10 @@ CREATE TABLE public.program_exercises (
     program_id uuid NOT NULL,
     exercise_id uuid NOT NULL,
     order_index smallint DEFAULT 0 NOT NULL,
-    target_sets smallint DEFAULT 3 NOT NULL
+    target_sets smallint DEFAULT 3 NOT NULL,
+    try_more_after_workouts smallint,
+    CONSTRAINT program_exercises_target_sets_check CHECK (((target_sets >= 1) AND (target_sets <= 20))),
+    CONSTRAINT program_exercises_try_more_check CHECK (((try_more_after_workouts >= 1) AND (try_more_after_workouts <= 60)))
 );
 
 
@@ -211,7 +219,8 @@ CREATE TABLE public.programs (
     name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     order_index smallint DEFAULT 0 NOT NULL,
-    try_more_after_workouts smallint
+    try_more_after_workouts smallint,
+    CONSTRAINT programs_try_more_check CHECK (((try_more_after_workouts >= 1) AND (try_more_after_workouts <= 60)))
 );
 
 
@@ -238,7 +247,9 @@ CREATE TABLE public.sets (
     workout_exercise_id uuid NOT NULL,
     set_number smallint NOT NULL,
     reps smallint NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT sets_reps_check CHECK (((reps >= 0) AND (reps <= 200))),
+    CONSTRAINT sets_set_number_check CHECK ((set_number >= 1))
 );
 
 
@@ -270,7 +281,8 @@ CREATE TABLE public.users (
     training_duration_min smallint DEFAULT 60 NOT NULL,
     timezone text DEFAULT 'Europe/Kyiv'::text NOT NULL,
     calendar_feed_token_hash text,
-    calendar_feed_created_at timestamp with time zone
+    calendar_feed_created_at timestamp with time zone,
+    CONSTRAINT users_training_duration_min_check CHECK (((training_duration_min >= 15) AND (training_duration_min <= 300)))
 );
 
 
@@ -283,10 +295,12 @@ CREATE TABLE public.workout_exercises (
     workout_id uuid NOT NULL,
     exercise_id uuid NOT NULL,
     weight_per_unit_kg numeric(6,2),
-    weight_units smallint DEFAULT 2,
+    weight_units smallint,
     order_index smallint DEFAULT 0 NOT NULL,
     notes text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT workout_exercises_weight_check CHECK (((weight_per_unit_kg >= (0)::numeric) AND (weight_per_unit_kg <= (500)::numeric))),
+    CONSTRAINT workout_exercises_weight_units_check CHECK (((weight_units IS NULL) OR ((weight_units = ANY (ARRAY[1, 2])) AND (weight_per_unit_kg IS NOT NULL))))
 );
 
 
@@ -303,7 +317,12 @@ CREATE TABLE public.workouts (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     program_label text,
     program_id uuid,
-    auto_finished boolean DEFAULT false NOT NULL
+    auto_finished boolean DEFAULT false NOT NULL,
+    paused_ms integer DEFAULT 0 NOT NULL,
+    paused_at timestamp with time zone,
+    resumed_at timestamp with time zone,
+    CONSTRAINT workouts_paused_ms_check CHECK ((paused_ms >= 0)),
+    CONSTRAINT workouts_paused_open_check CHECK (((paused_at IS NULL) OR (time_end IS NULL)))
 );
 
 
@@ -463,6 +482,13 @@ CREATE INDEX exercises_user_idx ON public.exercises USING btree (user_id);
 
 
 --
+-- Name: exercises_user_name_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX exercises_user_name_idx ON public.exercises USING btree (user_id, lower(btrim(name)));
+
+
+--
 -- Name: oauth_authorization_requests_code_hash_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -491,6 +517,20 @@ CREATE UNIQUE INDEX oauth_refresh_tokens_token_hash_idx ON public.oauth_refresh_
 
 
 --
+-- Name: program_exercises_exercise_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX program_exercises_exercise_idx ON public.program_exercises USING btree (exercise_id);
+
+
+--
+-- Name: program_exercises_program_exercise_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX program_exercises_program_exercise_idx ON public.program_exercises USING btree (program_id, exercise_id);
+
+
+--
 -- Name: program_exercises_program_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -502,6 +542,13 @@ CREATE INDEX program_exercises_program_idx ON public.program_exercises USING btr
 --
 
 CREATE INDEX programs_user_idx ON public.programs USING btree (user_id);
+
+
+--
+-- Name: refresh_tokens_token_hash_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX refresh_tokens_token_hash_idx ON public.refresh_tokens USING btree (token_hash);
 
 
 --
@@ -641,7 +688,7 @@ ALTER TABLE ONLY public.oauth_refresh_tokens
 --
 
 ALTER TABLE ONLY public.program_exercises
-    ADD CONSTRAINT program_exercises_exercise_id_exercises_id_fk FOREIGN KEY (exercise_id) REFERENCES public.exercises(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT program_exercises_exercise_id_exercises_id_fk FOREIGN KEY (exercise_id) REFERENCES public.exercises(id) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -689,7 +736,7 @@ ALTER TABLE ONLY public.training_schedule_history
 --
 
 ALTER TABLE ONLY public.workout_exercises
-    ADD CONSTRAINT workout_exercises_exercise_id_exercises_id_fk FOREIGN KEY (exercise_id) REFERENCES public.exercises(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT workout_exercises_exercise_id_exercises_id_fk FOREIGN KEY (exercise_id) REFERENCES public.exercises(id) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -720,5 +767,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4XlNgmzpemg77g7ZR8cHpCTobTqGrFIHKgihWofWOb5CNZ7BoKFLLUxZOht1fRl
+\unrestrict o1IBGZCzR5frVd8Hv9dBE8MiDjgIvAlf9A47pn2bNTqbcj5gD1jBXGhJSRsETDh
 

@@ -16,6 +16,7 @@ export const useStartWorkoutMutation = (): UseMutationResult<Workout, Error, Sta
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.active.queryKey });
       // Another workout's progressAt depends on this one - mark every open
       // workout page stale (refetched when next shown), without fetching now.
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.detail._def, refetchType: 'none' });

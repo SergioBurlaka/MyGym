@@ -169,6 +169,13 @@
       "when": 1792928822318,
       "tag": "0023_backfill_stale_durations",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793010917652,
+      "tag": "0024_workout_pause",
+      "breakpoints": true
     }
   ]
 }

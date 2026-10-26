@@ -11,6 +11,8 @@ import {
   updateWorkout,
   listWorkoutTemplates,
   withProgressAt,
+  getActiveWorkout,
+  setWorkoutPaused,
 } from './workouts.service.js';
 
 export default async function workoutsRoutes(fastify: FastifyInstance) {
@@ -36,6 +38,13 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/templates', async (request) => {
     return listWorkoutTemplates(request.userId);
+  });
+
+  // Wrapped, not a bare null: "no open workout" is a normal answer.
+  // serverNow lets the header timer correct for a phone clock that is off -
+  // timeStart and pausedAt are server times.
+  fastify.get('/active', async (request) => {
+    return { workout: await getActiveWorkout(request.userId), serverNow: new Date().toISOString() };
   });
 
   fastify.get<{ Querystring: { from?: string; to?: string } }>('/dates', async (request, reply) => {
@@ -85,6 +94,15 @@ export default async function workoutsRoutes(fastify: FastifyInstance) {
     if (!workout) return reply.code(404).send({ error: 'not_found' });
     return workout;
   });
+
+  for (const [action, paused] of [['pause', true], ['resume', false]] as const) {
+    fastify.post<{ Params: { id: string } }>(`/:id/${action}`, async (request, reply) => {
+      const workout = await setWorkoutPaused(request.userId, request.params.id, paused);
+      if (!workout) return reply.code(404).send({ error: 'not_found' });
+      if (workout === 'finished') return reply.code(409).send({ error: 'workout_finished' });
+      return workout;
+    });
+  }
 
   fastify.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const ok = await deleteWorkout(request.userId, request.params.id);

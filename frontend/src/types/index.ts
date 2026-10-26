@@ -55,6 +55,10 @@ export type Workout = {
   timeEnd: string | null;
   // timeEnd was set by the server after 1.5 hours without activity.
   autoFinished: boolean;
+  // Header-timer pause: closed pauses so far, and the start of the one in
+  // progress (null = running). Duration = timeEnd - timeStart - pausedMs.
+  pausedMs: number;
+  pausedAt: string | null;
   programLabel: string | null;
   programId: string | null;
   // Only present (non-null) while the linked Program still exists.
@@ -62,6 +66,15 @@ export type Workout = {
   createdAt: string;
   workoutExercises: WorkoutExercise[];
 };
+
+// GET /workouts/active - the open workout the header timer counts.
+export type ActiveWorkout = Pick<Workout, 'id' | 'date' | 'programLabel' | 'pausedMs' | 'pausedAt'> & {
+  timeStart: string;
+};
+
+// What the header timer keeps: the workout plus server time minus this
+// device's clock, so a phone clock that is off doesn't shift the stopwatch.
+export type ActiveWorkoutState = { workout: ActiveWorkout | null; clockOffsetMs: number };
 
 export type WorkoutTemplate = {
   label: string;

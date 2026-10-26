@@ -391,7 +391,7 @@ export default function WorkoutFormPage() {
 
   const workout = workoutQuery.data;
   const saving = saveMutation.isPending || finishMutation.isPending;
-  const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished);
+  const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished, workout.pausedMs);
 
   return (
     <div className="space-y-6">

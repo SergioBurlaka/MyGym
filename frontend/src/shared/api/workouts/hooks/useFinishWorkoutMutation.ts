@@ -18,6 +18,7 @@ export const useFinishWorkoutMutation = (id: string): UseMutationResult<Workout,
       // (and their progressAt) instead of replacing them with nothing.
       queryClient.setQueryData<Workout>(workoutsKeys.detail(id).queryKey, (old) => (old ? { ...old, ...data } : data));
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.active.queryKey });
       // The try-more countdowns on the Programs page come from here.
       await queryClient.invalidateQueries({ queryKey: progressionKeys._def });
     },
