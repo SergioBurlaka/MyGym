@@ -32,8 +32,9 @@ export const LOGIN_RATE_LIMIT = { max: 10, timeWindow: '1 minute' };
 export const REGISTER_RATE_LIMIT = { max: 5, timeWindow: '15 minutes' };
 // Each Google round trip hits our server twice (start + callback).
 export const GOOGLE_RATE_LIMIT = { max: 20, timeWindow: '1 minute' };
-// Each demo login stores a refresh token for the one shared account.
-export const DEMO_RATE_LIMIT = { max: 20, timeWindow: '1 minute' };
+// Each demo login stores a refresh token for the one shared account; a
+// visitor needs one login, not dozens.
+export const DEMO_RATE_LIMIT = { max: 20, timeWindow: '1 hour' };
 
 // Persistent (maxAge) rather than a session cookie: mobile browsers drop
 // session cookies when they kill a backgrounded tab mid-workout. `secure`

@@ -12,6 +12,7 @@ import {
   workouts,
 } from '../../db/schema.js';
 import { env } from '../../config/env.js';
+import { getUserToday } from '../progression/progression.service.js';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -176,7 +177,8 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
   // latest lands within the past week.
   let shiftDays = 0;
   if (!exact && sourceWorkouts.length) {
-    const today = new Date().toISOString().slice(0, 10);
+    // The target's own "today" (its timezone): samples never land on it.
+    const today = await getUserToday(targetId, tx);
     const sinceLatest = Math.round((Date.parse(today) - Date.parse(sourceWorkouts[0].date)) / DAY_MS);
     shiftDays = 7 * Math.floor((sinceLatest - 1) / 7);
   }
@@ -211,7 +213,9 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
       weightPerUnitKg: we.weightPerUnitKg,
       weightUnits: we.weightUnits,
       orderIndex: we.orderIndex,
-      notes: we.notes,
+      // The template owner's own notes stay theirs - not in the public demo
+      // nor in anyone's samples.
+      notes: null,
       createdAt: shiftTime(we.createdAt)!,
     };
   });
@@ -240,16 +244,28 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
 // as samples. The schedule history is moved back to the first sample, so the
 // consistency calendar judges those days too (planned and missed ones).
 // No template configured -> nothing happens.
+// The new account also takes the template's training days - the samples
+// keep their weekdays, so judged by the template's schedule they show as
+// planned, with the template's real missed days in between.
+// Runs in a savepoint: starter data is a bonus, so a copy that fails (odd
+// template data) is logged and the account is still created without it.
 export async function seedStarterData(tx: Tx, userId: string) {
   const template = await findTemplateUser(tx);
   if (!template || template.id === userId) return;
-  const dates = await copyTemplateData(tx, template.id, userId, { workouts: { latest: SAMPLE_WORKOUT_COUNT } });
-  if (dates.length === 0) return;
-  const earliest = dates.reduce((a, b) => (a < b ? a : b));
-  await tx
-    .update(trainingScheduleHistory)
-    .set({ effectiveFrom: earliest })
-    .where(and(eq(trainingScheduleHistory.userId, userId), sql`${trainingScheduleHistory.effectiveFrom} > ${earliest}`));
+  try {
+    await tx.transaction(async (sp) => {
+      const dates = await copyTemplateData(sp, template.id, userId, { workouts: { latest: SAMPLE_WORKOUT_COUNT } });
+      if (dates.length === 0) return;
+      const earliest = dates.reduce((a, b) => (a < b ? a : b));
+      await sp.update(users).set({ trainingDays: template.trainingDays }).where(eq(users.id, userId));
+      await sp
+        .update(trainingScheduleHistory)
+        .set({ effectiveFrom: earliest, trainingDays: template.trainingDays })
+        .where(eq(trainingScheduleHistory.userId, userId));
+    });
+  } catch (err) {
+    console.error('starter data copy failed - account created without it', err);
+  }
 }
 
 // "Remove samples": deletes them, and moves the schedule history back to
@@ -262,33 +278,46 @@ export async function removeSampleWorkouts(userId: string) {
       .delete(workouts)
       .where(and(eq(workouts.userId, userId), eq(workouts.isSample, true)))
       .returning({ id: workouts.id });
-    if (removed.length === 0) return 0;
-
-    const [user] = await tx.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userId));
-    const [{ firstWorkout }] = await tx
-      .select({ firstWorkout: sql<string | null>`min(${workouts.date})::text` })
-      .from(workouts)
-      .where(eq(workouts.userId, userId));
-    const registered = user.createdAt.toISOString().slice(0, 10);
-    const startFrom = firstWorkout && firstWorkout < registered ? firstWorkout : registered;
-
-    const history = await tx
-      .select()
-      .from(trainingScheduleHistory)
-      .where(eq(trainingScheduleHistory.userId, userId))
-      .orderBy(asc(trainingScheduleHistory.effectiveFrom));
-    const first = history[0];
-    if (first && first.effectiveFrom < startFrom) {
-      // A later row already on that day (schedule changed on it) takes over.
-      if (history.some((h) => h.effectiveFrom === startFrom)) {
-        await tx.delete(trainingScheduleHistory).where(eq(trainingScheduleHistory.id, first.id));
-      } else {
-        await tx
-          .update(trainingScheduleHistory)
-          .set({ effectiveFrom: startFrom })
-          .where(eq(trainingScheduleHistory.id, first.id));
-      }
-    }
+    if (removed.length > 0) await restoreScheduleStart(tx, userId);
     return removed.length;
   });
+}
+
+// Once no sample is left (removed all at once, or one by one), the schedule
+// history starts where it would have without them.
+export async function restoreScheduleStartIfNoSamples(tx: Tx, userId: string) {
+  const [left] = await tx
+    .select({ id: workouts.id })
+    .from(workouts)
+    .where(and(eq(workouts.userId, userId), eq(workouts.isSample, true)))
+    .limit(1);
+  if (!left) await restoreScheduleStart(tx, userId);
+}
+
+async function restoreScheduleStart(tx: Tx, userId: string) {
+  const [user] = await tx.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userId));
+  const [{ firstWorkout }] = await tx
+    .select({ firstWorkout: sql<string | null>`min(${workouts.date})::text` })
+    .from(workouts)
+    .where(eq(workouts.userId, userId));
+  const registered = user.createdAt.toISOString().slice(0, 10);
+  const startFrom = firstWorkout && firstWorkout < registered ? firstWorkout : registered;
+
+  const history = await tx
+    .select()
+    .from(trainingScheduleHistory)
+    .where(eq(trainingScheduleHistory.userId, userId))
+    .orderBy(asc(trainingScheduleHistory.effectiveFrom));
+  const first = history[0];
+  if (first && first.effectiveFrom < startFrom) {
+    // A later row already on that day (schedule changed on it) takes over.
+    if (history.some((h) => h.effectiveFrom === startFrom)) {
+      await tx.delete(trainingScheduleHistory).where(eq(trainingScheduleHistory.id, first.id));
+    } else {
+      await tx
+        .update(trainingScheduleHistory)
+        .set({ effectiveFrom: startFrom })
+        .where(eq(trainingScheduleHistory.id, first.id));
+    }
+  }
 }

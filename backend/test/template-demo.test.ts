@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { and, eq } from 'drizzle-orm';
 import { createTestApp, refreshCookie, registerUser, resetDb } from './helpers.js';
 import { db } from '../src/db/client.js';
-import { exercises, trainingScheduleHistory, users, workouts } from '../src/db/schema.js';
+import { exercises, refreshTokens, trainingScheduleHistory, users, workouts } from '../src/db/schema.js';
 import { env } from '../src/config/env.js';
 import { DEMO_EMAIL, DEMO_RESET_AFTER_MS } from '../src/modules/template/demo.service.js';
 import { SAMPLE_WORKOUT_COUNT } from '../src/modules/template/template.service.js';
@@ -169,6 +169,32 @@ describe('starter data for a new account', () => {
     expect(history[0].effectiveFrom).toBe(data[data.length - 1].date);
   });
 
+  it("takes the template's training days, for the account and its calendar history", async () => {
+    const { owner } = await setUpTemplate();
+    await app.inject({ method: 'PATCH', url: '/api/settings', headers: owner.auth, payload: { trainingDays: [2, 4, 6] } });
+    const { auth, user } = await registerUser(app);
+
+    const settings = await app.inject({ method: 'GET', url: '/api/settings', headers: auth });
+    expect(settings.json().trainingDays).toEqual([2, 4, 6]);
+    const history = await db.query.trainingScheduleHistory.findMany({
+      where: eq(trainingScheduleHistory.userId, user.id),
+    });
+    expect(history.map((h) => h.trainingDays)).toEqual([[2, 4, 6]]);
+  });
+
+  it('deleting the samples one by one also moves the schedule start back', async () => {
+    await setUpTemplate();
+    const { auth, user } = await registerUser(app);
+    for (const w of (await journal(auth)).data) {
+      await app.inject({ method: 'DELETE', url: `/api/workouts/${w.id}`, headers: auth });
+    }
+    const [history] = await db.query.trainingScheduleHistory.findMany({
+      where: eq(trainingScheduleHistory.userId, user.id),
+    });
+    const [row] = await db.select().from(users).where(eq(users.id, user.id));
+    expect(history.effectiveFrom).toBe(row.createdAt.toISOString().slice(0, 10));
+  });
+
   it('skips an empty template workout - a sample has to show something', async () => {
     const { owner } = await setUpTemplate();
     const empty = await app.inject({ method: 'POST', url: '/api/workouts', headers: owner.auth, payload: {} });
@@ -280,6 +306,15 @@ describe('demo account', () => {
     expect(calendar.statusCode).toBe(403);
     const grants = await app.inject({ method: 'GET', url: '/api/oauth/grants', headers: auth });
     expect(grants.statusCode).toBe(403);
+  });
+
+  it('gives a demo visitor a one-day session, not the usual 30 days', async () => {
+    await setUpTemplate();
+    const demo = await demoLogin();
+    const rows = await db.query.refreshTokens.findMany({ where: eq(refreshTokens.userId, demo.user.id) });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(DAY_MS);
+    expect(rows[0].expiresAt.getTime() - Date.now()).toBeGreaterThan(DAY_MS - 60_000);
   });
 
   it('keeps the demo session a demo across a refresh', async () => {

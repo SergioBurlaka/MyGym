@@ -158,11 +158,15 @@ export async function validateCredentials(email: string, password: string) {
 
 const ROTATION_GRACE_MS = 60_000;
 
+// A demo session lives a day, not JWT_REFRESH_TTL: every anonymous demo
+// login adds a refresh-token row to the one shared account.
+const DEMO_REFRESH_TTL_MS = 24 * 60 * 60 * 1000;
+
 export async function issueTokenPair(user: { id: string; email: string; isDemo?: boolean }) {
   const accessToken = signAccessToken({ sub: user.id, email: user.email, ...(user.isDemo ? { demo: true } : {}) });
   const refreshToken = generateRefreshToken();
   const tokenHash = hashRefreshToken(refreshToken);
-  const expiresAt = refreshTtlToDate();
+  const expiresAt = user.isDemo ? new Date(Date.now() + DEMO_REFRESH_TTL_MS) : refreshTtlToDate();
 
   await db.insert(refreshTokens).values({
     userId: user.id,

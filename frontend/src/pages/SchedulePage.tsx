@@ -6,6 +6,7 @@ import type { UpdateSettingsInput } from '../shared/api/settings/settings.types.
 import Select from '../components/Select.js';
 import CalendarSubscription from '../components/CalendarSubscription.js';
 import { translateApiError } from '../utils/apiError.js';
+import { useAuth } from '../context/AuthContext.js';
 
 // Training days, time and calendar reminders - moved off the bottom of the
 // Exercises page (UX audit 2026-10-25, finding 08): the schedule decides the
@@ -24,6 +25,7 @@ const DURATIONS = [30, 45, 60, 75, 90, 120];
 
 export default function SchedulePage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const settingsQuery = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();
   const settings = settingsQuery.data;
@@ -151,7 +153,10 @@ export default function SchedulePage() {
         {calendarLagging && settings?.calendarConnectedAt && (
           <p role="status" className="text-[13px] text-warn">{t('exercises.calendar.updateDelay')}</p>
         )}
-        <CalendarSubscription connectedAt={settings?.calendarConnectedAt ?? null} beforeConnect={syncTimezone} />
+        {/* A secret feed link isn't for the shared demo account (the API refuses it). */}
+        {!user?.isDemo && (
+          <CalendarSubscription connectedAt={settings?.calendarConnectedAt ?? null} beforeConnect={syncTimezone} />
+        )}
         <div className="flex items-start gap-2 border-t border-surface-border pt-2.5 text-[13px] text-slate-400">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="mt-px shrink-0">
             <circle cx="12" cy="12" r="9" />

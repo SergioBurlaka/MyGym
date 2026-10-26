@@ -35,6 +35,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Tokens and connected apps are off for the shared demo account (the API
+// answers 403) - a direct link lands on the journal instead.
+function NotForDemo({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.isDemo) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <div className="min-h-screen">
@@ -102,7 +110,9 @@ export default function App() {
             path="/integrations"
             element={
               <ProtectedRoute>
-                <IntegrationsPage />
+                <NotForDemo>
+                  <IntegrationsPage />
+                </NotForDemo>
               </ProtectedRoute>
             }
           />

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { eq } from 'drizzle-orm';
+import { and, eq, lt } from 'drizzle-orm';
+import { env } from '../../config/env.js';
 import { db } from '../../db/client.js';
-import { exercises, programs, trainingScheduleHistory, users, workouts } from '../../db/schema.js';
+import { exercises, programs, refreshTokens, trainingScheduleHistory, users, workouts } from '../../db/schema.js';
 import { isUniqueViolation } from '../../utils/pgErrors.js';
 import { copyTemplateData, findTemplateUser } from './template.service.js';
 
@@ -38,6 +39,8 @@ export async function getDemoUser(): Promise<User | null> {
 // history, exercises, programs, all finished workouts. The user row (and so
 // every open demo session) stays. The row lock makes concurrent resets run
 // one after another, and the second sees a fresh copy and does nothing.
+// Repeatable read: one consistent snapshot of the template, even if its
+// owner is saving a workout while it is copied.
 export async function resetDemo(demoId: string, { force = false } = {}): Promise<User> {
   return db.transaction(async (tx) => {
     const [demo] = await tx.select().from(users).where(eq(users.id, demoId)).for('update');
@@ -50,6 +53,8 @@ export async function resetDemo(demoId: string, { force = false } = {}): Promise
     await tx.delete(programs).where(eq(programs.userId, demoId));
     await tx.delete(exercises).where(eq(exercises.userId, demoId));
     await tx.delete(trainingScheduleHistory).where(eq(trainingScheduleHistory.userId, demoId));
+    // Visitors' expired sessions (demo ones live a day, see issueTokenPair).
+    await tx.delete(refreshTokens).where(and(eq(refreshTokens.userId, demoId), lt(refreshTokens.expiresAt, new Date())));
 
     const history = await tx
       .select()
@@ -76,12 +81,19 @@ export async function resetDemo(demoId: string, { force = false } = {}): Promise
       .where(eq(users.id, demoId))
       .returning();
     return updated;
-  });
+  }, { isolationLevel: 'repeatable read' });
 }
 
 // Resets a day-old demo even if nobody logs in, so a visitor who keeps a
 // tab open still gets a clean copy back. Errors are logged, never thrown.
 export function startDemoResetSweep(app: FastifyInstance) {
+  // A typo in the email would quietly turn the demo off - or make whoever
+  // registers that email first the source of the public demo.
+  void findTemplateUser().then((template) => {
+    if (env.TEMPLATE_ACCOUNT_EMAIL && !template) {
+      app.log.warn('TEMPLATE_ACCOUNT_EMAIL has no account - demo and starter data are off');
+    }
+  });
   const run = async () => {
     try {
       const demo = await db.query.users.findFirst({ where: eq(users.isDemo, true) });
