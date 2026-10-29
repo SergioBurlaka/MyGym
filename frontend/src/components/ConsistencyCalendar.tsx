@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useScheduleHistoryQuery } from '../shared/api/settings/index.js';
 import { useWorkoutDatesQuery } from '../shared/api/workouts/index.js';
 import { formatDate } from '../utils/weight.js';
+import { addDays, startOfWeekMonday, todayIso, weekdayMonday } from '../utils/date.js';
 
 const WEEKS = 16;
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -17,27 +18,9 @@ const STATE_COLOR: Record<DayState, string> = {
   rest: 'bg-surface-border',
 };
 
-function toIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function mondayOf(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  const day = d.getUTCDay();
-  const diff = (day === 0 ? -6 : 1) - day;
-  d.setUTCDate(d.getUTCDate() + diff);
-  return toIso(d);
-}
-
-function addDays(dateStr: string, n: number): string {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return toIso(d);
-}
-
+// ISO weekday: 1 = Monday ... 7 = Sunday, as users.trainingDays stores it.
 function isoWeekday(dateStr: string): number {
-  const day = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
-  return day === 0 ? 7 : day;
+  return weekdayMonday(dateStr) + 1;
 }
 
 export default function ConsistencyCalendar() {
@@ -50,8 +33,9 @@ export default function ConsistencyCalendar() {
   const history = historyQuery.data ?? [];
 
   const { gridStart, gridEnd, todayStr } = useMemo(() => {
-    const today = toIso(new Date());
-    const currentMonday = mondayOf(today);
+    // Local, not UTC: after midnight in Kyiv toISOString() still said yesterday.
+    const today = todayIso();
+    const currentMonday = startOfWeekMonday(today);
     return {
       gridStart: addDays(currentMonday, -7 * (WEEKS - 1)),
       gridEnd: addDays(currentMonday, 6),
