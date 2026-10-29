@@ -249,3 +249,21 @@ describe('migration 0026: barbell bar backfill', () => {
     expect(curlWe).toMatchObject({ barKg: null, weightUnits: 1 });
   });
 });
+
+describe('an exercise not done yet', () => {
+  it('is saved with no sets and stays out of the history', async () => {
+    const { auth } = await registerUser(app);
+    const row = await byName(auth, 'Тяга в нахилі');
+    const curl = await byName(auth, 'Піднімання на біцепс');
+    const id = await startWorkout(auth, day(-1));
+    const saved = await save(auth, id, [
+      { exerciseId: row.id, weightPerUnitKg: 16.25, sets: [{ setNumber: 1, reps: 12 }] },
+      // Planned, weight known, nothing typed yet.
+      { exerciseId: curl.id, weightPerUnitKg: 7.5, weightUnits: 2, sets: [] },
+    ]);
+    expect(saved.workoutExercises.map((we: { sets: unknown[] }) => we.sets.length)).toEqual([1, 0]);
+
+    const history = await app.inject({ method: 'GET', url: `/api/progression/${curl.id}/history`, headers: auth });
+    expect(history.json()).toEqual([]);
+  });
+});
