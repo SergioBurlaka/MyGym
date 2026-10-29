@@ -20,6 +20,11 @@ import type { WorkoutExercise } from '../types/index.js';
 
 const todayIso = new Date().toISOString().slice(0, 10);
 
+// A failed autosave is retried after these pauses, then every 30 s until it
+// goes through - the network in a gym can be gone for minutes. Also on
+// `online` and "Retry".
+const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
+
 let setKeySeq = 0;
 function newSet(reps = ''): EditableSet {
   setKeySeq += 1;
@@ -98,6 +103,9 @@ export default function WorkoutFormPage() {
   const [addExerciseId, setAddExerciseId] = useState('');
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The last autosave failed (network, server) - retried by itself; a bad
+  // weight in the form is `error` without this, nothing to retry.
+  const [saveFailed, setSaveFailed] = useState(false);
   const [labelDraft, setLabelDraft] = useState('');
   const [dateDraft, setDateDraft] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -262,6 +270,8 @@ export default function WorkoutFormPage() {
   const savedJsonRef = useRef(savedJson);
   savedJsonRef.current = savedJson;
   const saveLoopRef = useRef<Promise<void> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const retryAttemptRef = useRef(0);
   const deletedRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const [saveTick, setSaveTick] = useState(0);
@@ -313,21 +323,47 @@ export default function WorkoutFormPage() {
     }
     const payload = buildPayload(blocksRef.current);
     const json = JSON.stringify(payload);
-    if (json === savedJsonRef.current) return;
+    if (json === savedJsonRef.current) {
+      setError(null);
+      return;
+    }
+    clearTimeout(retryTimerRef.current);
     try {
       await saveMutation.mutateAsync(payload);
       savedJsonRef.current = json;
       setSavedJson(json);
       setError(null);
+      setSaveFailed(false);
+      retryAttemptRef.current = 0;
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
+      setSaveFailed(true);
+      // Bad network in the gym: try again by itself a few times, and once
+      // more when the phone is back online (below). "Retry" is still there.
+      if (!deletedRef.current) {
+        const delay = RETRY_DELAYS_MS[Math.min(retryAttemptRef.current, RETRY_DELAYS_MS.length - 1)];
+        retryAttemptRef.current += 1;
+        retryTimerRef.current = setTimeout(() => void flushSave(), delay);
+      }
     }
   }
 
-  function handleSave() {
-    setError(null);
+  function retrySave() {
+    retryAttemptRef.current = 0;
     void flushSave();
   }
+
+  useEffect(() => {
+    if (!saveFailed) return;
+    function onOnline() {
+      retrySave();
+    }
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveFailed]);
+
+  useEffect(() => () => clearTimeout(retryTimerRef.current), []);
 
   async function handleFinish() {
     await flushSave();
@@ -514,27 +550,35 @@ export default function WorkoutFormPage() {
           {workout.autoFinished && <p className="text-xs text-slate-400">{t('workout.autoFinishedHint')}</p>}
         </div>
 
-        <div className="flex gap-2">
-          {!workout.timeEnd && (
-            <button className="btn-secondary h-12 flex-1" onClick={handleFinish} disabled={saving}>
-              {t('workout.finish')}
-            </button>
-          )}
-          <button
-            className="btn-primary h-12 flex-1"
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            aria-busy={saving}
-          >
-            {saving && (
-              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        {/* No Save button: everything saves by itself (user's decision
+            2026-10-29) - a status line says so, with "Retry" on a failure. */}
+        <p className="flex min-h-5 items-center gap-1.5 text-xs" aria-live="polite">
+          {saveMutation.isPending ? (
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
                 <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
               </svg>
-            )}
-            {saving ? t('workout.saving') : t('workout.save')}
+              {t('workout.saveStatus.saving')}
+            </span>
+          ) : saveFailed ? (
+            <>
+              <span className="text-red-400">{t('workout.saveStatus.failed')}</span>
+              <span className="text-slate-400" aria-hidden="true">·</span>
+              <button type="button" className="min-h-11 px-1 font-semibold text-accent hover:text-accent-hover" onClick={retrySave}>
+                {t('workout.saveStatus.retry')}
+              </button>
+            </>
+          ) : savedJson !== null && !dirty && !error ? (
+            <span className="text-slate-400">{t('workout.saveStatus.saved')}</span>
+          ) : null}
+        </p>
+
+        {!workout.timeEnd && (
+          <button className="btn-primary h-12 w-full" onClick={handleFinish} disabled={saving}>
+            {t('workout.finish')}
           </button>
-        </div>
+        )}
 
         {hasPrevious && (
           <div className="flex items-center gap-3 whitespace-nowrap text-xs text-slate-400">
@@ -551,7 +595,8 @@ export default function WorkoutFormPage() {
         )}
       </section>
 
-      {error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
+      {/* A failed save is in the status line; this is what retrying can't fix. */}
+      {error && !saveFailed && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
 
       <div className="flex flex-col gap-3">
         {blocks.map((block) => {
