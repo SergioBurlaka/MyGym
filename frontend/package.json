@@ -7,6 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
     "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "sharp": "^0.35.5",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^2.1.9"
   }
 }
