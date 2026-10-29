@@ -59,6 +59,9 @@ erDiagram
         smallint rep_range_min
         smallint rep_range_max
         numeric weight_step_kg
+        boolean unilateral "ліва і права окремо"
+        enum limb "arm|leg, лише з unilateral"
+        numeric default_bar_kg "лише штанга"
         timestamptz archived_at
     }
     programs {
@@ -95,6 +98,7 @@ erDiagram
         uuid exercise_id FK
         numeric weight_per_unit_kg "null = без ваги"
         smallint weight_units "1 або 2, лише з вагою"
+        numeric bar_kg "гриф того дня, лише штанга"
         smallint order_index
         text notes
     }
@@ -176,6 +180,13 @@ dimension (type 2)**: замість перезапису історії дод�
 `equipment` описує інвентар (`barbell`/`dumbbell`/`bodyweight`) і від категорії
 не залежить. Приклад: «Жим стоячи» — штанга, але категорія `small` через травму плеча.
 
+Модель навантаження (міграція 0026, розрахунки — `progression/load.ts`):
+- `unilateral` — ліва і права працюють по черзі (випади, французький жим однією
+  гантеллю): повторення пишуться **на одну сторону**, обсяг рахує обидві;
+  `limb` (`arm`/`leg`) лише підписує повторення, є тільки з `unilateral`.
+- `default_bar_kg` — гриф, з яким стартує нове тренування (лише `barbell`,
+  default 20; у тренування копіюється як `workout_exercises.bar_kg`).
+
 `archived_at` реалізує soft-delete: вправу, на яку вже посилаються тренування,
 не можна видалити фізично (див. FK нижче), тому її ховають.
 
@@ -224,11 +235,18 @@ dimension (type 2)**: замість перезапису історії дод�
 (підтверджено). Це прибирає дублювання ваги в кожному підході й робить
 неможливим стан «різна вага в підходах».
 
-- `weight_per_unit_kg` — вага **однієї** гантелі або дисків з **одного** боку
-  грифа, без самого грифа (як у CSV-таблиці: `2*20`).
-- `weight_units` — скільки таких одиниць, 1 або 2 (зазвичай 2). Default у БД
-  немає (з міграції 0021): бекенд завжди пише його явно, а без ваги — `null`.
-- Загальна вага = `weight_per_unit_kg × weight_units`. Обсяг = вага × сума повторень.
+- `weight_per_unit_kg` — за `exercises.equipment`: штанга — диски на **одну**
+  сторону (без грифа, як у CSV-таблиці: `2*20`); гантелі — **одна** гантель;
+  власна вага — обтяження.
+- `weight_units` — гантелі: скільки гантелей рухається в **одному** повторенні
+  (1 або 2, не скільки тримаєш у руках); штанга — завжди 2 (сторони). Default у
+  БД немає (з міграції 0021): бекенд завжди пише його явно, а без ваги — `null`.
+- `bar_kg` — гриф, з яким зроблено вправу (лише штанга, лише з вагою): знімок
+  `exercises.default_bar_kg`, тож зміна дефолту історію не переписує. Міграція
+  0026 проставила наявній історії штанги 20 кг і `weight_units = 2`.
+- Вага в повторенні: штанга = `bar_kg + 2 × weight_per_unit_kg`, гантелі =
+  `weight_units × weight_per_unit_kg`, власна вага = `weight_per_unit_kg`.
+  Обсяг = вага в повторенні × сума повторень (× 2 для `unilateral`).
 - `weight_per_unit_kg IS NULL` означає безвагову вправу.
 
 ### `sets`
@@ -270,11 +288,14 @@ dimension (type 2)**: замість перезапису історії дод�
 | `exercises_user_name_idx` UNIQUE | `(user_id, lower(btrim(name)))` — **разом з архівними** |
 | `exercises_rep_range_check` | `1 ≤ min ≤ max ≤ 100` |
 | `exercises_weight_step_check` | 0…50 кг |
+| `exercises_default_bar_check` | `default_bar_kg` 0…50 кг і **лише для штанги** (міграція 0026) |
+| `exercises_limb_check` | `limb` лише з `unilateral` (міграція 0026) |
 | `programs_try_more_check`, `program_exercises_try_more_check` | 1…60 (або `null`) |
 | `program_exercises_program_exercise_idx` UNIQUE | одна вправа — один раз у програмі |
 | `program_exercises_target_sets_check` | 1…20 |
 | `workout_exercises_weight_check` | 0…500 кг |
 | `workout_exercises_weight_units_check` | `units` — `null` або 1/2 **лише з вагою**; вага без `units` дозволена (старі рядки, читачі беруть 2) |
+| `workout_exercises_bar_check` | `bar_kg` 0…50 кг (міграція 0026) |
 | `sets_reps_check`, `sets_set_number_check` | повторення 0…200, номер підходу ≥ 1 |
 | `workouts_paused_ms_check` | `paused_ms ≥ 0` (міграція 0024) |
 | `workouts_paused_open_check` | у завершеного тренування нема відкритої паузи: `paused_at` або `time_end` — `null` (міграція 0024) |
@@ -330,9 +351,9 @@ drizzle-kit за ним визначає, які файли з `backend/migratio
 
 ```sql
 SELECT w.date,
-       we.weight_per_unit_kg * we.weight_units           AS total_weight_kg,
-       max(s.reps)                                        AS max_reps,
-       we.weight_per_unit_kg * we.weight_units * sum(s.reps) AS volume_kg
+       coalesce(we.bar_kg, 0) + 2 * we.weight_per_unit_kg AS load_per_rep_kg,  -- штанга
+       max(s.reps)                                          AS max_reps,
+       (coalesce(we.bar_kg, 0) + 2 * we.weight_per_unit_kg) * sum(s.reps) AS volume_kg
 FROM workouts w
 JOIN workout_exercises we ON we.workout_id = w.id
 JOIN exercises e          ON e.id = we.exercise_id
