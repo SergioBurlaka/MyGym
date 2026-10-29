@@ -288,18 +288,27 @@ export function sessionGuide(
   history: HistoryPoint[],
   timeline: TimelinePoint[],
   workoutDate: string,
-  opts: { tryMoreAfterWorkouts: number; counterShift?: CounterShift },
+  opts: { tryMoreAfterWorkouts: number; counterShift?: CounterShift; workoutDates?: string[] },
 ): { previous: PreviousSession | null; target: SessionTarget | null } {
   let i = history.length - 1;
   while (i >= 0 && history[i].date >= workoutDate) i--;
   if (i < 0) return { previous: null, target: null };
   const prev = history[i];
   const point = timeline[i];
-  const sessions = applyCounterShift(
-    { date: point.progressDate, sessionsSince: point.sessionsSinceProgress },
-    opts.counterShift,
-  );
-  const stalled = !point.atTopOfRange && sessions >= opts.tryMoreAfterWorkouts;
+  // The slider was set on the exercise's latest session - it only counts
+  // when `prev` is that one (nothing later but this workout's own date),
+  // not for an older workout's page.
+  const isLatest = history.slice(i + 1).every((p) => p.date === workoutDate);
+  const sessions = isLatest
+    ? applyCounterShift({ date: point.progressDate, sessionsSince: point.sessionsSinceProgress }, opts.counterShift)
+    : point.sessionsSinceProgress;
+  // After a long break the counter starts over: a weaker session then is a
+  // comeback, not a plateau - no +1 target.
+  const afterBreak =
+    opts.workoutDates != null &&
+    opts.workoutDates.length > 0 &&
+    longestBreak(opts.workoutDates, prev.date, workoutDate) >= BREAK_RESET_DAYS;
+  const stalled = !afterBreak && !point.atTopOfRange && sessions >= opts.tryMoreAfterWorkouts;
   return {
     previous: {
       date: prev.date,
@@ -619,6 +628,7 @@ export async function attachProgressAt<W extends JournalWorkout>(
       const guide = sessionGuide(timeline.history, timeline.raw, w.date, {
         tryMoreAfterWorkouts,
         counterShift: { adjust: we.exercise.tryMoreCounterAdjust, anchor: we.exercise.tryMoreCounterAnchor },
+        workoutDates,
       });
       return {
         ...we,

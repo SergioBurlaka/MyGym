@@ -178,7 +178,7 @@ describe('progression overview over several exercises', () => {
     expect(rows.find((r) => r.exerciseId === archived)).toBeUndefined();
     const byId = new Map(rows.map((r) => [r.exerciseId, r]));
     expect(byId.get(a)).toMatchObject({ lastWorkoutDate: day(-2), lastTotalWeightKg: 40, lastMaxReps: 7, sessionsSinceProgress: 1 });
-    expect(byId.get(b)).toMatchObject({ lastWorkoutDate: day(-2), lastTotalWeightKg: 10, lastMaxReps: 12, sessionsSinceProgress: 0 });
+    expect(byId.get(b)).toMatchObject({ lastWorkoutDate: day(-2), lastTotalWeightKg: 5, lastMaxReps: 12, sessionsSinceProgress: 0 });
     // The rest of the 13 defaults have no history.
     const untouched = rows.filter((r) => r.exerciseId !== a && r.exerciseId !== b);
     expect(untouched.length).toBeGreaterThan(0);

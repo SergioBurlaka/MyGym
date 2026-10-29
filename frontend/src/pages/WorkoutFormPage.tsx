@@ -576,7 +576,8 @@ export default function WorkoutFormPage() {
                     onBlur={requestSave}
                   />
                 </div>
-                {exercise.equipment === 'barbell' && (
+                {/* Without plates nothing is saved, the bar included - so no select (as for dumbbells). */}
+                {exercise.equipment === 'barbell' && block.weightPerUnitKg !== '' && (
                   <div>
                     <label className="label">{t('workout.barLabel')}</label>
                     <Select

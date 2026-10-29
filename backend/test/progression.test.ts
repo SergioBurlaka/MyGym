@@ -407,6 +407,22 @@ describe('sessionGuide', () => {
     expect(guide(stalled, '2026-10-05', 2, { adjust: 1, anchor: '2026-09-01' }).target).toBeNull();
   });
 
+  it('applies the slider only for the latest session, not an older workout page', () => {
+    // On 10-03's page the previous session is 10-01, but 10-05 came later -
+    // the slider (set after 10-05) is not about it.
+    expect(guide(stalled, '2026-10-03', 1, { adjust: 3, anchor: '2026-10-01' }).target).toBeNull();
+  });
+
+  it('no +1 target after a long break - the counter starts over', () => {
+    const history = buildHistoryPoints(stalled);
+    const timeline = progressTimeline(history, 15);
+    const dates = ['2026-10-01', '2026-10-03', '2026-10-05'];
+    const opts = { tryMoreAfterWorkouts: 2, workoutDates: dates };
+    expect(sessionGuide(history, timeline, '2026-10-26', opts).target).toBeNull();
+    expect(sessionGuide(history, timeline, '2026-10-26', opts).previous).toMatchObject({ date: '2026-10-05' });
+    expect(sessionGuide(history, timeline, '2026-10-12', opts).target).not.toBeNull();
+  });
+
   it('no +1 target at the top of the rep range - that calls for weight', () => {
     const top = [...session('2026-10-01', 10, [15]), ...session('2026-10-03', 10, [15]), ...session('2026-10-05', 10, [15])];
     expect(guide(top, '2026-10-07').target).toBeNull();

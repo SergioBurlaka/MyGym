@@ -132,14 +132,15 @@ describe('saving weights by equipment', () => {
       { exerciseId: legs.id, weightPerUnitKg: null, sets: [{ setNumber: 1, reps: 20 }] },
     ]);
     const [r, p, l] = saved.workoutExercises;
-    expect(r).toMatchObject({ weightPerUnitKg: '16.25', weightUnits: 2, barKg: '20.00', loadPerRepKg: 52.5, volumeKg: 630 });
+    // Nested rows come back from the relational query as JSON - numeric columns are numbers here.
+    expect(r).toMatchObject({ weightPerUnitKg: 16.25, weightUnits: 2, barKg: 20, loadPerRepKg: 52.5, volumeKg: 630 });
     expect(p).toMatchObject({ weightUnits: 1, barKg: null, loadPerRepKg: 5, volumeKg: 120 }); // 5 x 12 x 2 arms
     expect(l).toMatchObject({ weightPerUnitKg: null, weightUnits: null, barKg: null, loadPerRepKg: null, volumeKg: null });
 
     const ez = await save(auth, id, [
       { exerciseId: row.id, weightPerUnitKg: 10, barKg: 10, sets: [{ setNumber: 1, reps: 12 }] },
     ]);
-    expect(ez.workoutExercises[0]).toMatchObject({ barKg: '10.00', loadPerRepKg: 30 });
+    expect(ez.workoutExercises[0]).toMatchObject({ barKg: 10, loadPerRepKg: 30 });
   });
 
   it('does not count a heavier bar with the same plates as progress', async () => {
