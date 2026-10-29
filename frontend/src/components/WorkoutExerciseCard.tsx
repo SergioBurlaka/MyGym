@@ -243,12 +243,14 @@ export default function WorkoutExerciseCard({
     : null;
 
   const barOptions = BAR_OPTIONS.includes(block.barKg as (typeof BAR_OPTIONS)[number]) ? BAR_OPTIONS : [...BAR_OPTIONS, block.barKg];
-  // Status words ("✓ Progress", "First time"...) as a chip; the counter bar
-  // is always there (user's decision 2026-10-29): after today's sets once
-  // any are logged, before that as of the last session - "0 of 4" included.
-  const tryMore = journalTryMoreStatus(saved?.progressAt);
+  // The counter bar is always there (user's decision 2026-10-29) and shows
+  // the state as of the last session until today has as many sets done as
+  // last time - only then today's (a half-done exercise is neither progress
+  // nor a stall yet). The status words ("✓ Progress"...) switch with it.
+  const todayCounts = saved?.progressAt != null && saved.sets.length >= (previous?.reps.length || 1);
+  const tryMore = todayCounts ? journalTryMoreStatus(saved?.progressAt) : ({ kind: 'unknown' } as const);
   const showStatusChip = tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due';
-  const counter = counterStatus(saved);
+  const counter = counterStatus(todayCounts ? saved?.progressAt : saved?.counterBefore);
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-surface-border bg-surface-raised p-4">
@@ -411,11 +413,11 @@ export default function WorkoutExerciseCard({
   );
 }
 
-// The counter bar for the card: from today's state when today counts
-// (progressAt - it has sets), else as of the last session. Null for an
-// exercise not saved yet.
-function counterStatus(saved: WorkoutExercise | undefined): TryMoreStatus | null {
-  const state = saved?.progressAt ?? saved?.counterBefore;
+// The counter bar for one state (today's or the last session's). Null for
+// an exercise not saved yet.
+function counterStatus(
+  state: { sessionsSinceProgress: number; tryMoreAfterWorkouts: number } | null | undefined,
+): TryMoreStatus | null {
   if (!state) return null;
   const total = state.tryMoreAfterWorkouts;
   const done = state.sessionsSinceProgress;
