@@ -18,16 +18,15 @@ type SourceExercise = {
   orderIndex: number;
 };
 
-type LatestEntry = { weightPerUnitKg: string | null; weightUnits: number | null; barKg: string | null; reps: number[] };
+type LatestEntry = { weightPerUnitKg: string | null; weightUnits: number | null; barKg: string | null };
 
 // The most recent time each exercise was performed in ANY of the user's
 // past workouts (not just ones from the same program) - used to prefill a
-// new program-started workout with a realistic weight/reps starting point
-// instead of blanks or a stale "starting weight" set once in the program.
-// Two queries for all exercises: the latest row of each (DISTINCT ON), then
-// their sets. An exercise twice in one workout: the one lower in the list.
-// Only entries with sets count - one added but never logged (or copied from
-// a template, which carries no sets) would prefill every set with 0 reps.
+// new program-started workout with a realistic weight instead of blanks or
+// a stale "starting weight" set once in the program. One DISTINCT ON query
+// for all exercises. An exercise twice in one workout: the one lower in the
+// list. Only entries with sets count - one added but never logged (or copied
+// from a template, which carries no sets) may have no weight typed in yet.
 async function findLatestWorkoutExercises(userId: string, exerciseIds: string[]): Promise<Map<string, LatestEntry>> {
   const byExercise = new Map<string, LatestEntry>();
   if (exerciseIds.length === 0) return byExercise;
@@ -56,21 +55,8 @@ async function findLatestWorkoutExercises(userId: string, exerciseIds: string[])
       desc(workoutExercises.orderIndex),
       desc(workoutExercises.id),
     );
-  if (latest.length === 0) return byExercise;
-
-  const lastSets = await db
-    .select({ workoutExerciseId: sets.workoutExerciseId, reps: sets.reps })
-    .from(sets)
-    .where(inArray(sets.workoutExerciseId, latest.map((we) => we.id)))
-    .orderBy(asc(sets.setNumber));
-
   for (const we of latest) {
-    byExercise.set(we.exerciseId, {
-      weightPerUnitKg: we.weightPerUnitKg,
-      weightUnits: we.weightUnits,
-      barKg: we.barKg,
-      reps: lastSets.filter((s) => s.workoutExerciseId === we.id).map((s) => s.reps),
-    });
+    byExercise.set(we.exerciseId, { weightPerUnitKg: we.weightPerUnitKg, weightUnits: we.weightUnits, barKg: we.barKg });
   }
   return byExercise;
 }
@@ -134,44 +120,26 @@ export async function startWorkout(
       );
     }
 
-    // Prefill from a Program: weight + reps come from the last time each
-    // exercise was actually done (not stored on the program), one row of
-    // sets per exercise sized to its targetSets. Read history via `db`
+    // Prefill from a Program: the weight comes from the last time each
+    // exercise was actually done (not stored on the program). Read history via `db`
     // (not `tx`) - it's already-committed past data, not the row we're
     // inserting in this same transaction.
     if (toPrefill.length > 0) {
       const lastEntries = await findLatestWorkoutExercises(userId, toPrefill.map((pe) => pe.exerciseId));
 
-      const inserted = await tx
-        .insert(workoutExercises)
-        .values(
-          toPrefill.map((pe) => ({
-            workoutId: workout.id,
-            exerciseId: pe.exerciseId,
-            weightPerUnitKg: lastEntries.get(pe.exerciseId)?.weightPerUnitKg ?? null,
-            weightUnits: lastEntries.get(pe.exerciseId)?.weightUnits ?? null,
-            barKg: lastEntries.get(pe.exerciseId)?.barKg ?? null,
-            orderIndex: pe.orderIndex,
-          })),
-        )
-        .returning({ id: workoutExercises.id, exerciseId: workoutExercises.exerciseId });
-      // An exercise is in a program at most once (program_exercises_program_exercise_idx).
-      const insertedId = new Map(inserted.map((we) => [we.exerciseId, we.id]));
-
-      // targetSets rows, reps taken from last time by position - if the
-      // program now calls for more sets than last time, the last known rep
-      // count repeats as a starting hint (not zero/blank); the user edits
-      // by hand regardless.
-      await tx.insert(sets).values(
-        toPrefill.flatMap((pe) => {
-          const lastReps = lastEntries.get(pe.exerciseId)?.reps ?? [];
-          return Array.from({ length: pe.targetSets }, (_, i) => ({
-            workoutExerciseId: insertedId.get(pe.exerciseId)!,
-            setNumber: i + 1,
-            reps: lastReps[i] ?? lastReps[lastReps.length - 1] ?? 0,
-          }));
-        }),
+      await tx.insert(workoutExercises).values(
+        toPrefill.map((pe) => ({
+          workoutId: workout.id,
+          exerciseId: pe.exerciseId,
+          weightPerUnitKg: lastEntries.get(pe.exerciseId)?.weightPerUnitKg ?? null,
+          weightUnits: lastEntries.get(pe.exerciseId)?.weightUnits ?? null,
+          barKg: lastEntries.get(pe.exerciseId)?.barKg ?? null,
+          orderIndex: pe.orderIndex,
+        })),
       );
+      // No sets: reps are typed fresh each session - the page shows last
+      // time's as placeholders (GET /workouts/:id `previous`), a set is saved
+      // only once it's done. targetSets sizes those placeholder rows.
     }
 
     // Read back via tx (not the module-level `db`/getWorkout) - the insert
@@ -357,16 +325,20 @@ export async function listWorkoutDates(userId: string, from: string, to: string)
     with: {
       workoutExercises: {
         orderBy: (we, { asc }) => [asc(we.orderIndex)],
-        with: { exercise: true },
+        with: { exercise: true, sets: { columns: { id: true }, limit: 1 } },
       },
     },
   });
 
-  return rows.map((w) => ({
-    date: w.date,
-    programLabel: w.programLabel,
-    exerciseNames: w.workoutExercises.map((we) => we.exercise.name),
-  }));
+  // Only what was actually done: a workout started from a program and left
+  // with nothing logged is not a training day (as in getWorkoutDates).
+  return rows
+    .map((w) => ({
+      date: w.date,
+      programLabel: w.programLabel,
+      exerciseNames: w.workoutExercises.filter((we) => we.sets.length > 0).map((we) => we.exercise.name),
+    }))
+    .filter((w) => w.exerciseNames.length > 0);
 }
 
 // With progressAt on every exercise, as in the journal - the workout page
@@ -463,6 +435,8 @@ export async function saveWorkoutExercises(
         })
         .returning();
 
+      // Not done yet (no reps typed) - the exercise alone.
+      if (ex.sets.length === 0) continue;
       await tx.insert(sets).values(
         ex.sets.map((s) => ({
           workoutExerciseId: we.id,

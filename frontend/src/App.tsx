@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext.js';
 import Navbar from './components/Navbar.js';
@@ -70,7 +70,7 @@ export default function App() {
             path="/workouts/:id"
             element={
               <ProtectedRoute>
-                <WorkoutFormPage />
+                <WorkoutPageForId />
               </ProtectedRoute>
             }
           />
@@ -128,4 +128,12 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+// A fresh page per workout: going from one workout to another (the navbar
+// timer links to the active one) must not reuse the first one's state or
+// its save mutation - a save in flight would land in the second workout.
+function WorkoutPageForId() {
+  const { id } = useParams<{ id: string }>();
+  return <WorkoutFormPage key={id} />;
 }

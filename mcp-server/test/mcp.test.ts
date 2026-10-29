@@ -210,6 +210,16 @@ describe('forwarding to the MyGym API', () => {
     ]);
   });
 
+  it('passes back an exercise with no sets, as start_workout leaves it', async () => {
+    const client = await connect(TOKENS.alice);
+    const workoutId = '11111111-1111-4111-8111-111111111111';
+    const exercises = [{ exerciseId: '22222222-2222-4222-8222-222222222222', weightPerUnitKg: 22.5, weightUnits: 2, sets: [] }];
+    const result = await client.callTool({ name: 'log_workout_exercises', arguments: { workoutId, exercises } });
+
+    expect(result.isError).toBeFalsy();
+    expect(seen).toEqual([expect.objectContaining({ method: 'PUT', body: { exercises } })]);
+  });
+
   it('accepts numbers as strings, the way get_workout returns weights ("22.50")', async () => {
     const client = await connect(TOKENS.alice);
     const workoutId = '11111111-1111-4111-8111-111111111111';

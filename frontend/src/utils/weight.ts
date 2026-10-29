@@ -20,10 +20,17 @@ function grams(kg: number): number {
   return Math.round(kg * 1000) / 1000;
 }
 
+// A typed weight: "16,25" (a Ukrainian keyboard's decimal key) is 16.25.
+// NaN for anything that isn't a number.
+export function parseKg(value: string): number {
+  const text = value.trim().replace(',', '.');
+  return text === '' ? NaN : Number(text);
+}
+
 // Weight moved in one rep; null when no weight was logged.
 export function loadPerRep(equipment: Equipment, load: LoggedLoad): number | null {
   if (load.weightPerUnitKg == null) return null;
-  const perUnit = Number(load.weightPerUnitKg);
+  const perUnit = typeof load.weightPerUnitKg === 'string' ? parseKg(load.weightPerUnitKg) : Number(load.weightPerUnitKg);
   if (equipment === 'barbell') return grams((load.barKg == null ? 0 : Number(load.barKg)) + 2 * perUnit);
   if (equipment === 'dumbbell') return grams((load.weightUnits ?? 2) * perUnit);
   return perUnit;

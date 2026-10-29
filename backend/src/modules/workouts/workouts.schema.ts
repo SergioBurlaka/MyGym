@@ -34,7 +34,9 @@ const workoutExerciseInputSchema = z.object({
   // Barbell only; omitted -> the exercise's default bar.
   barKg: z.coerce.number().min(0).max(50).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
-  sets: z.array(setInputSchema).min(1, 'sets_required'),
+  // Empty = in the workout but not done yet (no reps typed) - saved as the
+  // exercise alone; history only reads exercises with sets.
+  sets: z.array(setInputSchema),
 });
 
 export const saveWorkoutExercisesSchema = z.object({

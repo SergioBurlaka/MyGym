@@ -10,28 +10,15 @@ import {
   useUpdateWorkoutMutation,
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
-import { useCreateProgramMutation } from '../shared/api/programs/index.js';
-import { formatDuration } from '../utils/weight.js';
-import { labelColor } from '../utils/labelColor.js';
+import { useCreateProgramMutation, useProgramsQuery } from '../shared/api/programs/index.js';
+import { formatDuration, parseKg } from '../utils/weight.js';
 import { translateApiError } from '../utils/apiError.js';
-import { progressionMessage } from '../utils/progressionMessage.js';
-import ProgressionBadge from '../components/ProgressionBadge.js';
-import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
-import { journalTryMoreStatus } from '../utils/tryMoreCountdown.js';
-import Popconfirm from '../components/Popconfirm.js';
+import ConfirmDialog from '../components/ConfirmDialog.js';
 import Select from '../components/Select.js';
+import WorkoutExerciseCard, { type EditableExercise, type EditableSet } from '../components/WorkoutExerciseCard.js';
+import type { WorkoutExercise } from '../types/index.js';
 
 const todayIso = new Date().toISOString().slice(0, 10);
-
-// `removing`: the set's remove button was pressed and its "Undo" row is still
-// showing. Until the removal is committed the set is saved as if still there,
-// so an undo never needs a request and a mis-tap never reaches the server.
-// `key`: a client-only id, stable while sets around it come and go - an
-// index key would shift rows under the person's finger when a pending
-// removal is committed mid-typing, sending reps into the neighbouring set.
-type EditableSet = { key: string; reps: string; removing?: boolean };
-
-const UNDO_REMOVE_SET_MS = 5000;
 
 let setKeySeq = 0;
 function newSet(reps = ''): EditableSet {
@@ -39,44 +26,61 @@ function newSet(reps = ''): EditableSet {
   return { key: `set-${setKeySeq}`, reps };
 }
 
-// What gets saved and compared for "dirty": reps only - keys and `removing`
-// marks dropped (a set pending removal still counts as present).
-function withoutRemovalMarks(blocks: EditableExercise[]): EditableExercise[] {
-  return blocks.map((b) => ({ ...b, sets: b.sets.map((s) => ({ reps: s.reps }) as EditableSet) }));
-}
-
-function withRemovalsApplied(blocks: EditableExercise[]): EditableExercise[] {
-  return blocks.map((b) => ({ ...b, sets: b.sets.filter((s) => !s.removing) }));
-}
-type EditableExercise = {
-  exerciseId: string;
-  weightPerUnitKg: string; // '' = bodyweight / no external load
-  weightUnits: 1 | 2; // dumbbells moving in one rep (a barbell is always 2 sides)
-  barKg: string; // barbell only: the bar used today
-  sets: EditableSet[];
-};
-
-// Bars offered in the "Bar" select; another stored value is shown as its own option.
-const BAR_OPTIONS = ['20', '15', '10', '0'] as const;
-
 // "20.00" -> "20", so a stored bar compares equal to a select value.
 function barString(value: string | number | null | undefined): string {
   return value == null ? '20' : String(Number(value));
 }
 
+// What gets saved: only sets with reps typed in (an empty cell is a set not
+// done yet), renumbered. An exercise with none is saved alone - in the
+// workout, not done. A weight that isn't a number makes the whole form
+// unsavable (hasInvalidWeight) - sending it would save "no weight".
+function buildPayload(source: EditableExercise[]) {
+  return {
+    exercises: source.map((b) => ({
+      exerciseId: b.exerciseId,
+      weightPerUnitKg: b.weightPerUnitKg.trim() === '' ? null : parseKg(b.weightPerUnitKg),
+      weightUnits: b.weightPerUnitKg.trim() === '' ? null : b.weightUnits,
+      // The server keeps it for a barbell only.
+      barKg: b.weightPerUnitKg.trim() === '' ? null : Number(b.barKg),
+      sets: b.sets
+        .filter((s) => s.reps.trim() !== '')
+        .map((s, i) => ({ setNumber: i + 1, reps: Number(s.reps) }))
+        .filter((s) => Number.isFinite(s.reps) && s.reps >= 0),
+    })),
+  };
+}
+
+function hasInvalidWeight(source: EditableExercise[]): boolean {
+  return source.some((b) => b.weightPerUnitKg.trim() !== '' && !Number.isFinite(parseKg(b.weightPerUnitKg)));
+}
+
+// The saved sets, then empty cells up to the planned count: the program's
+// targetSets, else as many as last time, else one. A finished workout gets
+// no extra cells - one stray tap would add a set to the history.
+function editableBlock(we: WorkoutExercise, targetSets: number | undefined, finished = false): EditableExercise {
+  const saved = [...we.sets].sort((a, b) => a.setNumber - b.setNumber).map((s) => newSet(String(s.reps)));
+  const planned = finished ? 1 : (targetSets ?? (we.previous?.reps.length || 1));
+  while (saved.length < planned) saved.push(newSet());
+  return {
+    exerciseId: we.exerciseId,
+    // A string for the input; the API sends nested numerics as numbers.
+    weightPerUnitKg: we.weightPerUnitKg == null ? '' : String(Number(we.weightPerUnitKg)),
+    weightUnits: (we.weightUnits as 1 | 2) ?? 2,
+    barKg: barString(we.barKg ?? we.exercise.defaultBarKg),
+    sets: saved,
+  };
+}
+
 export default function WorkoutFormPage() {
   const { t } = useTranslation();
-  const CATEGORY_LABEL: Record<string, string> = {
-    large: t('exercises.category.large'),
-    small: t('exercises.category.small'),
-    bodyweight: t('exercises.category.bodyweight'),
-  };
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const workoutQuery = useWorkoutQuery(id);
   const exercisesQuery = useExercisesQuery();
   const progressionQuery = useProgressionQuery();
+  const programsQuery = useProgramsQuery();
 
   const saveMutation = useSaveWorkoutExercisesMutation(id ?? '');
   const finishMutation = useFinishWorkoutMutation(id ?? '');
@@ -88,25 +92,38 @@ export default function WorkoutFormPage() {
   const progression = progressionQuery.data ?? [];
 
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
-  const [savedBlocks, setSavedBlocks] = useState<EditableExercise[]>([]);
+  // null until the form is seeded from the server - nothing may be saved
+  // before that (an empty form would replace the workout's exercises).
+  const [savedJson, setSavedJson] = useState<string | null>(null);
   const [addExerciseId, setAddExerciseId] = useState('');
+  const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [dateDraft, setDateDraft] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [saveAsProgramOpen, setSaveAsProgramOpen] = useState(false);
   const [newProgramName, setNewProgramName] = useState('');
   const [saveAsProgramError, setSaveAsProgramError] = useState<string | null>(null);
-  const saveAsProgramRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  // Exercises added by hand: their last session (weight, set count) is known
+  // only once the server answers the first save - filled in then, once.
+  const seedFromPreviousRef = useRef(new Set<string>());
 
+  // The "⋯" menu and the save-as-program popover close on outside click / Escape.
   useEffect(() => {
-    if (!saveAsProgramOpen) return;
+    if (!menuOpen && !saveAsProgramOpen) return;
     function onClickOutside(e: MouseEvent) {
-      if (saveAsProgramRef.current && !saveAsProgramRef.current.contains(e.target as Node)) {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
         setSaveAsProgramOpen(false);
       }
     }
     function onEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setSaveAsProgramOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setSaveAsProgramOpen(false);
+      }
     }
     document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onEscape);
@@ -114,29 +131,65 @@ export default function WorkoutFormPage() {
       document.removeEventListener('mousedown', onClickOutside);
       document.removeEventListener('keydown', onEscape);
     };
-  }, [saveAsProgramOpen]);
+  }, [menuOpen, saveAsProgramOpen]);
 
+  const workoutProgram = programsQuery.data?.find((p) => p.id === workoutQuery.data?.programId);
+  const targetSetsById = useMemo(
+    () => new Map((workoutProgram?.programExercises ?? []).map((pe) => [pe.exerciseId, pe.targetSets])),
+    [workoutProgram],
+  );
+
+  // Seed the local edit state once per workout - not on every cache update
+  // a save/finish triggers for this same id - and only once programs are in
+  // (they size the placeholder rows).
+  const seededForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!workoutQuery.data) return;
-    // A removal pending on the previous workout must not fire into this one.
-    clearTimeout(removalTimerRef.current);
-    const initial = workoutQuery.data.workoutExercises.map((we) => ({
-      exerciseId: we.exerciseId,
-      weightPerUnitKg: we.weightPerUnitKg ?? '',
-      weightUnits: (we.weightUnits as 1 | 2) ?? 2,
-      barKg: barString(we.barKg ?? we.exercise.defaultBarKg),
-      sets: we.sets
-        .sort((a, b) => a.setNumber - b.setNumber)
-        .map((s) => newSet(String(s.reps))),
-    }));
+    const workout = workoutQuery.data;
+    if (!workout || programsQuery.isPending || seededForRef.current === workout.id) return;
+    seededForRef.current = workout.id;
+    const initial = workout.workoutExercises.map((we) =>
+      editableBlock(we, targetSetsById.get(we.exerciseId), workout.timeEnd != null),
+    );
     setBlocks(initial);
-    setSavedBlocks(withoutRemovalMarks(initial));
-    setLabelDraft(workoutQuery.data.programLabel ?? '');
-    setDateDraft(workoutQuery.data.date);
-    // Only re-seed local edit state when we land on a (new) workout — not on
-    // every cache update a save/finish mutation triggers for this same id.
+    setSavedJson(JSON.stringify(buildPayload(initial)));
+    setLabelDraft(workout.programLabel ?? '');
+    setDateDraft(workout.date);
+  }, [workoutQuery.data, programsQuery.isPending, targetSetsById]);
+
+  const savedById = useMemo(
+    () => new Map((workoutQuery.data?.workoutExercises ?? []).map((we) => [we.exerciseId, we])),
+    [workoutQuery.data],
+  );
+
+  // A hand-added exercise, once saved: take last time's weight and set count
+  // if nothing has been typed into it yet (the weight is a real value, not a
+  // placeholder - an empty one would save the exercise as "no weight").
+  useEffect(() => {
+    const pending = seedFromPreviousRef.current;
+    if (pending.size === 0) return;
+    let changed = false;
+    const next = blocks.map((b) => {
+      const we = savedById.get(b.exerciseId);
+      if (!pending.has(b.exerciseId) || !we) return b;
+      pending.delete(b.exerciseId);
+      const untouched = b.weightPerUnitKg === '' && b.sets.every((s) => s.reps === '');
+      if (!untouched || !we.previous) return b;
+      changed = true;
+      const seeded = editableBlock({ ...we, sets: [] }, undefined);
+      const prev = we.previous;
+      return {
+        ...seeded,
+        weightPerUnitKg: prev.weightPerUnitKg != null ? String(prev.weightPerUnitKg) : '',
+        weightUnits: prev.weightUnits === 1 ? (1 as const) : (2 as const),
+        barKg: prev.barKg != null ? barString(prev.barKg) : seeded.barKg,
+      };
+    });
+    if (changed) {
+      setBlocks(next);
+      requestSave();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workoutQuery.data?.id]);
+  }, [savedById]);
 
   function commitLabel() {
     const trimmed = labelDraft.trim();
@@ -151,8 +204,8 @@ export default function WorkoutFormPage() {
   }
 
   const dirty = useMemo(
-    () => JSON.stringify(withoutRemovalMarks(blocks)) !== JSON.stringify(savedBlocks),
-    [blocks, savedBlocks],
+    () => savedJson !== null && JSON.stringify(buildPayload(blocks)) !== savedJson,
+    [blocks, savedJson],
   );
 
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
@@ -160,24 +213,19 @@ export default function WorkoutFormPage() {
     () => new Map(progression.map((p) => [p.exerciseId, p])),
     [progression],
   );
-  // The try-more counter after this workout, as the journal cards show it -
-  // from the saved state, so it moves with every autosave. An exercise not
-  // saved yet has none.
-  const progressAtByExerciseId = useMemo(
-    () => new Map((workoutQuery.data?.workoutExercises ?? []).map((we) => [we.exerciseId, we.progressAt])),
-    [workoutQuery.data],
-  );
   const usedIds = useMemo(() => new Set(blocks.map((b) => b.exerciseId)), [blocks]);
   const availableExercises = exercises.filter((e) => !usedIds.has(e.id));
 
   function addExercise() {
     if (!addExerciseId) return;
     const barKg = barString(exerciseById.get(addExerciseId)?.defaultBarKg);
+    seedFromPreviousRef.current.add(addExerciseId);
     setBlocks((prev) => [
       ...prev,
       { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, barKg, sets: [newSet()] },
     ]);
     setAddExerciseId('');
+    setAddPickerOpen(false);
     requestSave();
   }
 
@@ -194,93 +242,25 @@ export default function WorkoutFormPage() {
     setBlocks((prev) =>
       prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, newSet()] } : b)),
     );
-    requestSave();
-  }
-
-  function updateSetReps(exerciseId: string, setKey: string, reps: string) {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.exerciseId === exerciseId
-          ? { ...b, sets: b.sets.map((s) => (s.key === setKey ? { ...s, reps } : s)) }
-          : b,
-      ),
-    );
-  }
-
-  // Removing a set only marks it and shows "Undo" in its place; the removal
-  // is committed (and saved) once the undo window passes - or right away on
-  // Save / Finish / leaving the page. Each new removal restarts the window.
-  const removalTimerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  // Undo puts focus back on the restored set's remove button (its ref
-  // callback picks this up), instead of dropping it to <body>.
-  const focusSetKeyRef = useRef<string | null>(null);
-
-  function markSet(exerciseId: string, setKey: string, removing: boolean) {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.exerciseId === exerciseId
-          ? {
-              ...b,
-              sets: b.sets.map((s) =>
-                s.key === setKey ? { key: s.key, reps: s.reps, ...(removing && { removing }) } : s,
-              ),
-            }
-          : b,
-      ),
-    );
   }
 
   function removeSet(exerciseId: string, setKey: string) {
-    markSet(exerciseId, setKey, true);
-    clearTimeout(removalTimerRef.current);
-    removalTimerRef.current = setTimeout(() => {
-      setBlocks(withRemovalsApplied);
-      requestSave();
-    }, UNDO_REMOVE_SET_MS);
-  }
-
-  function undoRemoveSet(exerciseId: string, setKey: string) {
-    focusSetKeyRef.current = setKey;
-    markSet(exerciseId, setKey, false);
-  }
-
-  const hasPendingRemoval = blocks.some((b) => b.sets.some((s) => s.removing));
-
-  // For Save / Finish / unmount, which read blocksRef right away instead of
-  // waiting for a render.
-  function commitRemovalsNow() {
-    clearTimeout(removalTimerRef.current);
-    blocksRef.current = withRemovalsApplied(blocksRef.current);
-    setBlocks(withRemovalsApplied);
-  }
-
-  function buildPayload(source: EditableExercise[]) {
-    return {
-      exercises: source.map((b) => ({
-        exerciseId: b.exerciseId,
-        weightPerUnitKg: b.weightPerUnitKg === '' ? null : Number(b.weightPerUnitKg),
-        weightUnits: b.weightPerUnitKg === '' ? null : b.weightUnits,
-        // The server keeps it for a barbell only.
-        barKg: b.weightPerUnitKg === '' ? null : Number(b.barKg),
-        sets: b.sets
-          .filter((s) => s.reps.trim() !== '')
-          .map((s, i) => ({ setNumber: i + 1, reps: Number(s.reps) }))
-          .filter((s) => Number.isFinite(s.reps) && s.reps >= 0),
-      })),
-    };
+    setBlocks((prev) =>
+      prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: b.sets.filter((s) => s.key !== setKey) } : b)),
+    );
+    requestSave();
   }
 
   // Autosave: blur on a reps/weight input, or any structural change (add/remove
-  // set or exercise, units), requests a save. Saves run strictly one after
+  // set or exercise, a select), requests a save. Saves run strictly one after
   // another - the backend replaces all of a workout's exercises in one
   // delete+insert transaction, so two in flight at once could interleave.
   // A request made while a save is running just marks `pending`; the running
   // loop then saves again with the latest blocks.
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
-  const savedRef = useRef(savedBlocks);
-  savedRef.current = savedBlocks;
+  const savedJsonRef = useRef(savedJson);
+  savedJsonRef.current = savedJson;
   const saveLoopRef = useRef<Promise<void> | null>(null);
   const deletedRef = useRef(false);
   const pendingSaveRef = useRef(false);
@@ -293,7 +273,7 @@ export default function WorkoutFormPage() {
   // Runs after the render that applied the triggering edit, so blocksRef
   // already holds it (a structural change calls setBlocks + requestSave).
   useEffect(() => {
-    if (saveTick > 0) void flushSave({ silentIfIncomplete: true });
+    if (saveTick > 0) void flushSave();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveTick]);
 
@@ -302,24 +282,19 @@ export default function WorkoutFormPage() {
   // running after unmount.
   useEffect(
     () => () => {
-      if (deletedRef.current) {
-        clearTimeout(removalTimerRef.current);
-        return;
-      }
-      commitRemovalsNow();
-      void flushSave({ silentIfIncomplete: true });
+      if (!deletedRef.current) void flushSave();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
-  function flushSave({ silentIfIncomplete }: { silentIfIncomplete: boolean }): Promise<void> {
+  function flushSave(): Promise<void> {
     pendingSaveRef.current = true;
     if (!saveLoopRef.current) {
       saveLoopRef.current = (async () => {
         while (pendingSaveRef.current) {
           pendingSaveRef.current = false;
-          await saveOnce(silentIfIncomplete);
+          await saveOnce();
         }
       })().finally(() => {
         saveLoopRef.current = null;
@@ -328,22 +303,21 @@ export default function WorkoutFormPage() {
     return saveLoopRef.current;
   }
 
-  async function saveOnce(silentIfIncomplete: boolean) {
-    const snapshot = withoutRemovalMarks(blocksRef.current);
-    if (JSON.stringify(snapshot) === JSON.stringify(savedRef.current)) return;
-
-    const payload = buildPayload(snapshot);
-    // An exercise just added has no reps yet - autosave waits until it does
-    // instead of nagging mid-entry; only the explicit Save button complains.
-    if (payload.exercises.some((e) => e.sets.length === 0)) {
-      if (!silentIfIncomplete) setError(t('workout.emptySetError'));
+  async function saveOnce() {
+    // Not seeded yet (e.g. StrictMode's mount-unmount in dev runs the
+    // leave-the-page save before the first data arrives).
+    if (savedJsonRef.current === null) return;
+    if (hasInvalidWeight(blocksRef.current)) {
+      setError(t('workout.invalidWeightError'));
       return;
     }
-
+    const payload = buildPayload(blocksRef.current);
+    const json = JSON.stringify(payload);
+    if (json === savedJsonRef.current) return;
     try {
       await saveMutation.mutateAsync(payload);
-      savedRef.current = snapshot;
-      setSavedBlocks(snapshot);
+      savedJsonRef.current = json;
+      setSavedJson(json);
       setError(null);
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
@@ -352,17 +326,16 @@ export default function WorkoutFormPage() {
 
   function handleSave() {
     setError(null);
-    commitRemovalsNow();
-    void flushSave({ silentIfIncomplete: false });
+    void flushSave();
   }
 
   async function handleFinish() {
-    commitRemovalsNow();
-    await flushSave({ silentIfIncomplete: false });
+    await flushSave();
     await finishMutation.mutateAsync();
   }
 
   async function handleDelete() {
+    setDeleteOpen(false);
     await deleteMutation.mutateAsync();
     // Nothing left to save into - skip the leave-the-page save on unmount.
     deletedRef.current = true;
@@ -370,6 +343,7 @@ export default function WorkoutFormPage() {
   }
 
   function openSaveAsProgram() {
+    setMenuOpen(false);
     setNewProgramName(labelDraft.trim() || workoutQuery.data?.program?.name || '');
     setSaveAsProgramError(null);
     setSaveAsProgramOpen(true);
@@ -381,11 +355,9 @@ export default function WorkoutFormPage() {
       setSaveAsProgramError(t('workout.saveAsProgramErrorNameRequired'));
       return;
     }
-    // targetSets = how many set rows this exercise currently has in the
-    // form - a new workout started from this program will prefill that
-    // many sets (with reps/weight pulled from history at that time, not
-    // copied from here).
-    const programExercises = withRemovalsApplied(blocks)
+    // targetSets = how many set cells this exercise has now, done or not -
+    // a workout started from this program shows that many.
+    const programExercises = blocks
       .filter((b) => b.sets.length > 0)
       .map((b) => ({ exerciseId: b.exerciseId, targetSets: b.sets.length }));
     if (programExercises.length === 0) {
@@ -401,109 +373,157 @@ export default function WorkoutFormPage() {
     }
   }
 
-  if (workoutQuery.isPending || exercisesQuery.isPending || progressionQuery.isPending || !workoutQuery.data) {
+  if (
+    workoutQuery.isPending ||
+    exercisesQuery.isPending ||
+    progressionQuery.isPending ||
+    programsQuery.isPending ||
+    !workoutQuery.data
+  ) {
     return <p className="text-slate-400">{t('common.loading')}</p>;
   }
 
   const workout = workoutQuery.data;
   const saving = saveMutation.isPending || finishMutation.isPending;
   const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished, workout.pausedMs);
+  const hasPrevious = workout.workoutExercises.some((we) => we.previous);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <div className="space-y-4">
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <input
-              type="date"
-              aria-label={t('workout.dateLabel')}
-              className="input w-40 text-lg text-slate-100"
-              value={dateDraft}
-              max={todayIso}
-              onChange={(e) => commitDate(e.target.value)}
-            />
-            {workout.program && (
-              <span
-                className={`badge ${labelColor(workout.program.name).badgeBg} ${labelColor(workout.program.name).badgeText}`}
-              >
-                {workout.program.name}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-slate-400">
-            {workout.timeEnd
-              ? t(workout.autoFinished ? 'workout.autoFinishedDuration' : 'workout.finishedDuration', {
-                  duration: duration ?? '—',
-                })
-              : t('workout.inProgress')}
-          </p>
-          {workout.autoFinished && <p className="text-xs text-slate-400">{t('workout.autoFinishedHint')}</p>}
-          <div className="mt-2 flex items-center gap-2">
-            <label className="text-xs uppercase tracking-wider text-slate-400" htmlFor="programLabel">
-              {t('workout.nameLabel')}
+            <label className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-surface-border bg-surface-raised pl-3 pr-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-accent-hover" aria-hidden="true">
+                <rect x="4" y="5" width="16" height="15" rx="2" />
+                <path d="M4 10h16M9 3v4M15 3v4" />
+              </svg>
+              <input
+                type="date"
+                aria-label={t('workout.dateLabel')}
+                className="w-36 bg-transparent text-base font-semibold text-slate-100 [color-scheme:dark] focus:outline-none"
+                value={dateDraft}
+                max={todayIso}
+                onChange={(e) => commitDate(e.target.value)}
+              />
             </label>
-            <input
-              id="programLabel"
-              className="input w-48 py-1 text-sm"
-              placeholder={t('workout.namePlaceholder')}
-              maxLength={20}
-              value={labelDraft}
-              onChange={(e) => setLabelDraft(e.target.value)}
-              onBlur={commitLabel}
-            />
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="relative inline-block" ref={saveAsProgramRef}>
-            <button className="btn-secondary" onClick={openSaveAsProgram}>
-              {t('workout.saveAsProgram')}
-            </button>
-            {saveAsProgramOpen && (
-              <div className="absolute left-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] sm:left-auto sm:right-0 rounded-lg border border-surface-border bg-surface-raised p-3 shadow-xl">
-                <label className="label" htmlFor="newProgramName">
-                  {t('workout.saveAsProgramNameLabel')}
-                </label>
-                <input
-                  id="newProgramName"
-                  className="input mt-1 w-full"
-                  placeholder={t('workout.saveAsProgramNamePlaceholder')}
-                  maxLength={50}
-                  value={newProgramName}
-                  onChange={(e) => setNewProgramName(e.target.value)}
-                  autoFocus
-                />
-                {saveAsProgramError && <p className="mt-2 text-xs text-red-400">{saveAsProgramError}</p>}
-                <div className="mt-3 flex justify-end gap-2">
-                  <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setSaveAsProgramOpen(false)}>
-                    {t('common.cancel')}
-                  </button>
+            <span className="flex-1" />
+            <div className="relative" ref={actionsRef}>
+              <button
+                type="button"
+                className={`flex h-11 w-11 items-center justify-center rounded-lg border border-surface-border text-slate-100 ${
+                  menuOpen ? 'bg-surface-border' : 'bg-surface-raised'
+                }`}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={t('workout.moreActions')}
+                onClick={() => {
+                  setSaveAsProgramOpen(false);
+                  setMenuOpen((open) => !open);
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="1.8" />
+                  <circle cx="12" cy="12" r="1.8" />
+                  <circle cx="19" cy="12" r="1.8" />
+                </svg>
+              </button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  aria-label={t('workout.actionsMenu')}
+                  className="absolute right-0 top-12 z-20 flex w-64 animate-pop-in flex-col rounded-xl border border-surface-border bg-surface-raised p-1.5 shadow-xl"
+                >
                   <button
-                    className="rounded-lg bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/20"
-                    onClick={handleSaveAsProgram}
-                    disabled={createProgramMutation.isPending}
+                    type="button"
+                    role="menuitem"
+                    autoFocus
+                    className="flex h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-slate-100 hover:bg-surface-border"
+                    onClick={openSaveAsProgram}
                   >
-                    {createProgramMutation.isPending ? t('common.saving') : t('common.save')}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400" aria-hidden="true">
+                      <path d="M5 4h11l3 3v13H5z" />
+                      <path d="M8 4v5h7M8 20v-6h8v6" />
+                    </svg>
+                    {t('workout.saveAsProgram')}
+                  </button>
+                  <div className="mx-1.5 my-1 h-px bg-surface-border" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm font-semibold text-red-400 hover:bg-surface-border"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                    </svg>
+                    {t('workout.deleteWorkout')}
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+              {saveAsProgramOpen && (
+                <div className="absolute right-0 top-12 z-20 w-72 max-w-[calc(100vw-2rem)] animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-3 shadow-xl">
+                  <label className="label" htmlFor="newProgramName">
+                    {t('workout.saveAsProgramNameLabel')}
+                  </label>
+                  <input
+                    id="newProgramName"
+                    className="input mt-1 w-full"
+                    placeholder={t('workout.saveAsProgramNamePlaceholder')}
+                    maxLength={50}
+                    value={newProgramName}
+                    onChange={(e) => setNewProgramName(e.target.value)}
+                    autoFocus
+                  />
+                  {saveAsProgramError && <p className="mt-2 text-xs text-red-400">{saveAsProgramError}</p>}
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setSaveAsProgramOpen(false)}>
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      className="rounded-lg bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/20"
+                      onClick={handleSaveAsProgram}
+                      disabled={createProgramMutation.isPending}
+                    >
+                      {createProgramMutation.isPending ? t('common.saving') : t('common.save')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <Popconfirm
-            title={t('workout.deleteConfirmTitle')}
-            description={t('workout.deleteConfirmDescription')}
-            onConfirm={handleDelete}
-          >
-            <button className="btn-secondary">{t('common.delete')}</button>
-          </Popconfirm>
+          <input
+            aria-label={t('workout.nameAria')}
+            className="w-full border-0 border-b border-dashed border-slate-600 bg-transparent pb-1.5 pt-1 text-2xl font-bold text-slate-100 placeholder:text-hint focus:border-accent focus:outline-none"
+            placeholder={t('workout.namePlaceholder')}
+            maxLength={20}
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            onBlur={commitLabel}
+          />
+          {workout.timeEnd && (
+            <p className="text-sm text-slate-400">
+              {t(workout.autoFinished ? 'workout.autoFinishedDuration' : 'workout.finishedDuration', {
+                duration: duration ?? '—',
+              })}
+            </p>
+          )}
+          {workout.autoFinished && <p className="text-xs text-slate-400">{t('workout.autoFinishedHint')}</p>}
+        </div>
+
+        <div className="flex gap-2">
           {!workout.timeEnd && (
-            <button className="btn-secondary" onClick={handleFinish} disabled={saving}>
+            <button className="btn-secondary h-12 flex-1" onClick={handleFinish} disabled={saving}>
               {t('workout.finish')}
             </button>
           )}
           <button
-            className="btn-primary inline-flex items-center gap-2"
+            className="btn-primary h-12 flex-1"
             onClick={handleSave}
-            disabled={saving || (!dirty && !hasPendingRemoval)}
+            disabled={saving || !dirty}
             aria-busy={saving}
           >
             {saving && (
@@ -515,185 +535,79 @@ export default function WorkoutFormPage() {
             {saving ? t('workout.saving') : t('workout.save')}
           </button>
         </div>
-      </div>
+
+        {hasPrevious && (
+          <div className="flex items-center gap-3 whitespace-nowrap text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-hint" aria-hidden="true" />
+              {t('workout.legend.last')}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-target" aria-hidden="true" />
+              {t('workout.legend.target')}
+            </span>
+            <span className="ml-auto">{t('workout.legend.tap')}</span>
+          </div>
+        )}
+      </section>
 
       {error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-3">
         {blocks.map((block) => {
           const exercise = exerciseById.get(block.exerciseId);
           if (!exercise) return null;
-          const prog = progressionByExerciseId.get(block.exerciseId);
-          const isBodyweight = exercise.equipment === 'bodyweight';
-          const barOptions = BAR_OPTIONS.includes(block.barKg as (typeof BAR_OPTIONS)[number])
-            ? BAR_OPTIONS
-            : [...BAR_OPTIONS, block.barKg];
-          const tryMore = journalTryMoreStatus(progressAtByExerciseId.get(block.exerciseId));
-
           return (
-            <div key={block.exerciseId} className="card">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-xl text-slate-100">{exercise.name}</h3>
-                  <span className="badge bg-surface-border text-slate-400">
-                    {CATEGORY_LABEL[exercise.category]} · {exercise.repRangeMin}-{exercise.repRangeMax} {t('common.reps')}
-                  </span>
-                  {prog && <ProgressionBadge suggestion={prog.suggestion} title={progressionMessage(prog, t)} />}
-                </div>
-                <Popconfirm
-                  title={t('workout.removeExerciseConfirmTitle')}
-                  description={t('workout.removeExerciseConfirmDescription', { name: exercise.name })}
-                  confirmText={t('workout.removeExerciseConfirmText')}
-                  onConfirm={() => removeExercise(block.exerciseId)}
-                >
-                  <button className="btn-ghost text-red-400">{t('workout.removeExercise')}</button>
-                </Popconfirm>
-              </div>
-
-              {tryMore.kind !== 'unknown' && (
-                <div className="-mt-1 mb-3">
-                  <TryMoreStatusBadge status={tryMore} />
-                </div>
-              )}
-
-              <div className="mb-4 flex flex-wrap items-end gap-3">
-                <div>
-                  <label className="label" htmlFor={`weight-${block.exerciseId}`}>
-                    {isBodyweight
-                      ? t('workout.extraWeightLabel')
-                      : exercise.equipment === 'barbell'
-                        ? t('workout.platesPerSideLabel')
-                        : t('workout.dumbbellWeightLabel')}
-                  </label>
-                  <input
-                    id={`weight-${block.exerciseId}`}
-                    type="text"
-                    inputMode="decimal"
-                    className="input w-32"
-                    placeholder={isBodyweight ? t('workout.weightPlaceholderNoWeight') : '0'}
-                    value={block.weightPerUnitKg}
-                    onChange={(e) => updateBlock(block.exerciseId, { weightPerUnitKg: e.target.value })}
-                    onBlur={requestSave}
-                  />
-                </div>
-                {/* Without plates nothing is saved, the bar included - so no select (as for dumbbells). */}
-                {exercise.equipment === 'barbell' && block.weightPerUnitKg !== '' && (
-                  <div>
-                    <label className="label">{t('workout.barLabel')}</label>
-                    <Select
-                      className="w-40"
-                      value={block.barKg}
-                      onChange={(v) => {
-                        updateBlock(block.exerciseId, { barKg: v });
-                        requestSave();
-                      }}
-                      options={barOptions.map((value) => ({ value, label: barLabel(value, t) }))}
-                    />
-                  </div>
-                )}
-                {exercise.equipment === 'dumbbell' && block.weightPerUnitKg !== '' && (
-                  <div>
-                    <label className="label">{t('workout.dumbbellsPerRepLabel')}</label>
-                    <Select
-                      className="w-40"
-                      value={String(block.weightUnits)}
-                      onChange={(v) => {
-                        updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 });
-                        requestSave();
-                      }}
-                      options={[
-                        { value: '1', label: '1' },
-                        { value: '2', label: '2' },
-                      ]}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <label className="label">
-                {exercise.unilateral
-                  ? t(exercise.limb === 'leg' ? 'workout.setsLabelPerLeg' : exercise.limb === 'arm' ? 'workout.setsLabelPerArm' : 'workout.setsLabelPerSide')
-                  : t('workout.setsLabel')}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {block.sets.map((s, i) =>
-                  s.removing ? (
-                    // Own key, so this row mounts fresh and autoFocus moves focus
-                    // from the vanished remove button onto "Undo".
-                    <div key={`${s.key}-removed`} className="flex min-h-11 items-center gap-2 text-sm text-slate-400">
-                      {t('workout.setRemoved', { set: i + 1 })}
-                      <button
-                        type="button"
-                        autoFocus
-                        className="min-h-11 rounded-lg px-2 font-semibold text-accent hover:bg-surface-border"
-                        aria-label={t('workout.undoRemoveSetAria', { set: i + 1 })}
-                        onClick={() => undoRemoveSet(block.exerciseId, s.key)}
-                      >
-                        {t('workout.undoRemoveSet')}
-                      </button>
-                    </div>
-                  ) : (
-                    <div key={s.key} className="flex items-center gap-1">
-                      <span className="w-5 text-center text-xs text-slate-400">{i + 1}</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="input w-16 text-center"
-                        aria-label={t('workout.repsAria', { exercise: exercise.name, set: i + 1 })}
-                        value={s.reps}
-                        onChange={(e) => updateSetReps(block.exerciseId, s.key, e.target.value)}
-                        onBlur={requestSave}
-                      />
-                      {/* 44x44 target 8px from the field: a mis-tap in the gym
-                          shouldn't hit it, and "−" doesn't read as "12 ×". */}
-                      <button
-                        type="button"
-                        className="ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
-                        aria-label={t('workout.removeSetAria', { set: i + 1 })}
-                        title={t('workout.removeSetAria', { set: i + 1 })}
-                        ref={(el) => {
-                          if (el && focusSetKeyRef.current === s.key) {
-                            focusSetKeyRef.current = null;
-                            el.focus();
-                          }
-                        }}
-                        onClick={() => removeSet(block.exerciseId, s.key)}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                          <path d="M6 12h12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ),
-                )}
-                <button className="btn-ghost text-accent" onClick={() => addSet(block.exerciseId)}>
-                  {t('workout.addSet')}
-                </button>
-              </div>
-            </div>
+            <WorkoutExerciseCard
+              key={block.exerciseId}
+              block={block}
+              exercise={exercise}
+              progression={progressionByExerciseId.get(block.exerciseId)}
+              saved={savedById.get(block.exerciseId)}
+              onChange={(patch) => updateBlock(block.exerciseId, patch)}
+              onCommit={requestSave}
+              onAddSet={() => addSet(block.exerciseId)}
+              onRemoveSet={(setKey) => removeSet(block.exerciseId, setKey)}
+              onRemove={() => removeExercise(block.exerciseId)}
+            />
           );
         })}
+
+        {addPickerOpen ? (
+          <div className="card flex flex-wrap items-center gap-3">
+            <Select
+              className="flex-1"
+              value={addExerciseId}
+              onChange={setAddExerciseId}
+              options={availableExercises.map((e) => ({ value: e.id, label: e.name }))}
+              placeholder={t('workout.addExercisePlaceholder')}
+            />
+            <button className="btn-secondary" onClick={addExercise} disabled={!addExerciseId}>
+              {t('workout.addExerciseButton')}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-dashed border-slate-600 text-sm font-semibold text-slate-100 hover:border-accent"
+            onClick={() => setAddPickerOpen(true)}
+            disabled={availableExercises.length === 0}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {t('workout.addExercise')}
+          </button>
+        )}
       </div>
 
-      <div className="card flex flex-wrap items-center gap-3">
-        <Select
-          className="flex-1"
-          value={addExerciseId}
-          onChange={setAddExerciseId}
-          options={availableExercises.map((e) => ({ value: e.id, label: e.name }))}
-          placeholder={t('workout.addExercisePlaceholder')}
-        />
-        <button className="btn-secondary" onClick={addExercise} disabled={!addExerciseId}>
-          {t('workout.addExerciseButton')}
-        </button>
-      </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        title={t('workout.deleteConfirmTitle')}
+        description={t('workout.deleteConfirmDescription')}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
-}
-
-// "20 kg" / "EZ 10 kg" / "No bar" for the bar select.
-function barLabel(value: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
-  if (value === '0') return t('workout.barNone');
-  if (value === '10') return t('workout.barEz', { kg: value });
-  return t('workout.barKg', { kg: value });
 }

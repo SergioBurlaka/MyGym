@@ -362,20 +362,21 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
         <div className="space-y-1.5">
           {workout.workoutExercises.map((we) => {
             return (
-              <div key={we.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="text-slate-200">{we.exercise.name}</span>
-                  <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
-                </span>
-                {/* Capped, not shrink-0: a long set list wraps between sets
-                    instead of squeezing the name or overflowing at 375px. */}
-                <span className="flex max-w-[60%] flex-col items-end text-right leading-tight">
-                  <SetsSummary
-                    workoutExercise={we}
-                    className="font-semibold text-slate-100"
-                    perSideClassName="mt-0.5 text-xs text-slate-400"
-                  />
-                </span>
+              <div key={we.id} className="flex flex-col gap-2 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 flex-1 text-slate-200">{we.exercise.name}</span>
+                  {/* Capped, not shrink-0: a long set list wraps between sets
+                      instead of squeezing the name or overflowing at 375px. */}
+                  <span className="flex max-w-[60%] flex-col items-end text-right leading-tight">
+                    <SetsSummary
+                      workoutExercise={we}
+                      className="font-semibold text-slate-100"
+                      perSideClassName="mt-0.5 text-xs text-slate-400"
+                    />
+                  </span>
+                </div>
+                {/* Full width under the row - the segments need it (design 5). */}
+                <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} className="w-full" />
               </div>
             );
           })}

@@ -79,7 +79,7 @@ const shape = (we: StartedExercise) => ({
 });
 
 describe('start a workout from a program', () => {
-  it('prefills each exercise from its own last session, in program order', async () => {
+  it('prefills the weight of each exercise from its own last session, in program order, with no reps', async () => {
     const { auth } = await registerUser(app);
     const [a, b, c, d] = await exerciseIds(auth);
     // a: older session, then a newer one in another workout - the newer wins.
@@ -94,18 +94,19 @@ describe('start a workout from a program', () => {
 
     const program = await createProgram(auth, [
       { exerciseId: c, targetSets: 2 },
-      { exerciseId: a, targetSets: 2 }, // fewer sets than last time
-      { exerciseId: b, targetSets: 3 }, // more sets: the last reps repeat
+      { exerciseId: a, targetSets: 2 },
+      { exerciseId: b, targetSets: 3 },
       { exerciseId: d, targetSets: 2 }, // never done
     ]);
 
     const started = await startFromProgram(auth, program.id);
     expect(started.map((we) => we.orderIndex)).toEqual([0, 1, 2, 3]);
+    // Reps are typed fresh: the page shows last time's as placeholders.
     expect(started.map(shape)).toEqual([
-      { exerciseId: c, weightPerUnitKg: 30, weightUnits: 2, reps: [[1, 6], [2, 7]] },
-      { exerciseId: a, weightPerUnitKg: 22.5, weightUnits: 1, reps: [[1, 10], [2, 9]] },
-      { exerciseId: b, weightPerUnitKg: 4, weightUnits: 2, reps: [[1, 11], [2, 11], [3, 11]] },
-      { exerciseId: d, weightPerUnitKg: null, weightUnits: null, reps: [[1, 0], [2, 0]] },
+      { exerciseId: c, weightPerUnitKg: 30, weightUnits: 2, reps: [] },
+      { exerciseId: a, weightPerUnitKg: 22.5, weightUnits: 1, reps: [] },
+      { exerciseId: b, weightPerUnitKg: 4, weightUnits: 2, reps: [] },
+      { exerciseId: d, weightPerUnitKg: null, weightUnits: null, reps: [] },
     ]);
   });
 
@@ -126,7 +127,7 @@ describe('start a workout from a program', () => {
 
     const program = await createProgram(auth, [{ exerciseId: a, targetSets: 2 }]);
     expect((await startFromProgram(auth, program.id)).map(shape)).toEqual([
-      { exerciseId: a, weightPerUnitKg: 20, weightUnits: 2, reps: [[1, 8], [2, 7]] },
+      { exerciseId: a, weightPerUnitKg: 20, weightUnits: 2, reps: [] },
     ]);
   });
 
@@ -139,7 +140,7 @@ describe('start a workout from a program', () => {
 
     const program = await createProgram(owner.auth, [{ exerciseId: a, targetSets: 1 }]);
     expect((await startFromProgram(owner.auth, program.id)).map(shape)).toEqual([
-      { exerciseId: a, weightPerUnitKg: null, weightUnits: null, reps: [[1, 0]] },
+      { exerciseId: a, weightPerUnitKg: null, weightUnits: null, reps: [] },
     ]);
   });
 });

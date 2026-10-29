@@ -88,7 +88,7 @@ export default function ProgressPage() {
             }`}
           >
             <div className="font-medium text-slate-200">{p.name}</div>
-            <TryMoreStatusBadge status={status} compact />
+            <TryMoreStatusBadge status={status} className="mt-1 w-40" />
           </button>
         ))}
       </div>
