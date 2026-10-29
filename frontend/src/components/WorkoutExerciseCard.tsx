@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Exercise, ExerciseProgression, PreviousSession, WorkoutExercise } from '../types/index.js';
-import { formatDate, lastRepsForSet, loadPerRep, sidesOf } from '../utils/weight.js';
+import { formatDate, lastRepsForSet, loadPerRep, parseKg, sidesOf } from '../utils/weight.js';
 import { journalTryMoreStatus } from '../utils/tryMoreCountdown.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
@@ -107,11 +107,13 @@ function SetCell({
         aria-describedby={describedBy}
         placeholder={placeholder != null ? String(placeholder) : ''}
         value={set.reps}
-        onFocus={(e) => {
-          // Tap = "same as last time" (or the target): one tap per set.
+        onClick={(e) => {
+          // Tap = "same as last time" (or the target): one tap per set. On
+          // click, not focus: a long press / right click (the delete gesture)
+          // and Tab focus a cell too, and must not log a set.
           if (set.reps === '' && placeholder != null) {
             onChange(String(placeholder));
-            const input = e.target;
+            const input = e.currentTarget;
             setTimeout(() => input.select(), 0);
           }
         }}
@@ -183,7 +185,7 @@ export default function WorkoutExerciseCard({
         barKg: block.barKg,
       })
     : null;
-  const weight = Number(block.weightPerUnitKg);
+  const weight = parseKg(block.weightPerUnitKg);
   let loadLine: string | null = null;
   if (load != null && Number.isFinite(load)) {
     if (isBarbell) loadLine = t('workout.card.loadBarbell', { bar: kg(Number(block.barKg)), plates: kg(weight), total: kg(load) });
@@ -302,7 +304,7 @@ export default function WorkoutExerciseCard({
             className="h-11 w-32 rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none"
             placeholder={weightPlaceholder}
             value={block.weightPerUnitKg}
-            onFocus={(e) => fillWeightFromPrevious(e.target)}
+            onClick={(e) => fillWeightFromPrevious(e.currentTarget)}
             onChange={(e) => onChange({ weightPerUnitKg: e.target.value })}
             onBlur={onCommit}
           />

@@ -244,7 +244,8 @@
       "removeSetTitle": "Delete set {{set}}?",
       "removeSetDescription": "This set's reps will be removed from the workout.",
       "removeSetConfirm": "Delete"
-    }
+    },
+    "invalidWeightError": "The weight must be a number, e.g. 16.25 - the workout isn't saved until it is fixed."
   },
   "progress": {
     "title": "Exercise progress",

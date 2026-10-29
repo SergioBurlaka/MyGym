@@ -11,7 +11,7 @@ import {
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
 import { useCreateProgramMutation, useProgramsQuery } from '../shared/api/programs/index.js';
-import { formatDuration } from '../utils/weight.js';
+import { formatDuration, parseKg } from '../utils/weight.js';
 import { translateApiError } from '../utils/apiError.js';
 import ConfirmDialog from '../components/ConfirmDialog.js';
 import Select from '../components/Select.js';
@@ -33,15 +33,16 @@ function barString(value: string | number | null | undefined): string {
 
 // What gets saved: only sets with reps typed in (an empty cell is a set not
 // done yet), renumbered. An exercise with none is saved alone - in the
-// workout, not done.
+// workout, not done. A weight that isn't a number makes the whole form
+// unsavable (hasInvalidWeight) - sending it would save "no weight".
 function buildPayload(source: EditableExercise[]) {
   return {
     exercises: source.map((b) => ({
       exerciseId: b.exerciseId,
-      weightPerUnitKg: b.weightPerUnitKg === '' ? null : Number(b.weightPerUnitKg),
-      weightUnits: b.weightPerUnitKg === '' ? null : b.weightUnits,
+      weightPerUnitKg: b.weightPerUnitKg.trim() === '' ? null : parseKg(b.weightPerUnitKg),
+      weightUnits: b.weightPerUnitKg.trim() === '' ? null : b.weightUnits,
       // The server keeps it for a barbell only.
-      barKg: b.weightPerUnitKg === '' ? null : Number(b.barKg),
+      barKg: b.weightPerUnitKg.trim() === '' ? null : Number(b.barKg),
       sets: b.sets
         .filter((s) => s.reps.trim() !== '')
         .map((s, i) => ({ setNumber: i + 1, reps: Number(s.reps) }))
@@ -50,11 +51,16 @@ function buildPayload(source: EditableExercise[]) {
   };
 }
 
+function hasInvalidWeight(source: EditableExercise[]): boolean {
+  return source.some((b) => b.weightPerUnitKg.trim() !== '' && !Number.isFinite(parseKg(b.weightPerUnitKg)));
+}
+
 // The saved sets, then empty cells up to the planned count: the program's
-// targetSets, else as many as last time, else one.
-function editableBlock(we: WorkoutExercise, targetSets: number | undefined): EditableExercise {
+// targetSets, else as many as last time, else one. A finished workout gets
+// no extra cells - one stray tap would add a set to the history.
+function editableBlock(we: WorkoutExercise, targetSets: number | undefined, finished = false): EditableExercise {
   const saved = [...we.sets].sort((a, b) => a.setNumber - b.setNumber).map((s) => newSet(String(s.reps)));
-  const planned = targetSets ?? (we.previous?.reps.length || 1);
+  const planned = finished ? 1 : (targetSets ?? (we.previous?.reps.length || 1));
   while (saved.length < planned) saved.push(newSet());
   return {
     exerciseId: we.exerciseId,
@@ -141,7 +147,9 @@ export default function WorkoutFormPage() {
     const workout = workoutQuery.data;
     if (!workout || programsQuery.isPending || seededForRef.current === workout.id) return;
     seededForRef.current = workout.id;
-    const initial = workout.workoutExercises.map((we) => editableBlock(we, targetSetsById.get(we.exerciseId)));
+    const initial = workout.workoutExercises.map((we) =>
+      editableBlock(we, targetSetsById.get(we.exerciseId), workout.timeEnd != null),
+    );
     setBlocks(initial);
     setSavedJson(JSON.stringify(buildPayload(initial)));
     setLabelDraft(workout.programLabel ?? '');
@@ -299,6 +307,10 @@ export default function WorkoutFormPage() {
     // Not seeded yet (e.g. StrictMode's mount-unmount in dev runs the
     // leave-the-page save before the first data arrives).
     if (savedJsonRef.current === null) return;
+    if (hasInvalidWeight(blocksRef.current)) {
+      setError(t('workout.invalidWeightError'));
+      return;
+    }
     const payload = buildPayload(blocksRef.current);
     const json = JSON.stringify(payload);
     if (json === savedJsonRef.current) return;
