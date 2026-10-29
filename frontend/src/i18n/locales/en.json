@@ -182,7 +182,7 @@
     "removeExerciseConfirmText": "Yes, remove",
     "removeExercise": "Remove",
     "platesPerSideLabel": "Plates per side, kg",
-    "dumbbellWeightLabel": "Dumbbell weight, kg",
+    "dumbbellWeightLabel": "One dumbbell, kg",
     "barLabel": "Bar",
     "barKg": "{{kg}} kg",
     "barEz": "EZ {{kg}} kg",

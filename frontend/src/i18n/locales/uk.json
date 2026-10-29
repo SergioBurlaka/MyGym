@@ -202,7 +202,7 @@
     "removeExerciseConfirmText": "Так, прибрати",
     "removeExercise": "Прибрати",
     "platesPerSideLabel": "Диски на сторону, кг",
-    "dumbbellWeightLabel": "Вага гантелі, кг",
+    "dumbbellWeightLabel": "Вага однієї гантелі, кг",
     "barLabel": "Гриф",
     "barKg": "{{kg}} кг",
     "barEz": "EZ {{kg}} кг",
