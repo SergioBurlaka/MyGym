@@ -43,7 +43,9 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
     {
       title: 'Start workout',
       description:
-        "Creates a new workout (today unless date is given). With programId it is pre-filled from that program: its exercises and number of sets, with weight and reps taken from each exercise's last session. Without it the workout is empty - add exercises with log_workout_exercises.",
+        "Creates a new workout (today unless date is given). With programId it gets that program's exercises, each with the weight from " +
+        "its last session and NO sets: a logged set means a set done. Last time's reps and the +1 target are in get_workout (previous / target) - " +
+        "do not log them as sets; log only reps actually done. Without programId the workout is empty - add exercises with log_workout_exercises.",
       inputSchema: {
         programId: id.optional().describe('Start from this program (see list_programs / get_suggested_program)'),
         date: z
@@ -82,7 +84,7 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
             notes: z.string().max(500).nullable().optional(),
             sets: z
               .array(z.object({ setNumber: z.coerce.number().int().min(1), reps: z.coerce.number().int().min(0).max(200) }))
-              .min(1),
+              .describe('Sets actually done; [] = in the workout, not done yet (as start_workout leaves a program exercise)'),
           }),
         ),
       },
