@@ -46,6 +46,9 @@ export type WorkoutExercise = {
   // last time's reps with +1 in one set.
   previous?: PreviousSession | null;
   target?: { reps: number[]; upSetIndex: number } | null;
+  // The try-more counter as of that last session - the workout page shows
+  // it until something is logged today.
+  counterBefore?: { sessionsSinceProgress: number; tryMoreAfterWorkouts: number } | null;
   loadPerRepKg?: number | null;
   volumeKg?: number | null;
 };

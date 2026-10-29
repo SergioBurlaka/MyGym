@@ -284,15 +284,18 @@ export type PreviousSession = {
 // target: last time's reps with +1 in the weakest set. Not at the top of the
 // rep range: there the advice is more weight, not another rep. The slider
 // shift counts while that session still counts from the shift's anchor.
+// `counterBefore`: workouts without progress after that session (0 with no
+// session before, or after a long break) - the workout page's counter until
+// something is logged today.
 export function sessionGuide(
   history: HistoryPoint[],
   timeline: TimelinePoint[],
   workoutDate: string,
   opts: { tryMoreAfterWorkouts: number; counterShift?: CounterShift; workoutDates?: string[] },
-): { previous: PreviousSession | null; target: SessionTarget | null } {
+): { previous: PreviousSession | null; target: SessionTarget | null; counterBefore: number } {
   let i = history.length - 1;
   while (i >= 0 && history[i].date >= workoutDate) i--;
-  if (i < 0) return { previous: null, target: null };
+  if (i < 0) return { previous: null, target: null, counterBefore: 0 };
   const prev = history[i];
   const point = timeline[i];
   // The slider was set on the exercise's latest session - it only counts
@@ -319,6 +322,7 @@ export function sessionGuide(
       reps: prev.reps,
     },
     target: stalled ? targetReps(prev.reps) : null,
+    counterBefore: afterBreak ? 0 : sessions,
   };
 }
 
@@ -636,7 +640,9 @@ export async function attachProgressAt<W extends JournalWorkout>(
       return {
         ...we,
         progressAt,
-        ...guide,
+        previous: guide.previous,
+        target: guide.target,
+        counterBefore: { sessionsSinceProgress: guide.counterBefore, tryMoreAfterWorkouts },
         loadPerRepKg,
         volumeKg: sessionVolumeKg(loadPerRepKg, reps, we.exercise.unilateral),
       };

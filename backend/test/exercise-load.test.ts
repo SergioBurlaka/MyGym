@@ -193,6 +193,8 @@ describe('last time and the +1 target on the workout page', () => {
       reps: [12, 12, 11],
     });
     expect(we.target).toEqual({ reps: [12, 12, 12], upSetIndex: 2 });
+    // Until today's sets count, the counter as of the last session: 4 of 4.
+    expect(we.counterBefore).toEqual({ sessionsSinceProgress: 4, tryMoreAfterWorkouts: 4 });
 
     // Same on a plain GET, and the journal list stays lean.
     const got = await app.inject({ method: 'GET', url: `/api/workouts/${today}`, headers: auth });

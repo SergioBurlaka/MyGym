@@ -387,7 +387,7 @@ describe('sessionGuide', () => {
   }
 
   it('is empty for an exercise never done before that date', () => {
-    expect(guide(stalled, '2026-10-01')).toEqual({ previous: null, target: null });
+    expect(guide(stalled, '2026-10-01')).toEqual({ previous: null, target: null, counterBefore: 0 });
   });
 
   it('gives last time before the workout, not the workout itself', () => {
@@ -398,6 +398,7 @@ describe('sessionGuide', () => {
   it('targets +1 in the weakest set once the counter reached try more', () => {
     // After 10-05 the counter stands at 2 (two sessions without progress).
     expect(guide(stalled, '2026-10-07').target).toEqual({ reps: [12, 12, 12], upSetIndex: 2 });
+    expect(guide(stalled, '2026-10-07').counterBefore).toBe(2);
     // After 10-03 it was 1 - not yet.
     expect(guide(stalled, '2026-10-05').target).toBeNull();
   });
@@ -419,6 +420,7 @@ describe('sessionGuide', () => {
     const dates = ['2026-10-01', '2026-10-03', '2026-10-05'];
     const opts = { tryMoreAfterWorkouts: 2, workoutDates: dates };
     expect(sessionGuide(history, timeline, '2026-10-26', opts).target).toBeNull();
+    expect(sessionGuide(history, timeline, '2026-10-26', opts).counterBefore).toBe(0);
     expect(sessionGuide(history, timeline, '2026-10-26', opts).previous).toMatchObject({ date: '2026-10-05' });
     expect(sessionGuide(history, timeline, '2026-10-12', opts).target).not.toBeNull();
   });

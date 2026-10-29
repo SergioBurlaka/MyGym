@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Exercise, ExerciseProgression, PreviousSession, WorkoutExercise } from '../types/index.js';
 import { formatDate, lastRepsForSet, loadPerRep, parseKg, sidesOf } from '../utils/weight.js';
-import { journalTryMoreStatus } from '../utils/tryMoreCountdown.js';
+import { journalTryMoreStatus, type TryMoreStatus } from '../utils/tryMoreCountdown.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
 import TryMoreStatusBadge from './TryMoreStatusBadge.js';
@@ -243,8 +243,12 @@ export default function WorkoutExerciseCard({
     : null;
 
   const barOptions = BAR_OPTIONS.includes(block.barKg as (typeof BAR_OPTIONS)[number]) ? BAR_OPTIONS : [...BAR_OPTIONS, block.barKg];
+  // Status words ("✓ Progress", "First time"...) as a chip; the counter bar
+  // is always there (user's decision 2026-10-29): after today's sets once
+  // any are logged, before that as of the last session - "0 of 4" included.
   const tryMore = journalTryMoreStatus(saved?.progressAt);
-  const showCounter = tryMore.kind === 'countdown' || tryMore.kind === 'due';
+  const showStatusChip = tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due';
+  const counter = counterStatus(saved);
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-surface-border bg-surface-raised p-4">
@@ -258,7 +262,7 @@ export default function WorkoutExerciseCard({
             {progression && (
               <ProgressionBadge suggestion={progression.suggestion} title={progressionMessage(progression, t)} />
             )}
-            {!showCounter && tryMore.kind !== 'unknown' && <TryMoreStatusBadge status={tryMore} />}
+            {showStatusChip && <TryMoreStatusBadge status={tryMore} />}
           </div>
         </div>
         <Popconfirm
@@ -291,7 +295,7 @@ export default function WorkoutExerciseCard({
         <span className={`font-semibold ${limb ? 'text-warn' : 'text-slate-300'}`}>{limbsLabel}</span>
       </div>
 
-      {showCounter && <TryMoreStatusBadge status={tryMore} className="w-full" />}
+      {counter && <TryMoreStatusBadge status={counter} className="w-full" />}
 
       <div className="flex flex-col gap-2">
         <label className="flex items-center gap-3">
@@ -405,6 +409,17 @@ export default function WorkoutExerciseCard({
       />
     </article>
   );
+}
+
+// The counter bar for the card: from today's state when today counts
+// (progressAt - it has sets), else as of the last session. Null for an
+// exercise not saved yet.
+function counterStatus(saved: WorkoutExercise | undefined): TryMoreStatus | null {
+  const state = saved?.progressAt ?? saved?.counterBefore;
+  if (!state) return null;
+  const total = state.tryMoreAfterWorkouts;
+  const done = state.sessionsSinceProgress;
+  return done >= total ? { kind: 'due', done, total } : { kind: 'countdown', done, total, left: total - done };
 }
 
 // "20 kg" / "EZ 10 kg" / "No bar" for the bar select.
