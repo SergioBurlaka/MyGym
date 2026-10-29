@@ -13,7 +13,7 @@ export default function SetsSummary({
   className = '',
   perSideClassName = '',
 }: {
-  workoutExercise: Pick<WorkoutExercise, 'weightPerUnitKg' | 'weightUnits' | 'sets'>;
+  workoutExercise: Pick<WorkoutExercise, 'weightPerUnitKg' | 'weightUnits' | 'barKg' | 'exercise' | 'sets'>;
   className?: string;
   perSideClassName?: string;
 }) {

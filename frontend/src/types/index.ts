@@ -1,5 +1,6 @@
 export type Equipment = 'barbell' | 'dumbbell' | 'bodyweight';
 export type MuscleCategory = 'large' | 'small' | 'bodyweight';
+export type Limb = 'arm' | 'leg';
 
 export type Exercise = {
   id: string;
@@ -10,6 +11,12 @@ export type Exercise = {
   repRangeMin: number;
   repRangeMax: number;
   weightStepKg: string;
+  // Left and right one after the other - reps are per side (see utils/weight.ts).
+  unilateral: boolean;
+  // Labels per-side reps; only for a unilateral exercise.
+  limb: Limb | null;
+  // Barbell only: the bar a new workout starts with.
+  defaultBarKg: string | null;
   archivedAt: string | null;
   createdAt: string;
 };
@@ -25,6 +32,8 @@ export type WorkoutExercise = {
   exerciseId: string;
   weightPerUnitKg: string | null;
   weightUnits: number | null;
+  // Barbell only: the bar used that day.
+  barKg: string | null;
   notes: string | null;
   orderIndex: number;
   exercise: Exercise;
@@ -32,6 +41,22 @@ export type WorkoutExercise = {
   // On the journal listing, a single workout and its save response: the
   // try-more counter as of this workout.
   progressAt?: WorkoutProgressAt | null;
+  // Only on a single workout and its save response (the workout page):
+  // the last session before this workout, and - when try-more was due -
+  // last time's reps with +1 in one set.
+  previous?: PreviousSession | null;
+  target?: { reps: number[]; upSetIndex: number } | null;
+  loadPerRepKg?: number | null;
+  volumeKg?: number | null;
+};
+
+export type PreviousSession = {
+  date: string;
+  weightPerUnitKg: number | null;
+  weightUnits: number | null;
+  barKg: number | null;
+  loadPerRepKg: number | null;
+  reps: number[];
 };
 
 export type WorkoutProgressAt = {

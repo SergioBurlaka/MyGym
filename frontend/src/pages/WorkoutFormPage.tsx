@@ -51,9 +51,18 @@ function withRemovalsApplied(blocks: EditableExercise[]): EditableExercise[] {
 type EditableExercise = {
   exerciseId: string;
   weightPerUnitKg: string; // '' = bodyweight / no external load
-  weightUnits: 1 | 2;
+  weightUnits: 1 | 2; // dumbbells moving in one rep (a barbell is always 2 sides)
+  barKg: string; // barbell only: the bar used today
   sets: EditableSet[];
 };
+
+// Bars offered in the "Bar" select; another stored value is shown as its own option.
+const BAR_OPTIONS = ['20', '15', '10', '0'] as const;
+
+// "20.00" -> "20", so a stored bar compares equal to a select value.
+function barString(value: string | number | null | undefined): string {
+  return value == null ? '20' : String(Number(value));
+}
 
 export default function WorkoutFormPage() {
   const { t } = useTranslation();
@@ -115,6 +124,7 @@ export default function WorkoutFormPage() {
       exerciseId: we.exerciseId,
       weightPerUnitKg: we.weightPerUnitKg ?? '',
       weightUnits: (we.weightUnits as 1 | 2) ?? 2,
+      barKg: barString(we.barKg ?? we.exercise.defaultBarKg),
       sets: we.sets
         .sort((a, b) => a.setNumber - b.setNumber)
         .map((s) => newSet(String(s.reps))),
@@ -162,7 +172,11 @@ export default function WorkoutFormPage() {
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, sets: [newSet()] }]);
+    const barKg = barString(exerciseById.get(addExerciseId)?.defaultBarKg);
+    setBlocks((prev) => [
+      ...prev,
+      { exerciseId: addExerciseId, weightPerUnitKg: '', weightUnits: 2, barKg, sets: [newSet()] },
+    ]);
     setAddExerciseId('');
     requestSave();
   }
@@ -247,6 +261,8 @@ export default function WorkoutFormPage() {
         exerciseId: b.exerciseId,
         weightPerUnitKg: b.weightPerUnitKg === '' ? null : Number(b.weightPerUnitKg),
         weightUnits: b.weightPerUnitKg === '' ? null : b.weightUnits,
+        // The server keeps it for a barbell only.
+        barKg: b.weightPerUnitKg === '' ? null : Number(b.barKg),
         sets: b.sets
           .filter((s) => s.reps.trim() !== '')
           .map((s, i) => ({ setNumber: i + 1, reps: Number(s.reps) }))
@@ -508,7 +524,10 @@ export default function WorkoutFormPage() {
           const exercise = exerciseById.get(block.exerciseId);
           if (!exercise) return null;
           const prog = progressionByExerciseId.get(block.exerciseId);
-          const isBodyweight = exercise.category === 'bodyweight';
+          const isBodyweight = exercise.equipment === 'bodyweight';
+          const barOptions = BAR_OPTIONS.includes(block.barKg as (typeof BAR_OPTIONS)[number])
+            ? BAR_OPTIONS
+            : [...BAR_OPTIONS, block.barKg];
           const tryMore = journalTryMoreStatus(progressAtByExerciseId.get(block.exerciseId));
 
           return (
@@ -540,7 +559,11 @@ export default function WorkoutFormPage() {
               <div className="mb-4 flex flex-wrap items-end gap-3">
                 <div>
                   <label className="label" htmlFor={`weight-${block.exerciseId}`}>
-                    {isBodyweight ? t('workout.extraWeightLabel') : t('workout.weightPerUnitLabel')}
+                    {isBodyweight
+                      ? t('workout.extraWeightLabel')
+                      : exercise.equipment === 'barbell'
+                        ? t('workout.platesPerSideLabel')
+                        : t('workout.dumbbellWeightLabel')}
                   </label>
                   <input
                     id={`weight-${block.exerciseId}`}
@@ -553,26 +576,44 @@ export default function WorkoutFormPage() {
                     onBlur={requestSave}
                   />
                 </div>
-                {block.weightPerUnitKg !== '' && (
+                {exercise.equipment === 'barbell' && (
                   <div>
-                    <label className="label">{t('workout.unitsLabel')}</label>
+                    <label className="label">{t('workout.barLabel')}</label>
                     <Select
-                      className="w-56"
+                      className="w-40"
+                      value={block.barKg}
+                      onChange={(v) => {
+                        updateBlock(block.exerciseId, { barKg: v });
+                        requestSave();
+                      }}
+                      options={barOptions.map((value) => ({ value, label: barLabel(value, t) }))}
+                    />
+                  </div>
+                )}
+                {exercise.equipment === 'dumbbell' && block.weightPerUnitKg !== '' && (
+                  <div>
+                    <label className="label">{t('workout.dumbbellsPerRepLabel')}</label>
+                    <Select
+                      className="w-40"
                       value={String(block.weightUnits)}
                       onChange={(v) => {
                         updateBlock(block.exerciseId, { weightUnits: Number(v) as 1 | 2 });
                         requestSave();
                       }}
                       options={[
-                        { value: '2', label: t('workout.unitsBothSides') },
-                        { value: '1', label: t('workout.unitsOne') },
+                        { value: '1', label: '1' },
+                        { value: '2', label: '2' },
                       ]}
                     />
                   </div>
                 )}
               </div>
 
-              <label className="label">{t('workout.setsLabel')}</label>
+              <label className="label">
+                {exercise.unilateral
+                  ? t(exercise.limb === 'leg' ? 'workout.setsLabelPerLeg' : exercise.limb === 'arm' ? 'workout.setsLabelPerArm' : 'workout.setsLabelPerSide')
+                  : t('workout.setsLabel')}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {block.sets.map((s, i) =>
                   s.removing ? (
@@ -647,4 +688,11 @@ export default function WorkoutFormPage() {
       </div>
     </div>
   );
+}
+
+// "20 kg" / "EZ 10 kg" / "No bar" for the bar select.
+function barLabel(value: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (value === '0') return t('workout.barNone');
+  if (value === '10') return t('workout.barEz', { kg: value });
+  return t('workout.barKg', { kg: value });
 }
