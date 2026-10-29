@@ -15,18 +15,23 @@ export type DefaultExercise = {
   repRangeMin: number;
   repRangeMax: number;
   weightStepKg: string;
+  // Set for a unilateral exercise (left and right one after the other).
+  limb?: 'arm' | 'leg';
 };
+
+// Bar a new barbell exercise starts with (exercises.default_bar_kg).
+export const DEFAULT_BAR_KG = '20';
 
 export const DEFAULT_EXERCISES: DefaultExercise[] = [
   { name: 'Присідання', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
-  { name: 'Випади', equipment: 'dumbbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
+  { name: 'Випади', equipment: 'dumbbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25', limb: 'leg' },
   { name: 'Жим штанги лежачи', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
   { name: 'Тяга в нахилі', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
   { name: 'Станова тяга', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
   { name: 'Піднімання на біцепс', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
   { name: 'Розведення в нахилі в сторону', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
   { name: 'Розведення в сторону стоячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
-  { name: 'Французький жим сидячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
+  { name: 'Французький жим сидячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5', limb: 'arm' },
   { name: 'Жим стоячи', equipment: 'barbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
   { name: 'Віджимання', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30, weightStepKg: '0.5' },
   { name: 'Підняття ніг на прес (шведська стінка)', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30, weightStepKg: '0.5' },

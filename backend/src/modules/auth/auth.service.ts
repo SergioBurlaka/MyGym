@@ -1,7 +1,7 @@
 import { and, eq, lt, or, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../db/schema.js';
-import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
+import { DEFAULT_EXERCISES, DEFAULT_BAR_KG } from '../../db/defaultExercises.js';
 import { DEMO_EMAIL } from '../template/demo.service.js';
 import { seedStarterData } from '../template/template.service.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
@@ -50,6 +50,9 @@ async function createUserWithDefaults(values: typeof users.$inferInsert) {
         repRangeMin: ex.repRangeMin,
         repRangeMax: ex.repRangeMax,
         weightStepKg: ex.weightStepKg,
+        unilateral: ex.limb != null,
+        limb: ex.limb ?? null,
+        defaultBarKg: ex.equipment === 'barbell' ? DEFAULT_BAR_KG : null,
       })),
     );
 

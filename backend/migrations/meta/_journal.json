@@ -183,6 +183,13 @@
       "when": 1793014346984,
       "tag": "0025_demo_and_samples",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793268802265,
+      "tag": "0026_exercise_load_model",
+      "breakpoints": true
     }
   ]
 }

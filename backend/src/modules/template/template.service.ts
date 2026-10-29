@@ -127,6 +127,9 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
       repRangeMin: ex.repRangeMin,
       repRangeMax: ex.repRangeMax,
       weightStepKg: ex.weightStepKg,
+      unilateral: ex.unilateral,
+      limb: ex.limb,
+      defaultBarKg: ex.defaultBarKg,
       // The demo mirrors the template; a sample's counter shift isn't the new user's.
       ...(exact
         ? {
@@ -212,6 +215,7 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
       exerciseId: exerciseMap.get(we.exerciseId)!,
       weightPerUnitKg: we.weightPerUnitKg,
       weightUnits: we.weightUnits,
+      barKg: we.barKg,
       orderIndex: we.orderIndex,
       // The template owner's own notes stay theirs - not in the public demo
       // nor in anyone's samples.
