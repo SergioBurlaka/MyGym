@@ -26,8 +26,13 @@ type View = 'date' | 'month' | 'year';
 type Motion = 'right' | 'left' | 'panel' | null;
 
 const CLOSE_AFTER_PICK_MS = 180; // long enough to see the picked day "pop"
+const CLOSE_FALLBACK_MS = 300; // the close animation is 160 ms
 const POPOVER_MAX_WIDTH = 360;
 const GAP_PX = 8;
+// Paging stops here - "any date" within a sane range (a 2-digit year would
+// also turn into 19xx in the Date constructor).
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2099;
 
 function reducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -99,20 +104,55 @@ export default function DatePicker({
   const [focused, setFocused] = useState(value);
   const [motion, setMotion] = useState<{ kind: Motion; tick: number }>({ kind: null, tick: 0 });
   const [popped, setPopped] = useState(0);
-  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const focusDayRef = useRef(false);
+  // Switching views unmounts the button that was pressed - focus moves to
+  // the year title (there in every view) so Esc and the Tab trap keep working.
+  const focusYearTitleRef = useRef(false);
+  const yearTitleRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const closeFallbackRef = useRef<ReturnType<typeof setTimeout>>();
+  // Whether it's open right now, for finishClose run from a timer or an
+  // event (their closures may hold a stale `open`).
+  const openRef = useRef(false);
   const today = todayIso();
 
   const grid = useMemo(() => monthGrid(shown), [shown]);
+  // Only while open: the dots aren't needed (or fetched) until then.
   useEffect(() => {
-    onVisibleRangeChange?.(grid[0], grid[grid.length - 1]);
+    if (open) onVisibleRangeChange?.(grid[0], grid[grid.length - 1]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid[0]]);
+  }, [grid[0], open]);
 
-  useEffect(() => () => clearTimeout(closeTimerRef.current), []);
+  // Keyboard focus lives in the shown month: after paging with the buttons
+  // or picking a month / year, the same day there (31 -> 30...) - else no
+  // day would be reachable with Tab.
+  useEffect(() => {
+    const f = monthOf(focused);
+    const diff = shown.year * 12 + shown.month - (f.year * 12 + f.month);
+    if (diff !== 0) setFocused(shiftMonthKeepDay(focused, diff));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+
+  // Nothing behind the dialog scrolls while it's open.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  useEffect(
+    () => () => {
+      clearTimeout(closeTimerRef.current);
+      clearTimeout(closeFallbackRef.current);
+    },
+    [],
+  );
 
   function animate(kind: Motion) {
     setMotion((m) => ({ kind, tick: m.tick + 1 }));
@@ -120,6 +160,8 @@ export default function DatePicker({
 
   function openPicker() {
     clearTimeout(closeTimerRef.current);
+    clearTimeout(closeFallbackRef.current);
+    openRef.current = true;
     setShown(monthOf(value));
     setFocused(value);
     setView('date');
@@ -130,6 +172,9 @@ export default function DatePicker({
   }
 
   function finishClose() {
+    clearTimeout(closeFallbackRef.current);
+    if (!openRef.current) return;
+    openRef.current = false;
     setOpen(false);
     setClosing(false);
     triggerRef.current?.focus();
@@ -139,8 +184,14 @@ export default function DatePicker({
     if (!open || closing) return;
     clearTimeout(closeTimerRef.current);
     // No exit animation to wait for - animationend would never come.
-    if (reducedMotion()) finishClose();
-    else setClosing(true);
+    if (reducedMotion()) {
+      finishClose();
+      return;
+    }
+    setClosing(true);
+    // animationend ends the close; this only backs it up - a backgrounded
+    // tab throttles animations and the event may come late or never.
+    closeFallbackRef.current = setTimeout(finishClose, CLOSE_FALLBACK_MS);
   }
 
   function pick(iso: string) {
@@ -164,7 +215,9 @@ export default function DatePicker({
       if (!rect) return;
       const width = Math.min(window.innerWidth - 32, POPOVER_MAX_WIDTH);
       const left = Math.min(Math.max(16, rect.left), window.innerWidth - 16 - width);
-      setPosition({ top: rect.bottom + GAP_PX, left, width });
+      const top = rect.bottom + GAP_PX;
+      // A short screen (landscape phone): scroll inside, not off the edge.
+      setPosition({ top, left, width, maxHeight: window.innerHeight - top - 16 });
     }
     place();
     window.addEventListener('resize', place);
@@ -178,6 +231,10 @@ export default function DatePicker({
   // Keyboard focus follows `focused` in the day grid (on open, and when
   // arrows move it) - not on every render, so a mouse user's focus stays put.
   useEffect(() => {
+    if (open && focusYearTitleRef.current && yearTitleRef.current) {
+      focusYearTitleRef.current = false;
+      yearTitleRef.current.focus();
+    }
     if (!open || view !== 'date' || !focusDayRef.current) return;
     // The dialog mounts a render after `open` (once it's positioned) - keep
     // the request until the day is there.
@@ -214,13 +271,23 @@ export default function DatePicker({
     moveFocus(move());
   }
 
-  // Esc closes; Tab stays inside the dialog.
-  function onDialogKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') {
+  // Esc - on the document while open, not the dialog: when a re-keyed grid
+  // drops the focused day, focus falls to <body> and the dialog hears nothing.
+  const closeRef = useRef(closePicker);
+  closeRef.current = closePicker;
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
       e.preventDefault();
-      closePicker();
-      return;
+      closeRef.current();
     }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  // Tab stays inside the dialog.
+  function onDialogKeyDown(e: React.KeyboardEvent) {
     if (e.key !== 'Tab' || !dialogRef.current) return;
     const focusables = [...dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"])')];
     if (focusables.length === 0) return;
@@ -237,13 +304,20 @@ export default function DatePicker({
 
   function page(direction: 1 | -1, unit: 'month' | 'year') {
     const step = unit === 'month' ? 1 : view === 'year' ? 120 : 12;
-    setShown((s) => addMonths(s, direction * step));
+    const next = addMonths(shown, direction * step);
+    if (next.year < MIN_YEAR || next.year > MAX_YEAR) return;
+    // The grid re-mounts: a focused day would vanish - follow it instead.
+    if ((document.activeElement as HTMLElement | null)?.dataset?.iso) focusDayRef.current = true;
+    setFocused((f) => shiftMonthKeepDay(f, direction * step));
+    setShown(next);
     animate(direction > 0 ? 'right' : 'left');
   }
 
   function switchView(next: View) {
     setView(next);
     animate('panel');
+    if (next === 'date') focusDayRef.current = true;
+    else focusYearTitleRef.current = true;
   }
 
   const decade = Math.floor(shown.year / 10) * 10;
@@ -259,7 +333,7 @@ export default function DatePicker({
   const navButton =
     'flex h-11 w-10 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent';
   const titleButton =
-    'h-9 rounded-lg px-1.5 text-base font-bold text-slate-100 hover:bg-surface-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent';
+    'h-11 rounded-lg px-1.5 text-base font-bold text-slate-100 hover:bg-surface-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent';
 
   const triggerLabel = fmt.trigger(value);
 
@@ -303,7 +377,10 @@ export default function DatePicker({
           <>
             <div
               className={`fixed inset-0 z-40 bg-black/60 motion-reduce:animate-none ${closing ? 'animate-dp-fade-out' : 'animate-dp-fade-in'}`}
-              onMouseDown={closePicker}
+              // click, not mousedown: with no close animation (reduced motion)
+              // the backdrop would be gone before the tap's click, which
+              // would land on whatever is underneath.
+              onClick={closePicker}
               aria-hidden="true"
             />
             <div
@@ -315,8 +392,8 @@ export default function DatePicker({
               onAnimationEnd={(e) => {
                 if (closing && e.target === e.currentTarget) finishClose();
               }}
-              style={{ top: position.top, left: position.left, width: position.width }}
-              className={`fixed z-50 flex origin-top flex-col rounded-xl border border-surface-border bg-surface-raised px-3 pb-3 pt-2 shadow-2xl motion-reduce:animate-none ${
+              style={{ top: position.top, left: position.left, width: position.width, maxHeight: position.maxHeight }}
+              className={`fixed z-50 flex origin-top flex-col overflow-y-auto rounded-xl border border-surface-border bg-surface-raised px-3 pb-3 pt-2 shadow-2xl motion-reduce:animate-none ${
                 closing ? 'animate-dp-slide-out' : 'animate-dp-slide-in'
               }`}
             >
@@ -345,6 +422,7 @@ export default function DatePicker({
                     </button>
                   )}
                   <button
+                    ref={yearTitleRef}
                     type="button"
                     className={`${titleButton} tabular-nums`}
                     aria-label={t('datePicker.chooseYear')}
@@ -445,6 +523,7 @@ export default function DatePicker({
                             selected: monthOf(value).year === shown.year && monthOf(value).month === m,
                             current: monthOf(today).year === shown.year && monthOf(today).month === m,
                             outside: false,
+                            disabled: false,
                             onPick: () => {
                               setShown({ year: shown.year, month: m });
                               switchView('date');
@@ -459,6 +538,7 @@ export default function DatePicker({
                               selected: monthOf(value).year === year,
                               current: monthOf(today).year === year,
                               outside: year < decade || year > decade + 9,
+                              disabled: year < MIN_YEAR || year > MAX_YEAR,
                               onPick: () => {
                                 setShown({ year, month: shown.month });
                                 switchView('month');
@@ -471,7 +551,8 @@ export default function DatePicker({
                           type="button"
                           aria-label={cell.aria}
                           aria-pressed={cell.selected}
-                          className="flex h-14 items-center justify-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                          disabled={cell.disabled}
+                          className="flex h-14 items-center justify-center rounded-xl disabled:invisible focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                           onClick={cell.onPick}
                         >
                           <span
@@ -495,14 +576,14 @@ export default function DatePicker({
               <div className="-mx-1 mt-1.5 flex items-center gap-2 border-t border-surface-border px-1 pt-2.5">
                 <button
                   type="button"
-                  className="h-9 rounded-lg border border-accent-muted bg-accent/10 px-3 text-sm font-bold text-accent-hover hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  className="h-11 rounded-lg border border-accent-muted bg-accent/10 px-3 text-sm font-bold text-accent-hover hover:bg-accent/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                   onClick={() => pick(today)}
                 >
                   {t('datePicker.today')}
                 </button>
                 <button
                   type="button"
-                  className="h-9 rounded-lg border border-surface-border px-3 text-sm font-semibold text-slate-100 hover:bg-surface-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  className="h-11 rounded-lg border border-surface-border px-3 text-sm font-semibold text-slate-100 hover:bg-surface-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                   onClick={() => pick(addDays(today, -1))}
                 >
                   {t('datePicker.yesterday')}

@@ -218,8 +218,11 @@ export default function WorkoutFormPage() {
 
   function commitDate(value: string) {
     setDateDraft(value);
-    if (!value || value === workoutQuery.data?.date) return;
-    updateMutation.mutate({ date: value });
+    const saved = workoutQuery.data?.date;
+    if (!value || value === saved) return;
+    // A failed save puts the saved date back - the picker applies a day in
+    // one tap, so it mustn't keep showing one the server never got.
+    updateMutation.mutate({ date: value }, { onError: () => saved && setDateDraft(saved) });
   }
 
   const dirty = useMemo(
