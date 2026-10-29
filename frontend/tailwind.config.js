@@ -17,6 +17,10 @@ export default {
         },
         good: '#3ddc97',
         warn: '#eda100',
+        // Workout page placeholders: last time's value / today's +1 target
+        // (both >= 4.5:1 on `surface`).
+        hint: '#828a99',
+        target: '#d08561',
       },
       fontFamily: {
         display: ['"Bebas Neue"', 'system-ui', 'sans-serif'],
