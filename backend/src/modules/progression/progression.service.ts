@@ -620,7 +620,10 @@ export async function attachProgressAt<W extends JournalWorkout>(
         fromProgram ?? smallestThresholds.get(we.exerciseId),
         we.exercise.category,
       );
-      const progressAt: WorkoutProgressAt | null = point ? { ...point, tryMoreAfterWorkouts } : null;
+      // Nothing done yet (no sets): no state of its own - history is grouped
+      // by date, so it would show another same-day workout's.
+      const done = (we.sets ?? []).length > 0;
+      const progressAt: WorkoutProgressAt | null = point && done ? { ...point, tryMoreAfterWorkouts } : null;
       if (!opts.guide) return { ...we, progressAt };
 
       const loadPerRepKg = loadPerRep(we.exercise.equipment, we);

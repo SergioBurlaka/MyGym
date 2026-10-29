@@ -266,4 +266,29 @@ describe('an exercise not done yet', () => {
     const history = await app.inject({ method: 'GET', url: `/api/progression/${curl.id}/history`, headers: auth });
     expect(history.json()).toEqual([]);
   });
+
+  it("gets no try-more state of its own, not another same-day workout's", async () => {
+    const { auth } = await registerUser(app);
+    const row = await byName(auth, 'Тяга в нахилі');
+    const done = await startWorkout(auth, day(-1));
+    await save(auth, done, [{ exerciseId: row.id, weightPerUnitKg: 16.25, sets: [{ setNumber: 1, reps: 12 }] }]);
+    const planned = await startWorkout(auth, day(-1));
+    const saved = await save(auth, planned, [{ exerciseId: row.id, weightPerUnitKg: 16.25, sets: [] }]);
+    expect(saved.workoutExercises[0].progressAt).toBeNull();
+  });
+
+  it('does not make a training day in the calendar', async () => {
+    const { auth } = await registerUser(app);
+    const row = await byName(auth, 'Тяга в нахилі');
+    const curl = await byName(auth, 'Піднімання на біцепс');
+    const planned = await startWorkout(auth, day(-2));
+    await save(auth, planned, [{ exerciseId: row.id, weightPerUnitKg: 16.25, sets: [] }]);
+    const done = await startWorkout(auth, day(-1));
+    await save(auth, done, [
+      { exerciseId: row.id, weightPerUnitKg: 16.25, sets: [{ setNumber: 1, reps: 12 }] },
+      { exerciseId: curl.id, weightPerUnitKg: 7.5, weightUnits: 2, sets: [] },
+    ]);
+    const res = await app.inject({ method: 'GET', url: `/api/workouts/dates?from=${day(-5)}&to=${day(0)}`, headers: auth });
+    expect(res.json()).toEqual([{ date: day(-1), programLabel: null, exerciseNames: ['Тяга в нахилі'] }]);
+  });
 });

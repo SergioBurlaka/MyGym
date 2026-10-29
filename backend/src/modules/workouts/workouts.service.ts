@@ -325,16 +325,20 @@ export async function listWorkoutDates(userId: string, from: string, to: string)
     with: {
       workoutExercises: {
         orderBy: (we, { asc }) => [asc(we.orderIndex)],
-        with: { exercise: true },
+        with: { exercise: true, sets: { columns: { id: true }, limit: 1 } },
       },
     },
   });
 
-  return rows.map((w) => ({
-    date: w.date,
-    programLabel: w.programLabel,
-    exerciseNames: w.workoutExercises.map((we) => we.exercise.name),
-  }));
+  // Only what was actually done: a workout started from a program and left
+  // with nothing logged is not a training day (as in getWorkoutDates).
+  return rows
+    .map((w) => ({
+      date: w.date,
+      programLabel: w.programLabel,
+      exerciseNames: w.workoutExercises.filter((we) => we.sets.length > 0).map((we) => we.exercise.name),
+    }))
+    .filter((w) => w.exerciseNames.length > 0);
 }
 
 // With progressAt on every exercise, as in the journal - the workout page
