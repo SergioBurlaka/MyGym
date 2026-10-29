@@ -20,7 +20,8 @@ export function registerProgressionTools(server: McpServer, api: ApiClient) {
     {
       title: 'Exercise history',
       description:
-        'History of one exercise by date: weight, max/avg reps, volume, estimated 1RM (Epley) and personal-record flags - use for "how did my squat progress" questions.',
+        'History of one exercise by date: totalWeightKg (weight moved in one rep - with the bar for a barbell), reps per set, max/avg reps, ' +
+        'volume (both sides of a unilateral exercise), estimated 1RM (Epley) and personal-record flags - use for "how did my squat progress" questions.',
       inputSchema: { exerciseId: z.string().uuid() },
       annotations: { readOnlyHint: true },
     },

@@ -11,7 +11,9 @@ export function registerExerciseTools(server: McpServer, api: ApiClient) {
     {
       title: 'List exercises',
       description:
-        "Lists the user's exercises with their ids, equipment, category (large / small / bodyweight muscle group), rep range and weight step. Call this first to find the exerciseId for any other tool.",
+        "Lists the user's exercises with their ids, equipment, category (large / small / bodyweight muscle group), rep range, weight step, " +
+        'unilateral (left and right one after the other - reps are logged per side; limb says arm or leg) and defaultBarKg (barbell). ' +
+        'Call this first to find the exerciseId for any other tool.',
       annotations: { readOnlyHint: true },
     },
     async () => apiResult(() => api.get('/exercises')),
@@ -22,7 +24,9 @@ export function registerExerciseTools(server: McpServer, api: ApiClient) {
     {
       title: 'Create exercise',
       description:
-        "Adds a new exercise to the user's list. category: 'large' for big compound lifts (squat, deadlift, bench), 'small' for isolation / injury-sensitive ones, 'bodyweight' for no external load. weightStepKg is the per-side increment suggested when progressing.",
+        "Adds a new exercise to the user's list. category: 'large' for big compound lifts (squat, deadlift, bench), 'small' for isolation / injury-sensitive ones, 'bodyweight' for no external load. weightStepKg is the per-side increment suggested when progressing. " +
+        'unilateral: true when each arm / leg works on its own one after the other (alternating curls, lunges) - then limb is arm or leg. ' +
+        'defaultBarKg: barbell only, the usual bar (20 if omitted; 0 = no bar).',
       inputSchema: {
         name: z.string().min(1).max(120),
         equipment: z.enum(['barbell', 'dumbbell', 'bodyweight']),
@@ -30,6 +34,9 @@ export function registerExerciseTools(server: McpServer, api: ApiClient) {
         repRangeMin: z.coerce.number().int().min(1).max(100),
         repRangeMax: z.coerce.number().int().min(1).max(100),
         weightStepKg: z.coerce.number().min(0).max(50).optional(),
+        unilateral: z.boolean().optional(),
+        limb: z.enum(['arm', 'leg']).nullable().optional(),
+        defaultBarKg: z.coerce.number().min(0).max(50).nullable().optional(),
       },
     },
     async (input) => apiResult(() => api.post('/exercises', input)),

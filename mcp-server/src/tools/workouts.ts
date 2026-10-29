@@ -28,7 +28,10 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
     'get_workout',
     {
       title: 'Get workout',
-      description: 'Returns one workout with all its exercises, weights and sets.',
+      description:
+        'Returns one workout with all its exercises, weights and sets. Each exercise also has loadPerRepKg (weight moved in one rep), volumeKg, ' +
+        'previous (the last session of that exercise before this workout: date, weight and reps per set) and target (when a "try more" is due: ' +
+        "last time's reps with +1 in the set at upSetIndex - the weakest one). Weight fields mean what log_workout_exercises says.",
       inputSchema: { workoutId: id },
       annotations: { readOnlyHint: true },
     },
@@ -63,8 +66,11 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
       description:
         'REPLACES ALL exercises and sets of the workout with exactly the list you pass - anything not in the list is DELETED. ' +
         'To add or change one exercise, first call get_workout, take its current exercises, modify that list and pass the whole list back. ' +
-        'Weight is fixed per exercise: weightPerUnitKg is the load on ONE side of the bar / ONE dumbbell, weightUnits is how many (usually 2); omit both for bodyweight. ' +
-        'Each set has setNumber (1, 2, 3...) and reps.',
+        "Weight is fixed per exercise and depends on the exercise's equipment (see list_exercises): " +
+        "barbell - weightPerUnitKg is the plates on ONE side, barKg the bar (omit for the exercise's defaultBarKg; 0 = no bar), weightUnits is ignored (always 2 sides); " +
+        'dumbbell - weightPerUnitKg is ONE dumbbell, weightUnits how many dumbbells move in ONE rep (2 = both together, 1 = one at a time / a single dumbbell); ' +
+        'bodyweight - weightPerUnitKg is added weight, omit for none. ' +
+        'Each set has setNumber (1, 2, 3...) and reps; for a unilateral exercise reps are PER SIDE (10 = 10 left + 10 right).',
       inputSchema: {
         workoutId: id,
         exercises: z.array(
@@ -72,6 +78,7 @@ export function registerWorkoutTools(server: McpServer, api: ApiClient) {
             exerciseId: id,
             weightPerUnitKg: z.coerce.number().min(0).max(500).nullable().optional(),
             weightUnits: z.coerce.number().int().min(1).max(2).nullable().optional(),
+            barKg: z.coerce.number().min(0).max(50).nullable().optional(),
             notes: z.string().max(500).nullable().optional(),
             sets: z
               .array(z.object({ setNumber: z.coerce.number().int().min(1), reps: z.coerce.number().int().min(0).max(200) }))
