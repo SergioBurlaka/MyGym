@@ -8,6 +8,8 @@ import type {
   WorkoutsPage,
 } from './workouts.types.js';
 
+const SAVE_TIMEOUT_MS = 20_000;
+
 export const WorkoutsApi = {
   async list(params: WorkoutsListParams) {
     return api.get<WorkoutsPage>('/workouts', { params });
@@ -27,8 +29,11 @@ export const WorkoutsApi = {
   async update(id: string, body: UpdateWorkoutBody) {
     return api.patch<Workout>(`/workouts/${id}`, body);
   },
+  // With a timeout: on a bad gym network a request can hang with no answer,
+  // and the autosave (one at a time) would wait forever instead of retrying.
+  // A retry is safe - the PUT replaces the whole list.
   async saveExercises(id: string, body: SaveWorkoutExercisesBody) {
-    return api.put<Workout>(`/workouts/${id}/exercises`, body);
+    return api.put<Workout>(`/workouts/${id}/exercises`, body, { timeout: SAVE_TIMEOUT_MS });
   },
   async finish(id: string) {
     return api.post<Workout>(`/workouts/${id}/finish`);

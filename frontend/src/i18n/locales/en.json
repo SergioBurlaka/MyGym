@@ -171,8 +171,6 @@
     "deleteConfirmTitle": "Delete workout",
     "deleteConfirmDescription": "This can't be undone — every exercise and set in this workout will be lost for good.",
     "finish": "Finish",
-    "save": "Save",
-    "saving": "Saving…",
     "genericSaveError": "Couldn't save",
     "removeExerciseConfirmTitle": "Remove exercise from workout",
     "removeExerciseConfirmDescription": "«{{name}}» and all its logged sets will be removed from this workout.",
@@ -245,7 +243,13 @@
       "removeSetDescription": "This set's reps will be removed from the workout.",
       "removeSetConfirm": "Delete"
     },
-    "invalidWeightError": "The weight must be a number, e.g. 16.25 - the workout isn't saved until it is fixed."
+    "invalidWeightError": "The weight must be a number, e.g. 16.25 - the workout isn't saved until it is fixed.",
+    "saveStatus": {
+      "saving": "Saving…",
+      "saved": "✓ All saved",
+      "failed": "Couldn't save - trying again",
+      "retry": "Retry"
+    }
   },
   "progress": {
     "title": "Exercise progress",
