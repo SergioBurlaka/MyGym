@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises, workoutExercises, workouts, sets, programs, programExercises, users } from '../../db/schema.js';
+import { addedLoad, loadPerRep, sidesOf, totalReps as sumReps, volumeKg as sessionVolumeKg, type LoadSettings } from './load.js';
 
 // Default try_more threshold - sessions of the exercise without progress -
 // when neither its program entry nor the program sets one. Lower for big
@@ -56,7 +57,15 @@ export type ExerciseProgression = {
 
 export type HistoryPoint = {
   date: string;
+  // Weight moved in ONE rep (load.ts: with the bar for a barbell). Null when
+  // no weight was logged.
   totalWeightKg: number | null;
+  // The bar that day (barbell only) and the load without it - plates /
+  // dumbbells / added weight, what the user steps up.
+  barKg: number | null;
+  addedLoadKg: number | null;
+  // Logged reps in set order (per side for a unilateral exercise).
+  reps: number[];
   maxReps: number;
   avgReps: number;
   setsCount: number;
@@ -64,9 +73,10 @@ export type HistoryPoint = {
   // the exercise was done with weight, and unreliable past ~15 reps, but we
   // still compute it (the frontend just needs a trend, not a precise number).
   estimatedOneRepMaxKg: number | null;
-  // totalWeightKg * sum(reps) for weighted exercises; null for bodyweight
+  // totalWeightKg * totalReps for weighted exercises; null for bodyweight
   // (use totalReps as the "volume" there instead).
   volumeKg: number | null;
+  // Sum of reps, both sides of a unilateral exercise.
   totalReps: number;
   // true when this point's totalWeightKg/maxReps is strictly greater than
   // every earlier point for this exercise (a personal record at the time).
@@ -79,23 +89,12 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
-function totalWeight(weightPerUnitKg: string | null, weightUnits: number | null): number | null {
-  if (weightPerUnitKg == null) return null;
-  const units = weightUnits ?? 2;
-  return Number(weightPerUnitKg) * units;
-}
-
-// Weight of a session, with "no weight logged" and a logged 0 both as 0.
-function sessionWeight(point: HistoryPoint): number {
-  return point.totalWeightKg ?? 0;
-}
-
 // Session "volume" used to detect progress: weight * total reps of all
 // sets, or just total reps when the exercise was done without weight (or
 // with 0 - otherwise 0 * reps would never grow). More sets, more reps or
 // more weight all raise it.
-function sessionVolume(point: HistoryPoint): number {
-  return sessionWeight(point) > 0 ? sessionWeight(point) * point.totalReps : point.totalReps;
+function progressVolume(weightKg: number, reps: number): number {
+  return weightKg > 0 ? weightKg * reps : reps;
 }
 
 // Longest gap, in days, between consecutive dates of `workoutDates`
@@ -207,10 +206,15 @@ export function findLastProgress(
 // the volume alone could even drop; going from no weight to some counts
 // too). Volumes are only compared between two weighted or two unweighted
 // sessions: kg * reps vs plain reps would be meaningless.
+// A different bar is neither: "weight" is the added load (plates /
+// dumbbells), and this session's volume is taken on the previous bar.
 function isProgressStep(prev: HistoryPoint, cur: HistoryPoint): boolean {
-  const weightImproved = sessionWeight(cur) > sessionWeight(prev);
-  const sameKind = sessionWeight(cur) > 0 === sessionWeight(prev) > 0;
-  const volumeImproved = sameKind && sessionVolume(cur) > sessionVolume(prev);
+  const weightImproved = (cur.addedLoadKg ?? 0) > (prev.addedLoadKg ?? 0);
+  const prevWeight = prev.totalWeightKg ?? 0;
+  const curWeight = cur.addedLoadKg == null ? 0 : cur.addedLoadKg + (prev.barKg ?? 0);
+  const sameKind = curWeight > 0 === prevWeight > 0;
+  const volumeImproved =
+    sameKind && progressVolume(curWeight, cur.totalReps) > progressVolume(prevWeight, prev.totalReps);
   return weightImproved || volumeImproved;
 }
 
@@ -309,7 +313,12 @@ async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<st
 // Deterministic row order for history queries: buildHistoryPoints takes a
 // day's weight from its first row, so two workouts on one date must come in
 // the same order for the overview and the journal.
-const HISTORY_ORDER = [asc(workouts.date), asc(workouts.createdAt), asc(workoutExercises.id)] as const;
+const HISTORY_ORDER = [
+  asc(workouts.date),
+  asc(workouts.createdAt),
+  asc(workoutExercises.id),
+  asc(sets.setNumber),
+] as const;
 
 // `executor` lets a caller inside a transaction read through it (`tx`)
 // instead of taking a second pool connection.
@@ -331,6 +340,7 @@ async function loadHistoryRows(
       date: workouts.date,
       weightPerUnitKg: workoutExercises.weightPerUnitKg,
       weightUnits: workoutExercises.weightUnits,
+      barKg: workoutExercises.barKg,
       reps: sets.reps,
     })
     .from(workoutExercises)
@@ -351,18 +361,31 @@ export type HistoryRow = {
   date: string;
   weightPerUnitKg: string | null;
   weightUnits: number | null;
+  barKg?: string | null;
   reps: number;
 };
+
+// Two dumbbells, limbs together: how rows read before the load model, so a
+// caller without the exercise at hand gets the old maths.
+const LEGACY_LOAD: LoadSettings = { equipment: 'dumbbell', unilateral: false };
 
 // One exercise's rows from loadHistoryRows in - one row per logged set -
 // one point per workout date out (chronological). Kept DB-free so it can
 // be unit-tested.
-export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
-  const byDate = new Map<string, { weightPerUnitKg: string | null; weightUnits: number | null; reps: number[] }>();
+export function buildHistoryPoints(rows: HistoryRow[], exercise: LoadSettings = LEGACY_LOAD): HistoryPoint[] {
+  const byDate = new Map<
+    string,
+    { weightPerUnitKg: string | null; weightUnits: number | null; barKg: string | null; reps: number[] }
+  >();
   for (const row of rows) {
     const key = row.date;
     if (!byDate.has(key)) {
-      byDate.set(key, { weightPerUnitKg: row.weightPerUnitKg, weightUnits: row.weightUnits, reps: [] });
+      byDate.set(key, {
+        weightPerUnitKg: row.weightPerUnitKg,
+        weightUnits: row.weightUnits,
+        barKg: row.barKg ?? null,
+        reps: [],
+      });
     }
     byDate.get(key)!.reps.push(row.reps);
   }
@@ -375,14 +398,18 @@ export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
   let bestReps: number | null = null;
 
   return sorted.map(([date, entry]) => {
-    const totalWeightKg = totalWeight(entry.weightPerUnitKg, entry.weightUnits);
+    const totalWeightKg = loadPerRep(exercise.equipment, entry);
+    const addedLoadKg = addedLoad(exercise.equipment, entry);
+    const barKg = exercise.equipment === 'barbell' && entry.barKg != null ? Number(entry.barKg) : null;
     const maxReps = Math.max(...entry.reps);
-    const totalReps = entry.reps.reduce((a, b) => a + b, 0);
-    const avgReps = totalReps / entry.reps.length;
+    const totalReps = sumReps(entry.reps, exercise.unilateral);
+    const avgReps = entry.reps.reduce((a, b) => a + b, 0) / entry.reps.length;
 
     const estimatedOneRepMaxKg =
       totalWeightKg != null ? Math.round(totalWeightKg * (1 + maxReps / 30) * 10) / 10 : null;
-    const volumeKg = totalWeightKg != null ? totalWeightKg * totalReps : null;
+    // A logged 0 kg is still a weighted session here (0 volume), as before.
+    const volumeKg =
+      totalWeightKg != null ? (sessionVolumeKg(totalWeightKg, entry.reps, exercise.unilateral) ?? 0) : null;
 
     let isWeightPR = false;
     if (totalWeightKg != null && (bestWeightKg == null || totalWeightKg > bestWeightKg)) {
@@ -398,6 +425,9 @@ export function buildHistoryPoints(rows: HistoryRow[]): HistoryPoint[] {
     return {
       date,
       totalWeightKg,
+      barKg,
+      addedLoadKg,
+      reps: entry.reps,
       maxReps,
       avgReps,
       setsCount: entry.reps.length,
@@ -423,6 +453,8 @@ type JournalWorkout = {
     exerciseId: string;
     exercise: {
       category: ExerciseProgression['category'];
+      equipment: LoadSettings['equipment'];
+      unilateral: boolean;
       repRangeMax: number;
       tryMoreCounterAdjust: number;
       tryMoreCounterAnchor: string | null;
@@ -468,7 +500,7 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
   function timelineOf(we: JournalWorkout['workoutExercises'][number]) {
     let byDate = timelines.get(we.exerciseId);
     if (!byDate) {
-      const history = buildHistoryPoints(rowsByExercise.get(we.exerciseId) ?? []);
+      const history = buildHistoryPoints(rowsByExercise.get(we.exerciseId) ?? [], we.exercise);
       const points = progressTimeline(history, we.exercise.repRangeMax, workoutDates);
       // With today, as the overview does: after a long break the slider's
       // anchor is the break, not this session, so the shift stays off here.
@@ -519,7 +551,7 @@ export async function getExerciseHistory(userId: string, exerciseId: string): Pr
   });
   if (!exercise) return [];
   const rows = await loadHistoryRows(userId, [exerciseId]);
-  return buildHistoryPoints(rows.get(exerciseId) ?? []);
+  return buildHistoryPoints(rows.get(exerciseId) ?? [], exercise);
 }
 
 export async function getProgressionOverview(userId: string): Promise<ExerciseProgression[]> {
@@ -539,7 +571,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
   const results: ExerciseProgression[] = [];
 
   for (const ex of userExercises) {
-    const history = buildHistoryPoints(rowsByExercise.get(ex.id) ?? []);
+    const history = buildHistoryPoints(rowsByExercise.get(ex.id) ?? [], ex);
     const weightStepKg = Number(ex.weightStepKg);
     const fromPrograms = tryMoreAfterWorkoutsByExercise.get(ex.id);
     const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(fromPrograms, ex.category);
@@ -641,9 +673,16 @@ export async function computeCounterShifts(
   // Sequential: `executor` may be a transaction (one connection).
   const workoutDates = await getWorkoutDates(userId, executor);
   const today = await getUserToday(userId, executor);
-  const rowsByExercise = await loadHistoryRows(userId, positions.map((p) => p.exerciseId), executor);
+  const exerciseIds = positions.map((p) => p.exerciseId);
+  const rowsByExercise = await loadHistoryRows(userId, exerciseIds, executor);
+  const settings = await executor
+    .select({ id: exercises.id, equipment: exercises.equipment, unilateral: exercises.unilateral })
+    .from(exercises)
+    .where(and(eq(exercises.userId, userId), inArray(exercises.id, exerciseIds)));
+  const settingsById = new Map(settings.map((s) => [s.id, s]));
   for (const { exerciseId, sessionsDone } of positions) {
-    const lastProgress = findLastProgress(buildHistoryPoints(rowsByExercise.get(exerciseId) ?? []), workoutDates, today);
+    const history = buildHistoryPoints(rowsByExercise.get(exerciseId) ?? [], settingsById.get(exerciseId));
+    const lastProgress = findLastProgress(history, workoutDates, today);
     if (!lastProgress) continue;
     const adjust = sessionsDone - lastProgress.sessionsSince;
     shifts.set(exerciseId, adjust === 0 ? { adjust: 0, anchor: null } : { adjust, anchor: lastProgress.date });
@@ -709,7 +748,8 @@ function isoWeekStart(dateStr: string): string {
 // Volume per category per ISO week, for the balance-check chart on the
 // Progress page: for weighted exercises, volume = weight * reps per set
 // (sums to the same totalWeightKg * totalReps as buildHistoryPoints' volumeKg);
-// for bodyweight exercises (no weight logged), volume = reps.
+// for bodyweight exercises (no weight logged), volume = reps. Both sides of
+// a unilateral exercise count.
 export async function getVolumeByCategory(userId: string, weeks: number): Promise<WeeklyCategoryVolume[]> {
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
@@ -719,8 +759,11 @@ export async function getVolumeByCategory(userId: string, weeks: number): Promis
     .select({
       date: workouts.date,
       category: exercises.category,
+      equipment: exercises.equipment,
+      unilateral: exercises.unilateral,
       weightPerUnitKg: workoutExercises.weightPerUnitKg,
       weightUnits: workoutExercises.weightUnits,
+      barKg: workoutExercises.barKg,
       reps: sets.reps,
     })
     .from(workoutExercises)
@@ -736,8 +779,8 @@ export async function getVolumeByCategory(userId: string, weeks: number): Promis
       byWeek.set(weekStart, { weekStart, large: 0, small: 0, bodyweight: 0 });
     }
     const totals = byWeek.get(weekStart)!;
-    const weight = totalWeight(row.weightPerUnitKg, row.weightUnits);
-    const contribution = weight != null ? weight * row.reps : row.reps;
+    const weight = loadPerRep(row.equipment, row);
+    const contribution = (weight != null ? weight * row.reps : row.reps) * sidesOf(row.unilateral);
     totals[row.category] += contribution;
   }
 

@@ -22,6 +22,13 @@ function session(date: string, weightPerUnitKg: number | null, reps: number[]): 
   }));
 }
 
+const BARBELL = { equipment: 'barbell', unilateral: false } as const;
+
+// One barbell workout: the bar, plates per side and the reps of each set.
+function barbell(date: string, barKg: number, platesPerSideKg: number, reps: number[]): HistoryRow[] {
+  return session(date, platesPerSideKg, reps).map((row) => ({ ...row, barKg: String(barKg) }));
+}
+
 const NOW = new Date('2026-10-19T12:00:00Z');
 
 function suggest(history: HistoryPoint[], over: Partial<Parameters<typeof suggestProgression>[0]> = {}) {
@@ -48,6 +55,15 @@ describe('buildHistoryPoints', () => {
       volumeKg: 960, // 40 kg x 24 reps
       estimatedOneRepMaxKg: 53.3, // Epley: 40 x (1 + 10/30), rounded to 0.1
     });
+  });
+
+  it('adds the bar for a barbell and counts both sides of a unilateral exercise', () => {
+    const [row] = buildHistoryPoints(barbell('2026-10-01', 20, 16.25, [12, 12, 12]), BARBELL);
+    expect(row).toMatchObject({ totalWeightKg: 52.5, barKg: 20, addedLoadKg: 32.5, volumeKg: 1890 });
+
+    const lunges = session('2026-10-01', 10, [13, 13, 13]);
+    const [point] = buildHistoryPoints(lunges, { equipment: 'dumbbell', unilateral: true });
+    expect(point).toMatchObject({ totalWeightKg: 20, maxReps: 13, totalReps: 78, volumeKg: 1560 });
   });
 
   it('returns points in chronological order even if rows arrive unsorted', () => {
@@ -88,6 +104,30 @@ describe('findLastProgress', () => {
       ...session('2026-10-07', 20, [7]),
     ]);
     expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 2 });
+  });
+
+  it('does not count a heavier bar with the same plates and reps as progress', () => {
+    const history = buildHistoryPoints(
+      [...barbell('2026-10-01', 15, 10, [10, 10]), ...barbell('2026-10-03', 20, 10, [10, 10])],
+      BARBELL,
+    );
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
+  });
+
+  it('judges reps on the previous bar after switching to a lighter one', () => {
+    const history = buildHistoryPoints(
+      [...barbell('2026-10-01', 20, 10, [10, 10]), ...barbell('2026-10-03', 15, 10, [10, 11])],
+      BARBELL,
+    );
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
+  });
+
+  it('counts more plates as progress whatever the bar', () => {
+    const history = buildHistoryPoints(
+      [...barbell('2026-10-01', 20, 10, [10]), ...barbell('2026-10-03', 15, 11.25, [8])],
+      BARBELL,
+    );
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
   });
 
   it('counts an added set as progress (more volume at the same weight)', () => {
