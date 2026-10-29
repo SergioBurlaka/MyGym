@@ -30,6 +30,7 @@ export type SaveWorkoutExercisesBody = {
     exerciseId: string;
     weightPerUnitKg: number | null;
     weightUnits: number | null;
+    barKg?: number | null;
     sets: { setNumber: number; reps: number }[];
   }[];
 };

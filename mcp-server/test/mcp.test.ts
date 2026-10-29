@@ -232,6 +232,48 @@ describe('forwarding to the MyGym API', () => {
     expect((seen[0].body as { exercises: { weightPerUnitKg: unknown }[] }).exercises[0].weightPerUnitKg).toBe(22.5);
   });
 
+  it('passes the bar and the unilateral settings through, numbers as strings too', async () => {
+    const client = await connect(TOKENS.alice);
+    const workoutId = '11111111-1111-4111-8111-111111111111';
+    const logged = await client.callTool({
+      name: 'log_workout_exercises',
+      arguments: {
+        workoutId,
+        exercises: [
+          {
+            exerciseId: '22222222-2222-4222-8222-222222222222',
+            weightPerUnitKg: '16.25',
+            weightUnits: 2,
+            barKg: '15.00',
+            sets: [{ setNumber: 1, reps: 10 }],
+          },
+        ],
+      },
+    });
+    expect(logged.isError).toBeFalsy();
+    expect((seen[0].body as { exercises: { barKg: unknown }[] }).exercises[0].barKg).toBe(15);
+
+    await client.callTool({
+      name: 'create_exercise',
+      arguments: {
+        name: 'Alternating curl',
+        equipment: 'dumbbell',
+        category: 'small',
+        repRangeMin: 8,
+        repRangeMax: 15,
+        unilateral: true,
+        limb: 'arm',
+      },
+    });
+    expect(seen[1]).toEqual(
+      expect.objectContaining({
+        method: 'POST',
+        url: '/api/exercises',
+        body: expect.objectContaining({ unilateral: true, limb: 'arm' }),
+      }),
+    );
+  });
+
   it('rejects malformed input before calling the API', async () => {
     const client = await connect(TOKENS.alice);
     const result = await client.callTool({ name: 'get_workout', arguments: { workoutId: 'not-a-uuid' } });

@@ -20,6 +20,10 @@ import { relations, sql } from 'drizzle-orm';
 
 export const equipmentEnum = pgEnum('equipment', ['barbell', 'dumbbell', 'bodyweight']);
 
+// Which limb a unilateral exercise works one at a time - only labels reps
+// ("per leg" / "per arm"), the maths is the same.
+export const limbEnum = pgEnum('limb', ['arm', 'leg']);
+
 // large  -> big compound muscle groups (squat, deadlift, bench, row...)
 // small  -> isolation / injury-sensitive joints (biceps, lateral raises, shoulder press...)
 // bodyweight -> no external load yet (push-ups, leg raises) - becomes "small" once weight is added
@@ -216,6 +220,14 @@ export const exercises = pgTable('exercises', {
   // Weight increment applied to ONE side/unit (e.g. one side of the barbell,
   // or one dumbbell) when the user hits the top of the rep range.
   weightStepKg: numeric('weight_step_kg', { precision: 5, scale: 2 }).notNull().default('0.5'),
+  // false - limbs work together; true - left and right one after the other,
+  // reps are logged per side and the volume counts both (see load.ts).
+  unilateral: boolean('unilateral').notNull().default(false),
+  // Labels the per-side reps; set only for a unilateral exercise.
+  limb: limbEnum('limb'),
+  // Barbell only: bar weight a new workout starts with (snapshotted into
+  // workout_exercises.bar_kg, so changing it doesn't rewrite history).
+  defaultBarKg: numeric('default_bar_kg', { precision: 5, scale: 2 }),
   // Manual shift of the "workouts without progress" counter (the try-more
   // slider on the Programs page): added to the counted sessions, but only
   // while the last progress is still the one dated tryMoreCounterAnchor -
@@ -234,6 +246,11 @@ export const exercises = pgTable('exercises', {
     sql`${table.repRangeMin} >= 1 AND ${table.repRangeMax} <= 100 AND ${table.repRangeMin} <= ${table.repRangeMax}`,
   ),
   weightStepCheck: check('exercises_weight_step_check', sql`${table.weightStepKg} BETWEEN 0 AND 50`),
+  defaultBarCheck: check(
+    'exercises_default_bar_check',
+    sql`${table.defaultBarKg} IS NULL OR (${table.defaultBarKg} BETWEEN 0 AND 50 AND ${table.equipment} = 'barbell')`,
+  ),
+  limbCheck: check('exercises_limb_check', sql`${table.limb} IS NULL OR ${table.unilateral}`),
 }));
 
 // ---------- programs ----------
@@ -342,14 +359,16 @@ export const workoutExercises = pgTable('workout_exercises', {
   // same statement before the check runs. RESTRICT can't be deferred. If
   // drizzle-kit ever regenerates this FK, re-add the DEFERRABLE clause.
   exerciseId: uuid('exercise_id').notNull().references(() => exercises.id, { onDelete: 'no action' }),
-  // Weight per single unit (one dumbbell, or plates on one side of the bar).
-  // Null when the exercise is done with bodyweight only.
+  // By the exercise's equipment: barbell - plates on ONE side; dumbbell - ONE
+  // dumbbell; bodyweight - added weight. Null = no weight logged.
   weightPerUnitKg: numeric('weight_per_unit_kg', { precision: 6, scale: 2 }),
-  // How many units the weight applies to - normally 2 (both dumbbells / both
-  // sides of the bar). Null when weightPerUnitKg is null.
+  // Dumbbell: how many dumbbells move in ONE rep (1 or 2) - not how many you
+  // hold. Barbell: always 2 (sides). Null when weightPerUnitKg is null.
   // No default: every insert sets it explicitly (null without weight), and a
   // default of 2 would break the weight_units check for a bodyweight row.
   weightUnits: smallint('weight_units'),
+  // Barbell only: the bar used that day (from exercises.default_bar_kg).
+  barKg: numeric('bar_kg', { precision: 5, scale: 2 }),
   orderIndex: smallint('order_index').notNull().default(0),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -363,6 +382,7 @@ export const workoutExercises = pgTable('workout_exercises', {
     'workout_exercises_weight_units_check',
     sql`${table.weightUnits} IS NULL OR (${table.weightUnits} IN (1, 2) AND ${table.weightPerUnitKg} IS NOT NULL)`,
   ),
+  barCheck: check('workout_exercises_bar_check', sql`${table.barKg} BETWEEN 0 AND 50`),
 }));
 
 export const sets = pgTable('sets', {

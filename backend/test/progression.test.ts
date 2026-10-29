@@ -7,6 +7,7 @@ import {
   localDate,
   longestBreak,
   progressTimeline,
+  sessionGuide,
   suggestProgression,
   type HistoryPoint,
   type HistoryRow,
@@ -20,6 +21,13 @@ function session(date: string, weightPerUnitKg: number | null, reps: number[]): 
     weightUnits: weightPerUnitKg == null ? null : 2,
     reps: r,
   }));
+}
+
+const BARBELL = { equipment: 'barbell', unilateral: false } as const;
+
+// One barbell workout: the bar, plates per side and the reps of each set.
+function barbell(date: string, barKg: number, platesPerSideKg: number, reps: number[]): HistoryRow[] {
+  return session(date, platesPerSideKg, reps).map((row) => ({ ...row, barKg: String(barKg) }));
 }
 
 const NOW = new Date('2026-10-19T12:00:00Z');
@@ -48,6 +56,15 @@ describe('buildHistoryPoints', () => {
       volumeKg: 960, // 40 kg x 24 reps
       estimatedOneRepMaxKg: 53.3, // Epley: 40 x (1 + 10/30), rounded to 0.1
     });
+  });
+
+  it('adds the bar for a barbell and counts both sides of a unilateral exercise', () => {
+    const [row] = buildHistoryPoints(barbell('2026-10-01', 20, 16.25, [12, 12, 12]), BARBELL);
+    expect(row).toMatchObject({ totalWeightKg: 52.5, barKg: 20, addedLoadKg: 32.5, volumeKg: 1890 });
+
+    const lunges = session('2026-10-01', 10, [13, 13, 13]);
+    const [point] = buildHistoryPoints(lunges, { equipment: 'dumbbell', unilateral: true });
+    expect(point).toMatchObject({ totalWeightKg: 20, maxReps: 13, totalReps: 78, volumeKg: 1560 });
   });
 
   it('returns points in chronological order even if rows arrive unsorted', () => {
@@ -88,6 +105,30 @@ describe('findLastProgress', () => {
       ...session('2026-10-07', 20, [7]),
     ]);
     expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 2 });
+  });
+
+  it('does not count a heavier bar with the same plates and reps as progress', () => {
+    const history = buildHistoryPoints(
+      [...barbell('2026-10-01', 15, 10, [10, 10]), ...barbell('2026-10-03', 20, 10, [10, 10])],
+      BARBELL,
+    );
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-01', sessionsSince: 1 });
+  });
+
+  it('judges reps on the previous bar after switching to a lighter one', () => {
+    const history = buildHistoryPoints(
+      [...barbell('2026-10-01', 20, 10, [10, 10]), ...barbell('2026-10-03', 15, 10, [10, 11])],
+      BARBELL,
+    );
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
+  });
+
+  it('counts more plates as progress whatever the bar', () => {
+    const history = buildHistoryPoints(
+      [...barbell('2026-10-01', 20, 10, [10]), ...barbell('2026-10-03', 15, 11.25, [8])],
+      BARBELL,
+    );
+    expect(findLastProgress(history)).toEqual({ date: '2026-10-03', sessionsSince: 0 });
   });
 
   it('counts an added set as progress (more volume at the same weight)', () => {
@@ -331,5 +372,59 @@ describe('suggestProgression', () => {
   it('a maxed-out set beats the stall reminder', () => {
     const history = buildHistoryPoints([...session('2026-09-01', 20, [15]), ...session('2026-10-18', 20, [15])]);
     expect(suggest(history).suggestion).toBe('increase_weight');
+  });
+});
+
+describe('sessionGuide', () => {
+  const stalled = [
+    ...session('2026-10-01', 10, [12, 12, 11]),
+    ...session('2026-10-03', 10, [12, 12, 11]),
+    ...session('2026-10-05', 10, [12, 12, 11]),
+  ];
+  function guide(rows: HistoryRow[], workoutDate: string, tryMoreAfterWorkouts = 2, counterShift?: { adjust: number; anchor: string | null }) {
+    const history = buildHistoryPoints(rows);
+    return sessionGuide(history, progressTimeline(history, 15), workoutDate, { tryMoreAfterWorkouts, counterShift });
+  }
+
+  it('is empty for an exercise never done before that date', () => {
+    expect(guide(stalled, '2026-10-01')).toEqual({ previous: null, target: null });
+  });
+
+  it('gives last time before the workout, not the workout itself', () => {
+    const { previous } = guide(stalled, '2026-10-05');
+    expect(previous).toMatchObject({ date: '2026-10-03', reps: [12, 12, 11], weightPerUnitKg: 10, loadPerRepKg: 20 });
+  });
+
+  it('targets +1 in the weakest set once the counter reached try more', () => {
+    // After 10-05 the counter stands at 2 (two sessions without progress).
+    expect(guide(stalled, '2026-10-07').target).toEqual({ reps: [12, 12, 12], upSetIndex: 2 });
+    // After 10-03 it was 1 - not yet.
+    expect(guide(stalled, '2026-10-05').target).toBeNull();
+  });
+
+  it('counts the slider shift while it is anchored to that progress', () => {
+    expect(guide(stalled, '2026-10-05', 2, { adjust: 1, anchor: '2026-10-01' }).target).not.toBeNull();
+    expect(guide(stalled, '2026-10-05', 2, { adjust: 1, anchor: '2026-09-01' }).target).toBeNull();
+  });
+
+  it('applies the slider only for the latest session, not an older workout page', () => {
+    // On 10-03's page the previous session is 10-01, but 10-05 came later -
+    // the slider (set after 10-05) is not about it.
+    expect(guide(stalled, '2026-10-03', 1, { adjust: 3, anchor: '2026-10-01' }).target).toBeNull();
+  });
+
+  it('no +1 target after a long break - the counter starts over', () => {
+    const history = buildHistoryPoints(stalled);
+    const timeline = progressTimeline(history, 15);
+    const dates = ['2026-10-01', '2026-10-03', '2026-10-05'];
+    const opts = { tryMoreAfterWorkouts: 2, workoutDates: dates };
+    expect(sessionGuide(history, timeline, '2026-10-26', opts).target).toBeNull();
+    expect(sessionGuide(history, timeline, '2026-10-26', opts).previous).toMatchObject({ date: '2026-10-05' });
+    expect(sessionGuide(history, timeline, '2026-10-12', opts).target).not.toBeNull();
+  });
+
+  it('no +1 target at the top of the rep range - that calls for weight', () => {
+    const top = [...session('2026-10-01', 10, [15]), ...session('2026-10-03', 10, [15]), ...session('2026-10-05', 10, [15])];
+    expect(guide(top, '2026-10-07').target).toBeNull();
   });
 });

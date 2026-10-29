@@ -1,20 +1,74 @@
 import i18n from '../i18n/index.js';
+import type { Equipment } from '../types/index.js';
 
-// The numbers behind a journal line (components/SetsSummary.tsx): total
-// weight (null without weight - 0 kg counts as none, as in the progression
-// rules), the per-side weight for two-sided loads, and reps in set order.
-export function setsSummary(we: {
+// The load model - mirror of backend/src/modules/progression/load.ts, change
+// both together:
+//   barbell    weightPerUnitKg = plates on ONE side -> bar + 2 x plates
+//   dumbbell   weightPerUnitKg = ONE dumbbell, weightUnits = dumbbells
+//              moving in ONE rep -> units x dumbbell
+//   bodyweight weightPerUnitKg = added weight (null = none)
+// A unilateral exercise logs reps per side; its volume counts both.
+
+type LoggedLoad = {
   weightPerUnitKg: string | number | null;
   weightUnits: number | null;
+  barKg?: string | number | null;
+};
+
+// Rounded to grams so 16.25 × 2 can't print as 32.49999.
+function grams(kg: number): number {
+  return Math.round(kg * 1000) / 1000;
+}
+
+// Weight moved in one rep; null when no weight was logged.
+export function loadPerRep(equipment: Equipment, load: LoggedLoad): number | null {
+  if (load.weightPerUnitKg == null) return null;
+  const perUnit = Number(load.weightPerUnitKg);
+  if (equipment === 'barbell') return grams((load.barKg == null ? 0 : Number(load.barKg)) + 2 * perUnit);
+  if (equipment === 'dumbbell') return grams((load.weightUnits ?? 2) * perUnit);
+  return perUnit;
+}
+
+export function sidesOf(unilateral: boolean): 1 | 2 {
+  return unilateral ? 2 : 1;
+}
+
+// kg moved: load per rep x all reps (both sides); null without weight.
+export function volumeKg(loadKg: number | null, reps: number[], unilateral: boolean): number | null {
+  if (loadKg == null || loadKg <= 0) return null;
+  return grams(loadKg * reps.reduce((a, b) => a + b, 0) * sidesOf(unilateral));
+}
+
+// "Try more" target: last time's reps with +1 in the weakest set (the first
+// of equals). The backend sends it ready (WorkoutExercise.target); this is
+// for the form while the user edits.
+export function targetReps(lastReps: number[]): { reps: number[]; upSetIndex: number } | null {
+  let upSetIndex = -1;
+  lastReps.forEach((r, i) => {
+    if (upSetIndex === -1 || r < lastReps[upSetIndex]) upSetIndex = i;
+  });
+  if (upSetIndex === -1) return null;
+  return { reps: lastReps.map((r, i) => (i === upSetIndex ? r + 1 : r)), upSetIndex };
+}
+
+// Last time's reps for set `index`: the same set, or the last one there was.
+export function lastRepsForSet(lastReps: number[], index: number): number | null {
+  if (lastReps.length === 0) return null;
+  return lastReps[Math.min(index, lastReps.length - 1)];
+}
+
+// The numbers behind a journal line (components/SetsSummary.tsx): weight in
+// one rep (null without weight - 0 kg counts as none, as in the progression
+// rules), the plates per side for a barbell, and reps in set order.
+export function setsSummary(we: LoggedLoad & {
+  exercise: { equipment: Equipment };
   sets: { setNumber: number; reps: number }[];
 }): { totalKg: number | null; perSideKg: number | null; reps: number[] } {
-  const perUnit = we.weightPerUnitKg == null ? 0 : Number(we.weightPerUnitKg);
-  const units = we.weightUnits ?? 2;
-  const weighted = perUnit > 0;
+  const totalKg = loadPerRep(we.exercise.equipment, we);
+  const weighted = totalKg != null && totalKg > 0;
   return {
-    // Rounded to grams so 16.25 × 2 can't print as 32.49999.
-    totalKg: weighted ? Math.round(perUnit * units * 1000) / 1000 : null,
-    perSideKg: weighted && units === 2 ? perUnit : null,
+    totalKg: weighted ? totalKg : null,
+    perSideKg: weighted && we.exercise.equipment === 'barbell' ? Number(we.weightPerUnitKg) : null,
     reps: [...we.sets].sort((a, b) => a.setNumber - b.setNumber).map((s) => s.reps),
   };
 }

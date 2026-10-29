@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises } from '../../db/schema.js';
+import { DEFAULT_BAR_KG } from '../../db/defaultExercises.js';
 import { isUniqueViolation } from '../../utils/pgErrors.js';
 import type { CreateExerciseInput, UpdateExerciseInput } from './exercises.schema.js';
 
@@ -15,6 +16,24 @@ export function listExercises(userId: string) {
 // (exercises_user_name_idx, case- and edge-space-insensitive).
 export class ExerciseNameTakenError extends Error {}
 export class ExerciseRepRangeError extends Error {}
+
+type Equipment = (typeof exercises.$inferSelect)['equipment'];
+type Limb = (typeof exercises.$inferSelect)['limb'];
+
+// The load settings as stored: a limb only for a unilateral exercise, a
+// default bar only for a barbell (20 kg unless one is given or kept).
+function loadFields(
+  equipment: Equipment,
+  unilateral: boolean,
+  limb: Limb | undefined,
+  defaultBarKg: number | string | null | undefined,
+) {
+  return {
+    unilateral,
+    limb: unilateral ? (limb ?? null) : null,
+    defaultBarKg: equipment === 'barbell' ? (defaultBarKg != null ? String(defaultBarKg) : DEFAULT_BAR_KG) : null,
+  };
+}
 
 function sameName(userId: string, name: string) {
   return and(eq(exercises.userId, userId), sql`lower(btrim(${exercises.name})) = lower(btrim(${name}))`);
@@ -31,6 +50,7 @@ export async function createExercise(userId: string, input: CreateExerciseInput)
     repRangeMin: input.repRangeMin,
     repRangeMax: input.repRangeMax,
     weightStepKg: String(input.weightStepKg),
+    ...loadFields(input.equipment, input.unilateral, input.limb, input.defaultBarKg),
   };
   try {
     const existing = await db.query.exercises.findFirst({ where: sameName(userId, input.name) });
@@ -64,10 +84,20 @@ export async function updateExercise(userId: string, exerciseId: string, input: 
     throw new ExerciseRepRangeError();
   }
 
+  const equipment = input.equipment ?? existing.equipment;
+  const unilateral = input.unilateral ?? existing.unilateral;
+  const load = loadFields(
+    equipment,
+    unilateral,
+    input.limb !== undefined ? input.limb : existing.limb,
+    input.defaultBarKg !== undefined ? input.defaultBarKg : existing.defaultBarKg,
+  );
+
   try {
     const [row] = await db
       .update(exercises)
       .set({
+        ...load,
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.equipment !== undefined ? { equipment: input.equipment } : {}),
         ...(input.category !== undefined ? { category: input.category } : {}),

@@ -20,7 +20,23 @@ type ExerciseFormValues = {
   repRangeMin: number;
   repRangeMax: number;
   weightStepKg: number;
+  // Limbs together, or one side after the other (unilateral) - each arm / leg.
+  limbs: 'together' | 'arm' | 'leg';
+  // Barbell only.
+  defaultBarKg: number;
 };
+
+const DEFAULT_BAR_OPTIONS = [20, 15, 10, 0];
+
+// The form's values as the API takes them.
+function toPayload({ limbs, defaultBarKg, ...rest }: ExerciseFormValues) {
+  return {
+    ...rest,
+    unilateral: limbs !== 'together',
+    limb: limbs === 'together' ? null : limbs,
+    defaultBarKg: rest.equipment === 'barbell' ? defaultBarKg : null,
+  };
+}
 
 const emptyForm: ExerciseFormValues = {
   name: '',
@@ -29,6 +45,8 @@ const emptyForm: ExerciseFormValues = {
   repRangeMin: 6,
   repRangeMax: 15,
   weightStepKg: 1.25,
+  limbs: 'together',
+  defaultBarKg: 20,
 };
 
 export default function ExercisesPage() {
@@ -68,7 +86,7 @@ export default function ExercisesPage() {
           initial={emptyForm}
           submitLabel={t('exercises.form.submit')}
           errorFallbackKey="exercises.form.errorGeneric"
-          onSubmit={(values) => createMutation.mutateAsync(values)}
+          onSubmit={(values) => createMutation.mutateAsync(toPayload(values))}
           onDone={() => setShowForm(false)}
         />
       )}
@@ -245,10 +263,12 @@ function EditExerciseForm({ exercise, onDone }: { exercise: Exercise; onDone: ()
         repRangeMin: exercise.repRangeMin,
         repRangeMax: exercise.repRangeMax,
         weightStepKg: Number(exercise.weightStepKg),
+        limbs: exercise.unilateral ? (exercise.limb ?? 'arm') : 'together',
+        defaultBarKg: exercise.defaultBarKg != null ? Number(exercise.defaultBarKg) : 20,
       }}
       submitLabel={t('common.save')}
       errorFallbackKey="exercises.form.errorGenericUpdate"
-      onSubmit={(values) => updateMutation.mutateAsync({ id: exercise.id, payload: values })}
+      onSubmit={(values) => updateMutation.mutateAsync({ id: exercise.id, payload: toPayload(values) })}
       onDone={onDone}
       onCancel={onDone}
       className="sm:col-span-2"
@@ -369,6 +389,41 @@ function ExerciseForm({
             onChange={(e) => setForm((f) => ({ ...f, weightStepKg: Number(e.target.value) }))}
           />
         </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="col-span-2">
+          <label className="label">{t('exercises.form.limbs')}</label>
+          <Select
+            value={form.limbs}
+            onChange={(v) => setForm((f) => ({ ...f, limbs: v as ExerciseFormValues['limbs'] }))}
+            options={[
+              { value: 'together', label: t('exercises.limbs.together') },
+              { value: 'arm', label: t('exercises.limbs.arm') },
+              { value: 'leg', label: t('exercises.limbs.leg') },
+            ]}
+          />
+        </div>
+        {form.equipment === 'barbell' && (
+          <div>
+            <label className="label">{t('exercises.form.defaultBar')}</label>
+            <Select
+              value={String(form.defaultBarKg)}
+              onChange={(v) => setForm((f) => ({ ...f, defaultBarKg: Number(v) }))}
+              options={(DEFAULT_BAR_OPTIONS.includes(form.defaultBarKg)
+                ? DEFAULT_BAR_OPTIONS
+                : [...DEFAULT_BAR_OPTIONS, form.defaultBarKg]
+              ).map((kg) => ({
+                value: String(kg),
+                label:
+                  kg === 0
+                    ? t('workout.barNone')
+                    : kg === 10
+                      ? t('workout.barEz', { kg })
+                      : t('workout.barKg', { kg }),
+              }))}
+            />
+          </div>
+        )}
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <div className="flex gap-2">

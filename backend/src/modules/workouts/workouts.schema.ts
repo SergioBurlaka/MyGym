@@ -31,6 +31,8 @@ const workoutExerciseInputSchema = z.object({
   exerciseId: z.string().uuid(),
   weightPerUnitKg: z.coerce.number().min(0).max(500).nullable().optional(),
   weightUnits: z.coerce.number().int().min(1).max(2).nullable().optional(),
+  // Barbell only; omitted -> the exercise's default bar.
+  barKg: z.coerce.number().min(0).max(50).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
   sets: z.array(setInputSchema).min(1, 'sets_required'),
 });

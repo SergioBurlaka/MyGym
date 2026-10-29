@@ -1,4 +1,4 @@
-import type { Equipment, MuscleCategory } from '../../../types/index.js';
+import type { Equipment, Limb, MuscleCategory } from '../../../types/index.js';
 
 export type CreateExerciseBody = {
   name: string;
@@ -7,6 +7,9 @@ export type CreateExerciseBody = {
   repRangeMin: number;
   repRangeMax: number;
   weightStepKg: number;
+  unilateral?: boolean;
+  limb?: Limb | null;
+  defaultBarKg?: number | null;
 };
 
 export type UpdateExerciseBody = Partial<CreateExerciseBody>;

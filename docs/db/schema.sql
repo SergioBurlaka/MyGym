@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict t67vlzge3ig7tWgmKyiQemx7M6yrGE3ubya1z8wSCcVRFL16noaqaYgznRYlYBw
+\restrict Xeyx9GIftyy93zRVXe7UrRvaRKS95KidRdTQGTQRDEMIoDOmkxoR5sWJPitywSw
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -33,6 +33,16 @@ CREATE TYPE public.equipment AS ENUM (
     'barbell',
     'dumbbell',
     'bodyweight'
+);
+
+
+--
+-- Name: limb; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.limb AS ENUM (
+    'arm',
+    'leg'
 );
 
 
@@ -117,6 +127,11 @@ CREATE TABLE public.exercises (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     try_more_counter_adjust smallint DEFAULT 0 NOT NULL,
     try_more_counter_anchor date,
+    unilateral boolean DEFAULT false NOT NULL,
+    limb public.limb,
+    default_bar_kg numeric(5,2),
+    CONSTRAINT exercises_default_bar_check CHECK (((default_bar_kg IS NULL) OR (((default_bar_kg >= (0)::numeric) AND (default_bar_kg <= (50)::numeric)) AND (equipment = 'barbell'::public.equipment)))),
+    CONSTRAINT exercises_limb_check CHECK (((limb IS NULL) OR unilateral)),
     CONSTRAINT exercises_rep_range_check CHECK (((rep_range_min >= 1) AND (rep_range_max <= 100) AND (rep_range_min <= rep_range_max))),
     CONSTRAINT exercises_weight_step_check CHECK (((weight_step_kg >= (0)::numeric) AND (weight_step_kg <= (50)::numeric)))
 );
@@ -301,6 +316,8 @@ CREATE TABLE public.workout_exercises (
     order_index smallint DEFAULT 0 NOT NULL,
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    bar_kg numeric(5,2),
+    CONSTRAINT workout_exercises_bar_check CHECK (((bar_kg >= (0)::numeric) AND (bar_kg <= (50)::numeric))),
     CONSTRAINT workout_exercises_weight_check CHECK (((weight_per_unit_kg >= (0)::numeric) AND (weight_per_unit_kg <= (500)::numeric))),
     CONSTRAINT workout_exercises_weight_units_check CHECK (((weight_units IS NULL) OR ((weight_units = ANY (ARRAY[1, 2])) AND (weight_per_unit_kg IS NOT NULL))))
 );
@@ -777,5 +794,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict t67vlzge3ig7tWgmKyiQemx7M6yrGE3ubya1z8wSCcVRFL16noaqaYgznRYlYBw
+\unrestrict Xeyx9GIftyy93zRVXe7UrRvaRKS95KidRdTQGTQRDEMIoDOmkxoR5sWJPitywSw
 

@@ -3,7 +3,8 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises, workouts, workoutExercises, sets } from '../../db/schema.js';
 import { buildColumnLayout } from './importColumns.js';
-import { DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
+import { DEFAULT_BAR_KG, DEFAULT_EXERCISES } from '../../db/defaultExercises.js';
+import { storedLoad } from '../workouts/workouts.service.js';
 
 type ParsedSet = { setNumber: number; reps: number };
 type ParsedExercise = {
@@ -161,6 +162,9 @@ export async function importWorkoutCsv(userId: string, fileContent: string): Pro
         repRangeMin: defaults?.repRangeMin ?? 6,
         repRangeMax: defaults?.repRangeMax ?? 15,
         weightStepKg: defaults?.weightStepKg ?? '1.25',
+        unilateral: defaults?.limb != null,
+        limb: defaults?.limb ?? null,
+        defaultBarKg: (defaults?.equipment ?? 'barbell') === 'barbell' ? DEFAULT_BAR_KG : null,
       })
       .returning();
     byName.set(key, created);
@@ -200,8 +204,8 @@ export async function importWorkoutCsv(userId: string, fileContent: string): Pro
           .values({
             workoutId: workout.id,
             exerciseId: exercise.id,
-            weightPerUnitKg: entry.weightPerUnitKg != null ? String(entry.weightPerUnitKg) : null,
-            weightUnits: entry.weightPerUnitKg != null ? entry.weightUnits ?? 2 : null,
+            // A barbell's bar is the exercise's default (the sheet has no bar column).
+            ...storedLoad(exercise, entry),
             orderIndex: orderIndex++,
           })
           .returning();
