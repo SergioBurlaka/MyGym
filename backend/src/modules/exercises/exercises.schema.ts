@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 export const equipmentValues = ['barbell', 'dumbbell', 'bodyweight'] as const;
 export const categoryValues = ['large', 'small', 'bodyweight'] as const;
+export const limbValues = ['arm', 'leg'] as const;
+
+// Bar weight: barbell only (exercises_default_bar_check); others ignore it.
+const barKgSchema = z.coerce.number().min(0).max(50);
 
 export const createExerciseSchema = z
   .object({
@@ -11,6 +15,10 @@ export const createExerciseSchema = z
     repRangeMin: z.coerce.number().int().min(1).max(100),
     repRangeMax: z.coerce.number().int().min(1).max(100),
     weightStepKg: z.coerce.number().min(0).max(50).default(0.5),
+    unilateral: z.boolean().default(false),
+    // Only kept for a unilateral exercise.
+    limb: z.enum(limbValues).nullable().optional(),
+    defaultBarKg: barKgSchema.nullable().optional(),
   })
   .refine((data) => data.repRangeMax >= data.repRangeMin, {
     message: 'rep_range_invalid',
@@ -25,6 +33,9 @@ export const updateExerciseSchema = z
     repRangeMin: z.coerce.number().int().min(1).max(100).optional(),
     repRangeMax: z.coerce.number().int().min(1).max(100).optional(),
     weightStepKg: z.coerce.number().min(0).max(50).optional(),
+    unilateral: z.boolean().optional(),
+    limb: z.enum(limbValues).nullable().optional(),
+    defaultBarKg: barKgSchema.nullable().optional(),
   })
   .refine(
     (data) =>

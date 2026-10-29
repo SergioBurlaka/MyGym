@@ -4,14 +4,21 @@ import { workouts, workoutExercises, sets, exercises, programs } from '../../db/
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
 import { attachProgressAt } from '../progression/progression.service.js';
 import { restoreScheduleStartIfNoSamples } from '../template/template.service.js';
+import { DEFAULT_BAR_KG } from '../../db/defaultExercises.js';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-type SourceExercise = { exerciseId: string; weightPerUnitKg: string | null; weightUnits: number | null; orderIndex: number };
+type SourceExercise = {
+  exerciseId: string;
+  weightPerUnitKg: string | null;
+  weightUnits: number | null;
+  barKg: string | null;
+  orderIndex: number;
+};
 
-type LatestEntry = { weightPerUnitKg: string | null; weightUnits: number | null; reps: number[] };
+type LatestEntry = { weightPerUnitKg: string | null; weightUnits: number | null; barKg: string | null; reps: number[] };
 
 // The most recent time each exercise was performed in ANY of the user's
 // past workouts (not just ones from the same program) - used to prefill a
@@ -31,6 +38,7 @@ async function findLatestWorkoutExercises(userId: string, exerciseIds: string[])
       exerciseId: workoutExercises.exerciseId,
       weightPerUnitKg: workoutExercises.weightPerUnitKg,
       weightUnits: workoutExercises.weightUnits,
+      barKg: workoutExercises.barKg,
     })
     .from(workoutExercises)
     .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
@@ -60,6 +68,7 @@ async function findLatestWorkoutExercises(userId: string, exerciseIds: string[])
     byExercise.set(we.exerciseId, {
       weightPerUnitKg: we.weightPerUnitKg,
       weightUnits: we.weightUnits,
+      barKg: we.barKg,
       reps: lastSets.filter((s) => s.workoutExerciseId === we.id).map((s) => s.reps),
     });
   }
@@ -119,6 +128,7 @@ export async function startWorkout(
           exerciseId: ex.exerciseId,
           weightPerUnitKg: ex.weightPerUnitKg,
           weightUnits: ex.weightUnits,
+          barKg: ex.barKg,
           orderIndex: ex.orderIndex,
         })),
       );
@@ -140,6 +150,7 @@ export async function startWorkout(
             exerciseId: pe.exerciseId,
             weightPerUnitKg: lastEntries.get(pe.exerciseId)?.weightPerUnitKg ?? null,
             weightUnits: lastEntries.get(pe.exerciseId)?.weightUnits ?? null,
+            barKg: lastEntries.get(pe.exerciseId)?.barKg ?? null,
             orderIndex: pe.orderIndex,
           })),
         )
@@ -392,6 +403,23 @@ export async function deleteWorkout(userId: string, workoutId: string) {
   return true;
 }
 
+// How a logged weight is stored for the exercise's equipment (see
+// progression/load.ts): nothing without weight; a barbell is always loaded
+// on 2 sides and keeps the bar it was done with (the exercise's default
+// when the client didn't send one); dumbbells per rep default to 2.
+export function storedLoad(
+  exercise: Pick<typeof exercises.$inferSelect, 'equipment' | 'defaultBarKg'>,
+  input: { weightPerUnitKg?: number | null; weightUnits?: number | null; barKg?: number | null },
+) {
+  if (input.weightPerUnitKg == null) return { weightPerUnitKg: null, weightUnits: null, barKg: null };
+  const weightPerUnitKg = String(input.weightPerUnitKg);
+  if (exercise.equipment === 'barbell') {
+    const barKg = input.barKg != null ? String(input.barKg) : (exercise.defaultBarKg ?? DEFAULT_BAR_KG);
+    return { weightPerUnitKg, weightUnits: 2, barKg };
+  }
+  return { weightPerUnitKg, weightUnits: input.weightUnits ?? 2, barKg: null };
+}
+
 // Replaces the full exercises/sets list for a workout in one transaction.
 // The frontend always sends the complete current state of the form, which
 // keeps the client<->server contract simple (no incremental PATCH diffing).
@@ -407,13 +435,14 @@ export async function saveWorkoutExercises(
     if (!workout) return null;
 
     // Make sure every referenced exercise actually belongs to this user.
+    let ownedById = new Map<string, typeof exercises.$inferSelect>();
     const exerciseIds = [...new Set(input.exercises.map((e) => e.exerciseId))];
     if (exerciseIds.length > 0) {
       const owned = await tx.query.exercises.findMany({
         where: and(eq(exercises.userId, userId)),
       });
-      const ownedIds = new Set(owned.map((e) => e.id));
-      const missing = exerciseIds.filter((id) => !ownedIds.has(id));
+      ownedById = new Map(owned.map((e) => [e.id, e]));
+      const missing = exerciseIds.filter((id) => !ownedById.has(id));
       if (missing.length > 0) {
         throw new Error(`Unknown exercise id(s): ${missing.join(', ')}`);
       }
@@ -428,8 +457,7 @@ export async function saveWorkoutExercises(
         .values({
           workoutId,
           exerciseId: ex.exerciseId,
-          weightPerUnitKg: ex.weightPerUnitKg != null ? String(ex.weightPerUnitKg) : null,
-          weightUnits: ex.weightPerUnitKg != null ? (ex.weightUnits ?? 2) : null,
+          ...storedLoad(ownedById.get(ex.exerciseId)!, ex),
           notes: ex.notes ?? null,
           orderIndex: i,
         })
