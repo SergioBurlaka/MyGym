@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Вибір дати тренування</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#151922}
+a{color:#ff8a55}a:hover{color:#ffb08c}
+button{font-family:inherit}
+.dp-cell:focus-visible,.dp-nav:focus-visible,.dp-title:focus-visible,.dp-chip:focus-visible,.dp-trigger:focus-visible{outline:2px solid #ff8a55;outline-offset:2px}
+.dp-nav:active,.dp-chip:active{background:#2a303c!important}
+@keyframes dpSlideUpIn{0%{opacity:0;transform:scaleY(.8)}100%{opacity:1;transform:scaleY(1)}}
+@keyframes dpSlideUpOut{0%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(.8)}}
+@keyframes dpZoomIn{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:scale(1)}}
+@keyframes dpZoomOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.8)}}
+@keyframes dpFadeIn{0%{opacity:0}100%{opacity:1}}
+@keyframes dpFadeOut{0%{opacity:1}100%{opacity:0}}
+@keyframes dpFromRightA{0%{opacity:0;transform:translateX(18px)}100%{opacity:1;transform:none}}
+@keyframes dpFromRightB{0%{opacity:0;transform:translateX(18px)}100%{opacity:1;transform:none}}
+@keyframes dpFromLeftA{0%{opacity:0;transform:translateX(-18px)}100%{opacity:1;transform:none}}
+@keyframes dpFromLeftB{0%{opacity:0;transform:translateX(-18px)}100%{opacity:1;transform:none}}
+@keyframes dpPanelA{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:none}}
+@keyframes dpPanelB{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:none}}
+@keyframes dpPop{0%{transform:scale(.6)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+.dp-pop{transform-origin:50% 0}
+.dp-in-slide{animation:dpSlideUpIn .2s cubic-bezier(.23,1,.32,1) both}
+.dp-out-slide{animation:dpSlideUpOut .16s cubic-bezier(.755,.05,.855,.06) both}
+.dp-in-zoom{animation:dpZoomIn .2s cubic-bezier(.08,.82,.17,1) both}
+.dp-out-zoom{animation:dpZoomOut .16s cubic-bezier(.78,.14,.15,.86) both}
+.dp-in-none,.dp-out-none{animation:none}
+.dp-bd-in{animation:dpFadeIn .2s ease-out both}
+.dp-bd-out{animation:dpFadeOut .16s ease-in both}
+.g-r-a{animation:dpFromRightA .22s cubic-bezier(.23,1,.32,1) both}
+.g-r-b{animation:dpFromRightB .22s cubic-bezier(.23,1,.32,1) both}
+.g-l-a{animation:dpFromLeftA .22s cubic-bezier(.23,1,.32,1) both}
+.g-l-b{animation:dpFromLeftB .22s cubic-bezier(.23,1,.32,1) both}
+.g-p-a{animation:dpPanelA .2s cubic-bezier(.08,.82,.17,1) both}
+.g-p-b{animation:dpPanelB .2s cubic-bezier(.08,.82,.17,1) both}
+.g-none{animation:none}
+.dp-sel{animation:dpPop .28s cubic-bezier(.34,1.56,.64,1) both}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; background: #151922; font-family: Inter, system-ui, sans-serif; color: #e9ecf2; display: flex; flex-direction: column">
+<header style="height: 64px; flex-shrink: 0; box-sizing: border-box; padding: 0 12px 0 16px; border-bottom: 1px solid #262c38; display: flex; align-items: center; gap: 10px">
+<img src="/_blob/b1a21daa1baf0690a4dcabda4092e29c" alt="MyGym" style="height: 36px; width: auto; flex-shrink: 0; display: block">
+<div style="flex-grow: 1; display: flex; justify-content: center">
+<span style="height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; border: 1px solid #2c3240; background: #1d222c; color: #fff; display: flex; align-items: center; gap: 8px; font: 700 17px Inter, sans-serif; font-variant-numeric: tabular-nums"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff6b2c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2M9.5 2.5h5"></path></svg>19:54</span>
+</div>
+<button aria-label="Меню" style="width: 44px; height: 44px; border: 0; background: transparent; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+</header>
+
+<section style="padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button class="dp-trigger" onClick="{{toggle}}" aria-haspopup="dialog" aria-expanded="{{isOpen}}" aria-label="{{triggerAria}}" style="height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; border: 1px solid {{triggerBorder}}; background: #1b2029; color: #e9ecf2; display: flex; align-items: center; gap: 8px; cursor: pointer; font: 600 16px Inter, sans-serif; position: relative; z-index: 31">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff8a55" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg>
+<span style="font-variant-numeric: tabular-nums">{{triggerLabel}}</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa2b1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transition: transform .2s cubic-bezier(.23,1,.32,1); transform: {{chevron}}"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<span style="flex-grow: 1"></span>
+<button aria-label="Ще дії з тренуванням" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #2a303c; background: #1b2029; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+</div>
+<input value="Full body" aria-label="Назва тренування" style="background: transparent; border: 0; border-bottom: 1px dashed #3a4150; color: #fff; font: 700 22px Inter, sans-serif; padding: 4px 0 6px; outline: none; width: 100%">
+<div style="display: flex; gap: 10px">
+<button style="flex: 1 1 0; height: 48px; border-radius: 12px; border: 1px solid #2a303c; background: #1b2029; color: #e9ecf2; font: 700 15px Inter, sans-serif">Завершити</button>
+<button style="flex: 1 1 0; height: 48px; border-radius: 12px; border: 0; background: #ff6b2c; color: #151922; font: 800 15px Inter, sans-serif">Зберегти</button>
+</div>
+</section>
+
+<main style="padding: 8px 16px; display: flex; flex-direction: column; gap: 12px">
+<article style="border-radius: 16px; background: #1b2029; border: 1px solid #262c38; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 19px; font-weight: 700">Тяга штанги в нахилі</h2>
+<div style="height: 44px; border-radius: 10px; background: #151922"></div>
+<div style="height: 44px; border-radius: 10px; background: #151922"></div>
+</article>
+<article style="border-radius: 16px; background: #1b2029; border: 1px solid #262c38; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 19px; font-weight: 700">Випади з гантелями</h2>
+<div style="height: 44px; border-radius: 10px; background: #151922"></div>
+</article>
+</main>
+
+<sc-if value="{{isOpen}}" hint-placeholder-val="{{ true }}">
+<button class="{{backdropClass}}" onClick="{{close}}" aria-label="Закрити календар" tabIndex="-1" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 20; border: 0; padding: 0; margin: 0; background: rgba(8,10,14,0.55); cursor: default"></button>
+
+<div role="dialog" aria-modal="true" aria-label="Вибір дати тренування" class="dp-pop {{popClass}}" style="position: absolute; left: 16px; right: 16px; top: 132px; z-index: 30; box-sizing: border-box; border-radius: 16px; background: #1d222c; border: 1px solid #333a48; box-shadow: 0 6px 16px rgba(0,0,0,0.32), 0 18px 44px rgba(0,0,0,0.5); padding: 8px 12px 12px; display: flex; flex-direction: column">
+
+<div style="display: flex; align-items: center; gap: 2px; height: 48px; border-bottom: 1px solid #2a303c; margin: 0 -4px 6px">
+<button class="dp-nav" onClick="{{prevBig}}" aria-label="{{prevBigAria}}" style="width: 40px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #9aa2b1; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6l-6 6 6 6M18 6l-6 6 6 6"></path></svg></button>
+<sc-if value="{{isDate}}" hint-placeholder-val="{{ true }}">
+<button class="dp-nav" onClick="{{prevMonth}}" aria-label="Попередній місяць" style="width: 40px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #9aa2b1; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+</sc-if>
+<div aria-live="polite" style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 2px">
+<sc-if value="{{isDate}}" hint-placeholder-val="{{ true }}">
+<button class="dp-title" onClick="{{toMonths}}" aria-label="Вибрати місяць" style="height: 36px; border: 0; border-radius: 8px; background: transparent; color: #fff; font: 700 16px Inter, sans-serif; padding: 0 6px; cursor: pointer">{{monthName}}</button>
+</sc-if>
+<button class="dp-title" onClick="{{toYears}}" aria-label="Вибрати рік" style="height: 36px; border: 0; border-radius: 8px; background: transparent; color: #fff; font: 700 16px Inter, sans-serif; padding: 0 6px; cursor: pointer; font-variant-numeric: tabular-nums">{{yearTitle}}</button>
+</div>
+<sc-if value="{{isDate}}" hint-placeholder-val="{{ true }}">
+<button class="dp-nav" onClick="{{nextMonth}}" disabled="{{nextMonthDisabled}}" aria-label="Наступний місяць" style="width: 40px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: {{nextMonthColor}}; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+</sc-if>
+<button class="dp-nav" onClick="{{nextBig}}" disabled="{{nextBigDisabled}}" aria-label="{{nextBigAria}}" style="width: 40px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: {{nextBigColor}}; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l6 6-6 6M12 6l6 6-6 6"></path></svg></button>
+</div>
+
+<div style="min-height: 312px">
+<sc-if value="{{isDate}}" hint-placeholder-val="{{ true }}">
+<div class="{{gridClass}}" style="display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); height: 32px; align-items: center">
+<sc-for list="{{weekdays}}" as="w" hint-placeholder-count="7">
+<abbr title="{{w.full}}" style="text-decoration: none; text-align: center; font-size: 12px; font-weight: 600; color: {{w.color}}">{{w.short}}</abbr>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr))">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="42">
+<button class="dp-cell" onClick="{{d.pick}}" disabled="{{d.disabled}}" aria-label="{{d.aria}}" aria-pressed="{{d.selected}}" aria-current="{{d.current}}" style="height: 46px; border: 0; background: transparent; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; cursor: {{d.cursor}}; border-radius: 12px">
+<span class="{{d.anim}}" style="position: relative; width: 38px; height: 38px; box-sizing: border-box; border-radius: 10px; border: 1px solid {{d.border}}; background: {{d.bg}}; color: {{d.fg}}; font-size: 15px; font-weight: {{d.fw}}; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; transition: background .2s, color .2s">{{d.n}}<sc-if value="{{d.dot}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; margin-left: -2px; border-radius: 2px; background: {{d.dotColor}}"></span></sc-if></span>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{isPanel}}" hint-placeholder-val="{{ false }}">
+<div class="{{gridClass}}" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; column-gap: 8px; padding: 18px 4px">
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="12">
+<button class="dp-cell" onClick="{{c.pick}}" disabled="{{c.disabled}}" aria-label="{{c.aria}}" aria-pressed="{{c.selected}}" style="height: 56px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: {{c.cursor}}; border-radius: 12px">
+<span style="min-width: 76px; height: 40px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 15px; font-weight: {{c.fw}}; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center">{{c.label}}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px; border-top: 1px solid #2a303c; margin: 6px -4px 0; padding: 10px 4px 0">
+<button class="dp-chip" onClick="{{pickToday}}" style="height: 36px; border: 1px solid #3a2a22; border-radius: 10px; background: rgba(255,107,44,0.12); color: #ff8a55; font: 700 14px Inter, sans-serif; padding: 0 12px; cursor: pointer">Сьогодні</button>
+<button class="dp-chip" onClick="{{pickYesterday}}" style="height: 36px; border: 1px solid #2a303c; border-radius: 10px; background: transparent; color: #e9ecf2; font: 600 14px Inter, sans-serif; padding: 0 12px; cursor: pointer">Вчора</button>
+<span style="flex-grow: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9aa2b1"><span style="width: 6px; height: 6px; border-radius: 3px; background: #ff8a55"></span>є тренування</span>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"animation":{"editor":"enum","options":["slide","zoom","none"],"default":"slide"},"startOpen":{"editor":"boolean","default":true},"showWorkoutDots":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+var MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+var MONTHS_GEN = ['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'];
+var MONTHS_SHORT = ['січ.','лют.','бер.','квіт.','трав.','черв.','лип.','серп.','вер.','жовт.','лист.','груд.'];
+var WD_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'];
+var WD_FULL = ['понеділок','вівторок','середа','четвер','пʼятниця','субота','неділя'];
+var WD_TINY = ['нд','пн','вт','ср','чт','пт','сб'];
+var TODAY = { y: 2026, m: 9, d: 29 };
+
+function key(y, m, d) { return y * 10000 + m * 100 + d; }
+function dim(y, m) { return new Date(y, m + 1, 0).getDate(); }
+function isWorkout(y, m, d) {
+  var k = key(y, m, d);
+  if (k > key(2026, 9, 28) || k < key(2026, 7, 1)) return false;
+  var wd = new Date(y, m, d).getDay();
+  return wd === 1 || wd === 3 || wd === 5;
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      open: props.startOpen !== false, closing: false,
+      view: 'date', y: 2026, m: 9,
+      sel: { y: 2026, m: 9, d: 28 },
+      dir: 0, tick: 0, popped: 0
+    };
+  }
+  nav(dy, dm, dir) {
+    var y = this.state.y, m = this.state.m + dm;
+    y += dy + Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+    this.setState({ y: y, m: m, dir: dir, tick: this.state.tick + 1 });
+  }
+  openIt() { this.setState({ open: true, closing: false, view: 'date', y: this.state.sel.y, m: this.state.sel.m, dir: 0 }); }
+  closeIt() {
+    var self = this;
+    if (!this.state.open || this.state.closing) return;
+    var noAnim = (this.props.animation || 'slide') === 'none';
+    this.setState({ closing: true });
+    clearTimeout(this._t);
+    this._t = setTimeout(function () { self.setState({ open: false, closing: false }); }, noAnim ? 0 : 160);
+  }
+  choose(y, m, d) {
+    var self = this;
+    this.setState({ sel: { y: y, m: m, d: d }, y: y, m: m, popped: this.state.popped + 1 });
+    clearTimeout(this._c);
+    this._c = setTimeout(function () { self.closeIt(); }, 180);
+  }
+  componentWillUnmount() { clearTimeout(this._t); clearTimeout(this._c); }
+  renderVals() {
+    var self = this, s = this.state;
+    var anim = this.props.animation || 'slide';
+    var dots = this.props.showWorkoutDots !== false;
+    var tKey = key(TODAY.y, TODAY.m, TODAY.d);
+    var sKey = key(s.sel.y, s.sel.m, s.sel.d);
+    var gridClass = anim === 'none' ? 'g-none'
+      : s.dir === 0 ? '' : (s.dir > 0 ? 'g-r-' : s.dir < 0 && s.dir > -2 ? 'g-l-' : 'g-p-') + (s.tick % 2 ? 'a' : 'b');
+    if (s.dir === 2) gridClass = anim === 'none' ? 'g-none' : 'g-p-' + (s.tick % 2 ? 'a' : 'b');
+
+    var days = [];
+    var first = (new Date(s.y, s.m, 1).getDay() + 6) % 7;
+    var start = new Date(s.y, s.m, 1 - first);
+    for (var i = 0; i < 42; i++) {
+      var dt = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var y = dt.getFullYear(), m = dt.getMonth(), d = dt.getDate();
+      var k = key(y, m, d), inMonth = m === s.m, future = false;
+      var selected = k === sKey, today = k === tKey;
+      var wd = (dt.getDay() + 6) % 7;
+      days.push({
+        n: d, disabled: future, selected: selected,
+        current: today ? 'date' : 'false',
+        cursor: future ? 'not-allowed' : 'pointer',
+        aria: d + ' ' + MONTHS_GEN[m] + ' ' + y + ', ' + WD_FULL[wd] + (today ? ', сьогодні' : '') + (dots && isWorkout(y, m, d) ? ', є тренування' : '') + (future ? ', недоступно' : ''),
+        bg: selected ? '#ff6b2c' : 'transparent',
+        fg: selected ? '#151922' : future ? '#4d5463' : inMonth ? (wd > 4 ? '#c9ced8' : '#e9ecf2') : '#828a99',
+        fw: selected || today ? 800 : inMonth ? 600 : 500,
+        border: today && !selected ? '#ff6b2c' : 'transparent',
+        dot: dots && isWorkout(y, m, d),
+        dotColor: selected ? '#151922' : '#ff8a55',
+        anim: selected && s.popped ? 'dp-sel' : '',
+        pick: future ? null : (function (yy, mm, dd) { return function () { self.choose(yy, mm, dd); }; })(y, m, d)
+      });
+    }
+
+    var cells = [];
+    var decade = Math.floor(s.y / 10) * 10;
+    if (s.view === 'month') {
+      for (var mi = 0; mi < 12; mi++) {
+        var fut = false;
+        var cur = s.y === TODAY.y && mi === TODAY.m;
+        var isSel = s.y === s.sel.y && mi === s.sel.m;
+        cells.push({
+          label: MONTHS_SHORT[mi], aria: MONTHS[mi] + ' ' + s.y, disabled: fut, selected: isSel,
+          cursor: fut ? 'not-allowed' : 'pointer',
+          bg: isSel ? '#ff6b2c' : 'transparent', fg: isSel ? '#151922' : fut ? '#4d5463' : '#e9ecf2',
+          fw: isSel ? 800 : 600, border: cur && !isSel ? '#ff6b2c' : 'transparent',
+          pick: fut ? null : (function (mm) { return function () { self.setState({ m: mm, view: 'date', dir: 2, tick: s.tick + 1 }); }; })(mi)
+        });
+      }
+    } else if (s.view === 'year') {
+      for (var yi = decade - 1; yi <= decade + 10; yi++) {
+        var futY = false, out = yi < decade || yi > decade + 9;
+        var selY = yi === s.sel.y;
+        cells.push({
+          label: String(yi), aria: yi + ' рік', disabled: futY, selected: selY,
+          cursor: futY ? 'not-allowed' : 'pointer',
+          bg: selY ? '#ff6b2c' : 'transparent', fg: selY ? '#151922' : futY ? '#4d5463' : out ? '#828a99' : '#e9ecf2',
+          fw: selY ? 800 : 600, border: yi === TODAY.y && !selY ? '#ff6b2c' : 'transparent',
+          pick: futY ? null : (function (yy) { return function () { self.setState({ y: yy, view: 'month', dir: 2, tick: s.tick + 1 }); }; })(yi)
+        });
+      }
+    }
+
+    var isDate = s.view === 'date';
+    var nextMonthDisabled = false;
+    var nextBigDisabled = false;
+    var selWd = new Date(s.sel.y, s.sel.m, s.sel.d).getDay();
+    var visible = s.open;
+
+    return {
+      isOpen: visible,
+      popClass: (s.closing ? 'dp-out-' : 'dp-in-') + anim,
+      backdropClass: anim === 'none' ? '' : s.closing ? 'dp-bd-out' : 'dp-bd-in',
+      toggle: function () { s.open && !s.closing ? self.closeIt() : self.openIt(); },
+      close: function () { self.closeIt(); },
+      triggerLabel: s.sel.d + ' ' + MONTHS_SHORT[s.sel.m] + ' ' + s.sel.y + ', ' + WD_TINY[selWd],
+      triggerAria: 'Дата тренування: ' + s.sel.d + ' ' + MONTHS_GEN[s.sel.m] + ' ' + s.sel.y + '. Змінити',
+      triggerBorder: visible && !s.closing ? '#ff6b2c' : '#2a303c',
+      chevron: visible && !s.closing ? 'rotate(180deg)' : 'none',
+      isDate: isDate, isPanel: !isDate,
+      monthName: MONTHS[s.m],
+      yearTitle: s.view === 'year' ? decade + '–' + (decade + 9) : String(s.y),
+      toMonths: function () { self.setState({ view: 'month', dir: 2, tick: s.tick + 1 }); },
+      toYears: function () { self.setState({ view: s.view === 'year' ? 'month' : 'year', dir: 2, tick: s.tick + 1 }); },
+      prevMonth: function () { self.nav(0, -1, -1); },
+      nextMonth: function () { self.nav(0, 1, 1); },
+      prevBig: function () { self.nav(s.view === 'year' ? -10 : -1, 0, -1); },
+      nextBig: function () { self.nav(s.view === 'year' ? 10 : 1, 0, 1); },
+      prevBigAria: s.view === 'year' ? 'Попереднє десятиліття' : 'Попередній рік',
+      nextBigAria: s.view === 'year' ? 'Наступне десятиліття' : 'Наступний рік',
+      nextMonthDisabled: nextMonthDisabled, nextMonthColor: nextMonthDisabled ? '#4d5463' : '#9aa2b1',
+      nextBigDisabled: nextBigDisabled, nextBigColor: nextBigDisabled ? '#4d5463' : '#9aa2b1',
+      weekdays: WD_SHORT.map(function (w, i) { return { short: w, full: WD_FULL[i], color: i > 4 ? '#828a99' : '#9aa2b1' }; }),
+      days: days, cells: cells, gridClass: gridClass,
+      pickToday: function () { self.choose(TODAY.y, TODAY.m, TODAY.d); },
+      pickYesterday: function () { self.choose(TODAY.y, TODAY.m, TODAY.d - 1); }
+    };
+  }
+}
+</script>
+</body>
+</html>

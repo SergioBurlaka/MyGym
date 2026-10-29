@@ -8,17 +8,17 @@ import {
   useFinishWorkoutMutation,
   useSaveWorkoutExercisesMutation,
   useUpdateWorkoutMutation,
+  useWorkoutDatesQuery,
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
 import { useCreateProgramMutation, useProgramsQuery } from '../shared/api/programs/index.js';
 import { formatDuration, parseKg } from '../utils/weight.js';
 import { translateApiError } from '../utils/apiError.js';
 import ConfirmDialog from '../components/ConfirmDialog.js';
+import DatePicker from '../components/DatePicker.js';
 import Select from '../components/Select.js';
 import WorkoutExerciseCard, { type EditableExercise, type EditableSet } from '../components/WorkoutExerciseCard.js';
 import type { WorkoutExercise } from '../types/index.js';
-
-const todayIso = new Date().toISOString().slice(0, 10);
 
 // A failed autosave is retried after these pauses, then every 30 s until it
 // goes through - the network in a gym can be gone for minutes. Also on
@@ -108,6 +108,11 @@ export default function WorkoutFormPage() {
   const [saveFailed, setSaveFailed] = useState(false);
   const [labelDraft, setLabelDraft] = useState('');
   const [dateDraft, setDateDraft] = useState('');
+  // The date picker's dots: workout days in the 6 weeks it shows (it reports
+  // the range), plus this workout's own day - /dates lists only workouts
+  // with something logged, and this one may have nothing yet.
+  const [datesRange, setDatesRange] = useState<{ from: string; to: string } | null>(null);
+  const datesQuery = useWorkoutDatesQuery(datesRange?.from ?? '', datesRange?.to ?? '', datesRange !== null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saveAsProgramOpen, setSaveAsProgramOpen] = useState(false);
@@ -164,6 +169,12 @@ export default function WorkoutFormPage() {
     setDateDraft(workout.date);
   }, [workoutQuery.data, programsQuery.isPending, targetSetsById]);
 
+  const markedDates = useMemo(() => {
+    const days = new Set((datesRange ? (datesQuery.data ?? []) : []).map((d) => d.date));
+    if (workoutQuery.data) days.add(workoutQuery.data.date);
+    return days;
+  }, [datesRange, datesQuery.data, workoutQuery.data]);
+
   const savedById = useMemo(
     () => new Map((workoutQuery.data?.workoutExercises ?? []).map((we) => [we.exerciseId, we])),
     [workoutQuery.data],
@@ -207,8 +218,11 @@ export default function WorkoutFormPage() {
 
   function commitDate(value: string) {
     setDateDraft(value);
-    if (!value || value === workoutQuery.data?.date) return;
-    updateMutation.mutate({ date: value });
+    const saved = workoutQuery.data?.date;
+    if (!value || value === saved) return;
+    // A failed save puts the saved date back - the picker applies a day in
+    // one tap, so it mustn't keep showing one the server never got.
+    updateMutation.mutate({ date: value }, { onError: () => saved && setDateDraft(saved) });
   }
 
   const dirty = useMemo(
@@ -429,20 +443,14 @@ export default function WorkoutFormPage() {
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <label className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-surface-border bg-surface-raised pl-3 pr-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-accent-hover" aria-hidden="true">
-                <rect x="4" y="5" width="16" height="15" rx="2" />
-                <path d="M4 10h16M9 3v4M15 3v4" />
-              </svg>
-              <input
-                type="date"
-                aria-label={t('workout.dateLabel')}
-                className="w-36 bg-transparent text-base font-semibold text-slate-100 [color-scheme:dark] focus:outline-none"
-                value={dateDraft}
-                max={todayIso}
-                onChange={(e) => commitDate(e.target.value)}
-              />
-            </label>
+            {/* Any date, past or future (task date-picker.md) - no `max`. */}
+            <DatePicker
+              value={dateDraft || workout.date}
+              onChange={commitDate}
+              ariaLabel={t('workout.dateLabel')}
+              markedDates={markedDates}
+              onVisibleRangeChange={(from, to) => setDatesRange({ from, to })}
+            />
             <span className="flex-1" />
             <div className="relative" ref={actionsRef}>
               <button

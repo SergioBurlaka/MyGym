@@ -2,10 +2,21 @@ import { z } from 'zod';
 
 const programLabelSchema = z.string().trim().min(1).max(20).nullable();
 
+// A real calendar day - "2020-13-45" matches the pattern but reached
+// Postgres and came back as a 500.
+const dateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_date_format')
+  .refine((value) => {
+    const [y, m, d] = value.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+  }, 'invalid_date');
+
 export const startWorkoutSchema = z.object({
   // Defaults to today (server time) when omitted - lets the CSV importer
   // and "log a past workout" flow set an explicit date.
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_date_format').optional(),
+  date: dateSchema.optional(),
   // Free-text template label ("А"/"Б"/...) to tag this workout with, chosen
   // when starting "from" a previous workout with the same label.
   programLabel: programLabelSchema.optional(),
@@ -19,7 +30,7 @@ export const startWorkoutSchema = z.object({
 
 export const updateWorkoutSchema = z.object({
   programLabel: programLabelSchema.optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_date_format').optional(),
+  date: dateSchema.optional(),
 });
 
 const setInputSchema = z.object({

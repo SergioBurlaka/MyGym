@@ -671,5 +671,23 @@
     "tryHint": "No sign-up: a real training journal to look around. Changes are reset daily.",
     "banner": "This is a demo account with real training data — anyone can change it, and it resets daily.",
     "createAccount": "Create your own account"
+  },
+  "datePicker": {
+    "triggerAria": "{{label}}: {{date}}. Change",
+    "dialog": "Pick the workout date",
+    "prevYear": "Previous year",
+    "nextYear": "Next year",
+    "prevDecade": "Previous decade",
+    "nextDecade": "Next decade",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "chooseMonth": "Choose month",
+    "chooseYear": "Choose year",
+    "yearAria": "Year {{year}}",
+    "todaySuffix": ", today",
+    "workoutSuffix": ", has a workout",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "hasWorkout": "has a workout"
   }
 }

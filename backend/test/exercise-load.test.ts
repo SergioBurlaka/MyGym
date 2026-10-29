@@ -294,3 +294,18 @@ describe('an exercise not done yet', () => {
     expect(res.json()).toEqual([{ date: day(-1), programLabel: null, exerciseNames: ['Тяга в нахилі'] }]);
   });
 });
+
+describe('workout dates', () => {
+  it('refuses a day that does not exist with 400, not a Postgres 500', async () => {
+    const { auth } = await registerUser(app);
+    const id = await startWorkout(auth, day(-1));
+    for (const date of ['2020-13-45', '2026-02-30']) {
+      const res = await app.inject({ method: 'PATCH', url: `/api/workouts/${id}`, headers: auth, payload: { date } });
+      expect(res.statusCode).toBe(400);
+    }
+    const created = await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: { date: '2026-02-30' } });
+    expect(created.statusCode).toBe(400);
+    const future = await app.inject({ method: 'PATCH', url: `/api/workouts/${id}`, headers: auth, payload: { date: '2028-02-29' } });
+    expect(future.statusCode).toBe(200);
+  });
+});
