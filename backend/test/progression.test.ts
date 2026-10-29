@@ -7,6 +7,7 @@ import {
   localDate,
   longestBreak,
   progressTimeline,
+  sessionGuide,
   suggestProgression,
   type HistoryPoint,
   type HistoryRow,
@@ -371,5 +372,43 @@ describe('suggestProgression', () => {
   it('a maxed-out set beats the stall reminder', () => {
     const history = buildHistoryPoints([...session('2026-09-01', 20, [15]), ...session('2026-10-18', 20, [15])]);
     expect(suggest(history).suggestion).toBe('increase_weight');
+  });
+});
+
+describe('sessionGuide', () => {
+  const stalled = [
+    ...session('2026-10-01', 10, [12, 12, 11]),
+    ...session('2026-10-03', 10, [12, 12, 11]),
+    ...session('2026-10-05', 10, [12, 12, 11]),
+  ];
+  function guide(rows: HistoryRow[], workoutDate: string, tryMoreAfterWorkouts = 2, counterShift?: { adjust: number; anchor: string | null }) {
+    const history = buildHistoryPoints(rows);
+    return sessionGuide(history, progressTimeline(history, 15), workoutDate, { tryMoreAfterWorkouts, counterShift });
+  }
+
+  it('is empty for an exercise never done before that date', () => {
+    expect(guide(stalled, '2026-10-01')).toEqual({ previous: null, target: null });
+  });
+
+  it('gives last time before the workout, not the workout itself', () => {
+    const { previous } = guide(stalled, '2026-10-05');
+    expect(previous).toMatchObject({ date: '2026-10-03', reps: [12, 12, 11], weightPerUnitKg: 10, loadPerRepKg: 20 });
+  });
+
+  it('targets +1 in the weakest set once the counter reached try more', () => {
+    // After 10-05 the counter stands at 2 (two sessions without progress).
+    expect(guide(stalled, '2026-10-07').target).toEqual({ reps: [12, 12, 12], upSetIndex: 2 });
+    // After 10-03 it was 1 - not yet.
+    expect(guide(stalled, '2026-10-05').target).toBeNull();
+  });
+
+  it('counts the slider shift while it is anchored to that progress', () => {
+    expect(guide(stalled, '2026-10-05', 2, { adjust: 1, anchor: '2026-10-01' }).target).not.toBeNull();
+    expect(guide(stalled, '2026-10-05', 2, { adjust: 1, anchor: '2026-09-01' }).target).toBeNull();
+  });
+
+  it('no +1 target at the top of the rep range - that calls for weight', () => {
+    const top = [...session('2026-10-01', 10, [15]), ...session('2026-10-03', 10, [15]), ...session('2026-10-05', 10, [15])];
+    expect(guide(top, '2026-10-07').target).toBeNull();
   });
 });

@@ -386,7 +386,7 @@ export async function getWorkout(userId: string, workoutId: string) {
     },
   });
   if (!workout) return undefined;
-  const [withProgress] = await attachProgressAt(userId, [workout]);
+  const [withProgress] = await attachProgressAt(userId, [workout], { guide: true });
   return withProgress;
 }
 
@@ -500,7 +500,7 @@ export async function withProgressAt<W extends Parameters<typeof attachProgressA
   onError: (err: unknown) => void,
 ) {
   try {
-    const [withProgress] = await attachProgressAt(userId, [workout]);
+    const [withProgress] = await attachProgressAt(userId, [workout], { guide: true });
     return withProgress;
   } catch (err) {
     onError(err);

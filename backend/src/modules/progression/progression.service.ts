@@ -1,7 +1,17 @@
 import { and, eq, gte, inArray, isNull, asc } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { exercises, workoutExercises, workouts, sets, programs, programExercises, users } from '../../db/schema.js';
-import { addedLoad, loadPerRep, sidesOf, totalReps as sumReps, volumeKg as sessionVolumeKg, type LoadSettings } from './load.js';
+import {
+  addedLoad,
+  loadPerRep,
+  sidesOf,
+  targetReps,
+  totalReps as sumReps,
+  volumeKg as sessionVolumeKg,
+  type LoadSettings,
+} from './load.js';
+
+export type SessionTarget = { reps: number[]; upSetIndex: number };
 
 // Default try_more threshold - sessions of the exercise without progress -
 // when neither its program entry nor the program sets one. Lower for big
@@ -60,6 +70,9 @@ export type HistoryPoint = {
   // Weight moved in ONE rep (load.ts: with the bar for a barbell). Null when
   // no weight was logged.
   totalWeightKg: number | null;
+  // As logged that day (numbers; see load.ts for what they mean).
+  weightPerUnitKg: number | null;
+  weightUnits: number | null;
   // The bar that day (barbell only) and the load without it - plates /
   // dumbbells / added weight, what the user steps up.
   barKg: number | null;
@@ -230,6 +243,8 @@ export type TimelinePoint = {
   // ExerciseProgression but frozen at that date.
   sessionsSinceProgress: number;
   daysSinceProgress: number;
+  // The session the counter counts from (last progress, a reset, or the first).
+  progressDate: string;
 };
 
 // Where the progress counter stood after each session of a chronological
@@ -249,7 +264,53 @@ export function progressTimeline(
     atTopOfRange: cur.maxReps >= repRangeMax,
     sessionsSinceProgress: steps[i].sessionsSinceProgress,
     daysSinceProgress: dayDiff(history[steps[i].baselineIndex].date, cur.date),
+    progressDate: history[steps[i].baselineIndex].date,
   }));
+}
+
+export type PreviousSession = {
+  date: string;
+  weightPerUnitKg: number | null;
+  weightUnits: number | null;
+  barKg: number | null;
+  loadPerRepKg: number | null;
+  // In set order, per side for a unilateral exercise.
+  reps: number[];
+};
+
+// The workout page's guide for one exercise of the workout dated
+// `workoutDate`: the last session before it (placeholders, "last time"),
+// and - when the counter stood at "try more" after that session - the
+// target: last time's reps with +1 in the weakest set. Not at the top of the
+// rep range: there the advice is more weight, not another rep. The slider
+// shift counts while that session still counts from the shift's anchor.
+export function sessionGuide(
+  history: HistoryPoint[],
+  timeline: TimelinePoint[],
+  workoutDate: string,
+  opts: { tryMoreAfterWorkouts: number; counterShift?: CounterShift },
+): { previous: PreviousSession | null; target: SessionTarget | null } {
+  let i = history.length - 1;
+  while (i >= 0 && history[i].date >= workoutDate) i--;
+  if (i < 0) return { previous: null, target: null };
+  const prev = history[i];
+  const point = timeline[i];
+  const sessions = applyCounterShift(
+    { date: point.progressDate, sessionsSince: point.sessionsSinceProgress },
+    opts.counterShift,
+  );
+  const stalled = !point.atTopOfRange && sessions >= opts.tryMoreAfterWorkouts;
+  return {
+    previous: {
+      date: prev.date,
+      weightPerUnitKg: prev.weightPerUnitKg,
+      weightUnits: prev.weightUnits,
+      barKg: prev.barKg,
+      loadPerRepKg: prev.totalWeightKg,
+      reps: prev.reps,
+    },
+    target: stalled ? targetReps(prev.reps) : null,
+  };
 }
 
 // All dates the user trained on (sorted, unique) - breaks are measured
@@ -425,6 +486,8 @@ export function buildHistoryPoints(rows: HistoryRow[], exercise: LoadSettings = 
     return {
       date,
       totalWeightKg,
+      weightPerUnitKg: entry.weightPerUnitKg != null ? Number(entry.weightPerUnitKg) : null,
+      weightUnits: entry.weightPerUnitKg != null ? entry.weightUnits : null,
       barKg,
       addedLoadKg,
       reps: entry.reps,
@@ -451,6 +514,10 @@ type JournalWorkout = {
   programId: string | null;
   workoutExercises: {
     exerciseId: string;
+    weightPerUnitKg: string | null;
+    weightUnits: number | null;
+    barKg: string | null;
+    sets?: { reps: number }[];
     exercise: {
       category: ExerciseProgression['category'];
       equipment: LoadSettings['equipment'];
@@ -467,7 +534,13 @@ type JournalWorkout = {
 // all exercises on the page. The manual counter shift (try-more slider) only
 // applies to an exercise's latest session, so the newest card agrees with
 // the Programs page while older cards show plain history.
-export async function attachProgressAt<W extends JournalWorkout>(userId: string, rows: W[]) {
+// With `guide` (the workout page), each exercise also gets `previous` and
+// `target` (see sessionGuide) and its own load per rep and volume.
+export async function attachProgressAt<W extends JournalWorkout>(
+  userId: string,
+  rows: W[],
+  opts: { guide?: boolean } = {},
+) {
   const exerciseIds = [...new Set(rows.flatMap((w) => w.workoutExercises.map((we) => we.exerciseId)))];
   const programIds = [...new Set(rows.map((w) => w.programId).filter((id): id is string => id != null))];
   if (exerciseIds.length === 0) {
@@ -496,12 +569,14 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
   const programThresholds = new Map<string, number | null>();
   for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.exerciseValue ?? r.programValue);
 
-  const timelines = new Map<string, Map<string, TimelinePoint>>();
-  function timelineOf(we: JournalWorkout['workoutExercises'][number]) {
-    let byDate = timelines.get(we.exerciseId);
-    if (!byDate) {
+  type Timeline = { history: HistoryPoint[]; raw: TimelinePoint[]; byDate: Map<string, TimelinePoint> };
+  const timelines = new Map<string, Timeline>();
+  function timelineOf(we: JournalWorkout['workoutExercises'][number]): Timeline {
+    let timeline = timelines.get(we.exerciseId);
+    if (!timeline) {
       const history = buildHistoryPoints(rowsByExercise.get(we.exerciseId) ?? [], we.exercise);
-      const points = progressTimeline(history, we.exercise.repRangeMax, workoutDates);
+      const raw = progressTimeline(history, we.exercise.repRangeMax, workoutDates);
+      const points = raw.map((p) => ({ ...p }));
       // With today, as the overview does: after a long break the slider's
       // anchor is the break, not this session, so the shift stays off here.
       const lastProgress = findLastProgress(history, workoutDates, today);
@@ -520,27 +595,38 @@ export async function attachProgressAt<W extends JournalWorkout>(userId: string,
         }
         last.sessionsSinceProgress = shifted;
       }
-      byDate = new Map(points.map((p) => [p.date, p]));
-      timelines.set(we.exerciseId, byDate);
+      timeline = { history, raw, byDate: new Map(points.map((p) => [p.date, p])) };
+      timelines.set(we.exerciseId, timeline);
     }
-    return byDate;
+    return timeline;
   }
 
   return rows.map((w) => ({
     ...w,
     workoutExercises: w.workoutExercises.map((we) => {
-      const point = timelineOf(we).get(w.date);
+      const timeline = timelineOf(we);
+      const point = timeline.byDate.get(w.date);
       const fromProgram = w.programId != null ? programThresholds.get(`${w.programId}:${we.exerciseId}`) : null;
-      const progressAt: WorkoutProgressAt | null = point
-        ? {
-            ...point,
-            tryMoreAfterWorkouts: effectiveTryMoreAfterWorkouts(
-              fromProgram ?? smallestThresholds.get(we.exerciseId),
-              we.exercise.category,
-            ),
-          }
-        : null;
-      return { ...we, progressAt };
+      const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(
+        fromProgram ?? smallestThresholds.get(we.exerciseId),
+        we.exercise.category,
+      );
+      const progressAt: WorkoutProgressAt | null = point ? { ...point, tryMoreAfterWorkouts } : null;
+      if (!opts.guide) return { ...we, progressAt };
+
+      const loadPerRepKg = loadPerRep(we.exercise.equipment, we);
+      const reps = (we.sets ?? []).map((s) => s.reps);
+      const guide = sessionGuide(timeline.history, timeline.raw, w.date, {
+        tryMoreAfterWorkouts,
+        counterShift: { adjust: we.exercise.tryMoreCounterAdjust, anchor: we.exercise.tryMoreCounterAnchor },
+      });
+      return {
+        ...we,
+        progressAt,
+        ...guide,
+        loadPerRepKg,
+        volumeKg: sessionVolumeKg(loadPerRepKg, reps, we.exercise.unilateral),
+      };
     }),
   }));
 }
