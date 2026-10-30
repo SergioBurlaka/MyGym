@@ -20,7 +20,7 @@ export function registerProgramTools(server: McpServer, api: ApiClient) {
     {
       title: 'Create program',
       description:
-        'Creates a reusable training program. Exercises are done in the order given. Weights are not stored in a program - when a workout is started from it, each exercise gets its last used weight and reps.',
+        "Creates a reusable training program. Exercises are done in the order given. Weights are not stored in a program - when a workout is started from it, each exercise gets its last used weight and reps. The \"try more\" nudge threshold is per exercise; without one the category default applies (4 for large, 6 for small, 5 for bodyweight exercises).",
       inputSchema: {
         name: z.string().min(1).max(50),
         exercises: z
@@ -35,18 +35,16 @@ export function registerProgramTools(server: McpServer, api: ApiClient) {
                 .max(60)
                 .nullable()
                 .optional()
-                .describe("Per-exercise override of the program's tryMoreAfterWorkouts"),
+                .describe(
+                  'Nudge to try more after this many workouts of the exercise without progress. Omit to keep the category default (4 / 6 / 5)',
+                ),
+              lockSets: z
+                .boolean()
+                .optional()
+                .describe('Fixed number of sets: a workout from this program shows exactly targetSets sets, no adding or removing. Default false'),
             }),
           )
           .min(1),
-        tryMoreAfterWorkouts: z.coerce
-          .number()
-          .int()
-          .min(1)
-          .max(60)
-          .nullable()
-          .optional()
-          .describe('Nudge to try more after this many sessions without progress (default: 4 for large, 6 for small, 5 for bodyweight exercises)'),
       },
     },
     async (input) => apiResult(() => api.post('/programs', input)),
