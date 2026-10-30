@@ -6,6 +6,7 @@ import { journalTryMoreStatus, type TryMoreStatus } from '../utils/tryMoreCountd
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
 import TryMoreStatusBadge from './TryMoreStatusBadge.js';
+import EquipmentIcon from './EquipmentIcon.js';
 import Popconfirm from './Popconfirm.js';
 import ConfirmDialog from './ConfirmDialog.js';
 import Select from './Select.js';
@@ -287,11 +288,7 @@ export default function WorkoutExerciseCard({
       </div>
 
       <div className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
-        <svg width="22" height="14" viewBox="0 0 30 14" aria-hidden="true" className="shrink-0">
-          <rect x="0" y="6" width="30" height="2" rx="1" className="fill-slate-400" opacity="0.6" />
-          <rect x="4" y="1" width="4" height="12" rx="1" className="fill-accent" />
-          <rect x="22" y="1" width="4" height="12" rx="1" className="fill-accent" />
-        </svg>
+        <EquipmentIcon equipment={exercise.equipment} units={block.weightUnits} filled size={18} className="text-accent" />
         <span className="font-semibold text-slate-100">{equipLabel}</span>
         <span className="text-hint" aria-hidden="true">·</span>
         <span className={`font-semibold ${limb ? 'text-warn' : 'text-slate-300'}`}>{limbsLabel}</span>
