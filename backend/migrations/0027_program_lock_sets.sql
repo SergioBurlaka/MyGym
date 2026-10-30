@@ -1,0 +1,1 @@
+ALTER TABLE "program_exercises" ADD COLUMN "lock_sets" boolean DEFAULT false NOT NULL;

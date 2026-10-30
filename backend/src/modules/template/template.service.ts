@@ -169,6 +169,7 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
           exerciseId: exerciseMap.get(pe.exerciseId)!,
           targetSets: pe.targetSets,
           tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts,
+          lockSets: pe.lockSets,
           orderIndex: pe.orderIndex,
         })),
       );

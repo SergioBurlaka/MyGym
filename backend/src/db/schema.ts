@@ -297,6 +297,10 @@ export const programExercises = pgTable('program_exercises', {
   // falls back to the program's value, then to the category default
   // (DEFAULT_TRY_MORE_AFTER_WORKOUTS in progression.service.ts).
   tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
+  // A workout started from this program has exactly targetSets set cells for
+  // the exercise: no "+" cell, no long-press removal - a lock on the card says
+  // so (user's decision 2026-10-30). False = sets can be added and removed.
+  lockSets: boolean('lock_sets').notNull().default(false),
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({
   programIdx: index('program_exercises_program_idx').on(table.programId),
