@@ -7,6 +7,7 @@ import { exercises, refreshTokens, trainingScheduleHistory, users, workouts } fr
 import { env } from '../src/config/env.js';
 import { DEMO_EMAIL, DEMO_RESET_AFTER_MS } from '../src/modules/template/demo.service.js';
 import { SAMPLE_WORKOUT_COUNT } from '../src/modules/template/template.service.js';
+import { localDate } from '../src/modules/progression/progression.service.js';
 
 let app: FastifyInstance;
 
@@ -22,7 +23,9 @@ afterEach(async () => {
 
 const TEMPLATE_EMAIL = 'template-owner@example.com';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString().slice(0, 10);
+// In the users' default time zone, as the server's "today" (getUserToday) -
+// a UTC date is a day behind in Kyiv's late evening and broke the tests.
+const daysAgo = (n: number) => localDate(new Date(Date.now() - n * DAY_MS), 'Europe/Kyiv');
 const weekday = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 
 type Auth = Record<string, string>;
