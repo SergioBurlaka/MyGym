@@ -69,13 +69,14 @@ erDiagram
         uuid user_id FK
         text name
         smallint order_index "черга ротації"
-        smallint try_more_after_workouts "nullable"
     }
     program_exercises {
         uuid id PK
         uuid program_id FK
         uuid exercise_id FK "unique (program_id, exercise_id)"
         smallint target_sets
+        smallint try_more_after_workouts "nullable"
+        boolean lock_sets
         smallint order_index
     }
     workouts {
@@ -194,9 +195,12 @@ dimension (type 2)**: замість перезапису історії дод�
 Програма — іменований шаблон («Програма А»), який створюють заздалегідь.
 
 - `programs.order_index` задає чергу ротації A→Б→A…
-- `programs.try_more_after_workouts` (nullable) — «N тренувань цієї вправи без
-  прогресу» до нагадування `try_more` для всіх вправ програми. `null` залишає
-  стандарт за категорією вправи (4 / 6 / 5 — `DEFAULT_TRY_MORE_AFTER_WORKOUTS`).
+- `program_exercises.try_more_after_workouts` (nullable) — «N тренувань цієї
+  вправи без прогресу» до нагадування `try_more`. `null` залишає стандарт за
+  категорією вправи (4 / 6 / 5 — `DEFAULT_TRY_MORE_AFTER_WORKOUTS`); вправа в
+  кількох програмах — найменший. Порогу на всю програму нема (до міграції 0028
+  був `programs.try_more_after_workouts`; видалено без переносу у вправи —
+  рішення користувача 2026-10-31).
 - `program_exercises` зберігає лише **яку** вправу, **скільки** підходів
   (`target_sets`) і **в якому порядку**. Ваги тут свідомо немає: при старті
   тренування вона береться з останнього фактичного виконання вправи, а не зі
@@ -290,7 +294,7 @@ dimension (type 2)**: замість перезапису історії дод�
 | `exercises_weight_step_check` | 0…50 кг |
 | `exercises_default_bar_check` | `default_bar_kg` 0…50 кг і **лише для штанги** (міграція 0026) |
 | `exercises_limb_check` | `limb` лише з `unilateral` (міграція 0026) |
-| `programs_try_more_check`, `program_exercises_try_more_check` | 1…60 (або `null`) |
+| `program_exercises_try_more_check` | 1…60 (або `null`) |
 | `program_exercises_program_exercise_idx` UNIQUE | одна вправа — один раз у програмі |
 | `program_exercises_target_sets_check` | 1…20 |
 | `workout_exercises_weight_check` | 0…500 кг |

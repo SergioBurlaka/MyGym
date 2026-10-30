@@ -3,7 +3,9 @@ import { z } from 'zod';
 const programExerciseInputSchema = z.object({
   exerciseId: z.string().uuid(),
   targetSets: z.coerce.number().int().min(1).max(20),
-  // Per-exercise override of the program-level tryMoreAfterWorkouts below.
+  // Workouts without progress before "try_more" for this exercise; null keeps
+  // the category default. There is no program-wide value any more - an old
+  // client's top-level tryMoreAfterWorkouts is stripped like any unknown key.
   tryMoreAfterWorkouts: z.coerce.number().int().min(1).max(60).nullable().optional(),
   // A workout from this program can't add or remove sets of this exercise.
   // Omitted = false.
@@ -20,9 +22,6 @@ export const saveProgramSchema = z.object({
     .min(1, 'exercises_required')
     // program_exercises_program_exercise_idx would refuse it with a raw SQL error.
     .refine((list) => new Set(list.map((e) => e.exerciseId)).size === list.length, 'duplicate_exercise'),
-  // Overrides the category-default "try_more" threshold for this program's
-  // exercises (sessions without progress). Null/omitted keeps the default.
-  tryMoreAfterWorkouts: z.coerce.number().int().min(1).max(60).nullable().optional(),
 });
 
 export type SaveProgramInput = z.infer<typeof saveProgramSchema>;

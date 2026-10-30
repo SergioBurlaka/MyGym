@@ -56,9 +56,9 @@ export type ExerciseProgression = {
   // one that showed progress - unlike daysSinceProgress, skipped/missed
   // schedule days simply don't add to this count (see tryMoreAfterWorkouts).
   sessionsSinceProgress: number | null;
-  // Sessions without progress before `try_more`: from the owning Program
-  // (the exercise's own value there, else the program's; the smallest
-  // across programs), else DEFAULT_TRY_MORE_AFTER_WORKOUTS for the category.
+  // Sessions without progress before `try_more`: the exercise's own value in
+  // its programs (the smallest across programs), else
+  // DEFAULT_TRY_MORE_AFTER_WORKOUTS for the category.
   tryMoreAfterWorkouts: number;
   // True when tryMoreAfterWorkouts is the category default, not a program's.
   tryMoreIsDefault: boolean;
@@ -357,16 +357,14 @@ export function localDate(now: Date, timezone: string | null | undefined): strin
   }
 }
 
-// Smallest effective tryMoreAfterWorkouts across all of the user's programs
-// that include a given exercise - the exercise's own value in that program
-// (programExercises.tryMoreAfterWorkouts), else the program's. Exercises in
-// no program, or with neither value set, are absent (category default applies).
+// Smallest own tryMoreAfterWorkouts of an exercise across all of the user's
+// programs that include it (programExercises.tryMoreAfterWorkouts). Exercises
+// in no program, or without an own value, are absent (category default applies).
 async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<string, number>> {
   const rows = await db
     .select({
       exerciseId: programExercises.exerciseId,
-      exerciseValue: programExercises.tryMoreAfterWorkouts,
-      programValue: programs.tryMoreAfterWorkouts,
+      value: programExercises.tryMoreAfterWorkouts,
     })
     .from(programExercises)
     .innerJoin(programs, eq(programExercises.programId, programs.id))
@@ -374,7 +372,7 @@ async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<st
 
   const byExercise = new Map<string, number>();
   for (const row of rows) {
-    const value = row.exerciseValue ?? row.programValue;
+    const value = row.value;
     if (value == null || value < 1) continue;
     const current = byExercise.get(row.exerciseId);
     if (current == null || value < current) {
@@ -567,8 +565,7 @@ export async function attachProgressAt<W extends JournalWorkout>(
           .select({
             programId: programExercises.programId,
             exerciseId: programExercises.exerciseId,
-            exerciseValue: programExercises.tryMoreAfterWorkouts,
-            programValue: programs.tryMoreAfterWorkouts,
+            value: programExercises.tryMoreAfterWorkouts,
           })
           .from(programExercises)
           .innerJoin(programs, eq(programExercises.programId, programs.id))
@@ -580,7 +577,7 @@ export async function attachProgressAt<W extends JournalWorkout>(
   ]);
 
   const programThresholds = new Map<string, number | null>();
-  for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.exerciseValue ?? r.programValue);
+  for (const r of peRows) programThresholds.set(`${r.programId}:${r.exerciseId}`, r.value);
 
   type Timeline = { history: HistoryPoint[]; raw: TimelinePoint[]; byDate: Map<string, TimelinePoint> };
   const timelines = new Map<string, Timeline>();
