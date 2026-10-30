@@ -55,7 +55,7 @@ async function setUpTemplate(latestDaysAgo = 20) {
       method: 'POST',
       url: '/api/programs',
       headers: owner.auth,
-      payload: { name, exercises: ids.map((exerciseId) => ({ exerciseId, targetSets: 3 })), tryMoreAfterWorkouts: 5 },
+      payload: { name, exercises: ids.map((exerciseId) => ({ exerciseId, targetSets: 3, tryMoreAfterWorkouts: 5 })) },
     });
     expect(res.statusCode).toBe(201);
     programIds.push(res.json().id);
@@ -137,9 +137,9 @@ describe('starter data for a new account', () => {
     const { auth, user } = await registerUser(app);
 
     const progs = await app.inject({ method: 'GET', url: '/api/programs', headers: auth });
-    const programs = progs.json() as { id: string; name: string; tryMoreAfterWorkouts: number | null; programExercises: { exerciseId: string }[] }[];
+    const programs = progs.json() as { id: string; name: string; programExercises: { exerciseId: string; tryMoreAfterWorkouts: number | null }[] }[];
     expect(programs.map((p) => p.name).sort()).toEqual(['A', 'B']);
-    expect(programs.every((p) => p.tryMoreAfterWorkouts === 5)).toBe(true);
+    expect(programs.flatMap((p) => p.programExercises).every((pe) => pe.tryMoreAfterWorkouts === 5)).toBe(true);
 
     // The custom exercise was created for the new user; default ones matched by name.
     const own = await exerciseList(auth);
