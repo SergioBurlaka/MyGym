@@ -7,6 +7,7 @@ import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
 import TryMoreStatusBadge from './TryMoreStatusBadge.js';
 import EquipmentIcon from './EquipmentIcon.js';
+import LockIcon from './LockIcon.js';
 import Popconfirm from './Popconfirm.js';
 import ConfirmDialog from './ConfirmDialog.js';
 import Select from './Select.js';
@@ -34,7 +35,8 @@ const BAR_OPTIONS = ['20', '15', '10', '0'] as const;
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_SLOP_PX = 10;
 
-function useLongPress(onLongPress: () => void) {
+// null = no long press (the program fixes the set count).
+function useLongPress(onLongPress: (() => void) | null) {
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const start = useRef<{ x: number; y: number } | null>(null);
   function cancel() {
@@ -42,6 +44,7 @@ function useLongPress(onLongPress: () => void) {
     start.current = null;
   }
   useEffect(() => () => clearTimeout(timer.current), []);
+  if (!onLongPress) return {};
   return {
     onPointerDown(e: React.PointerEvent) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -93,7 +96,7 @@ function SetCell({
   describedBy: string;
   onChange: (reps: string) => void;
   onCommit: () => void;
-  onRemove: () => void;
+  onRemove: (() => void) | null;
 }) {
   const press = useLongPress(onRemove);
   return (
@@ -140,6 +143,7 @@ export default function WorkoutExerciseCard({
   saved,
   onChange,
   onCommit,
+  setsLocked = false,
   onAddSet,
   onRemoveSet,
   onRemove,
@@ -150,6 +154,8 @@ export default function WorkoutExerciseCard({
   progression: ExerciseProgression | undefined;
   // This exercise as last saved: the counter after this workout, last time and the +1 target.
   saved: WorkoutExercise | undefined;
+  // The program fixes the set count: no "+" cell, no long-press removal.
+  setsLocked?: boolean;
   onChange: (patch: Partial<EditableExercise>) => void;
   // A field lost focus or a select changed - autosave.
   onCommit: () => void;
@@ -158,6 +164,21 @@ export default function WorkoutExerciseCard({
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
+  // The lock's "why" tip: hover or focus on a desktop, a tap on a phone
+  // (hides by itself after a few seconds, or when the finger leaves).
+  const [lockTip, setLockTip] = useState(false);
+  const lockTipId = useId();
+  const lockTipTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(lockTipTimer.current), []);
+  function showLockTip() {
+    clearTimeout(lockTipTimer.current);
+    setLockTip(true);
+    lockTipTimer.current = setTimeout(() => setLockTip(false), 4000);
+  }
+  function hideLockTip() {
+    clearTimeout(lockTipTimer.current);
+    setLockTip(false);
+  }
   const kg = useKg();
   const hintId = useId();
   const [removingSet, setRemovingSet] = useState<number | null>(null);
@@ -348,11 +369,49 @@ export default function WorkoutExerciseCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-sm text-slate-400">
-          {t(limb ? `workout.card.setsLabel.${limb}` : 'workout.card.setsLabel.together')}
-        </span>
+        <div className="relative flex min-h-6 items-center gap-2">
+          <span className="flex-1 text-sm text-slate-400">
+            {t(limb ? `workout.card.setsLabel.${limb}` : 'workout.card.setsLabel.together')}
+          </span>
+          {setsLocked && (
+            <>
+              <button
+                type="button"
+                className={`-my-2.5 -mr-3 flex h-11 w-11 shrink-0 cursor-help items-center justify-center rounded-lg transition-colors ${
+                  lockTip ? 'text-slate-100' : 'text-hint hover:text-slate-100'
+                }`}
+                aria-label={t('workout.card.setsLockedAria')}
+                aria-describedby={lockTip ? lockTipId : undefined}
+                aria-expanded={lockTip}
+                onClick={showLockTip}
+                onMouseEnter={showLockTip}
+                onMouseLeave={hideLockTip}
+                onFocus={showLockTip}
+                onBlur={hideLockTip}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') hideLockTip();
+                }}
+              >
+                <LockIcon />
+              </button>
+              {lockTip && (
+                <div
+                  id={lockTipId}
+                  role="tooltip"
+                  className="absolute bottom-8 right-[-6px] z-10 w-64 animate-pop-in rounded-lg border border-slate-600 bg-surface-border px-3 py-2.5 text-[13px] leading-snug text-slate-100 shadow-xl"
+                >
+                  {t('workout.card.setsLockedTip')}
+                  <span
+                    className="absolute -bottom-[6px] right-[18px] h-2.5 w-2.5 rotate-45 border-b border-r border-slate-600 bg-surface-border"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
         <span id={hintId} className="sr-only">
-          {t('workout.card.removeSetHint')}
+          {t(setsLocked ? 'workout.card.setsLockedAria' : 'workout.card.removeSetHint')}
         </span>
         <div className="grid grid-cols-4 gap-2">
           {block.sets.map((s, i) => {
@@ -372,20 +431,22 @@ export default function WorkoutExerciseCard({
                 describedBy={hintId}
                 onChange={(reps) => onChange({ sets: block.sets.map((x) => (x.key === s.key ? { ...x, reps } : x)) })}
                 onCommit={onCommit}
-                onRemove={() => setRemovingSet(i)}
+                onRemove={setsLocked ? null : () => setRemovingSet(i)}
               />
             );
           })}
-          <button
-            type="button"
-            className="flex h-14 items-center justify-center rounded-lg border border-dashed border-accent-muted text-accent hover:bg-accent/10"
-            aria-label={t('workout.card.addSetAria')}
-            onClick={onAddSet}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
+          {!setsLocked && (
+            <button
+              type="button"
+              className="flex h-14 items-center justify-center rounded-lg border border-dashed border-accent-muted text-accent hover:bg-accent/10"
+              aria-label={t('workout.card.addSetAria')}
+              onClick={onAddSet}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          )}
         </div>
         {lastLine && <span className="text-xs text-hint">{lastLine}</span>}
         <div className="flex justify-between gap-2 border-t border-surface-border pt-3 text-sm">
