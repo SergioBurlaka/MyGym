@@ -20,12 +20,11 @@ export type TryMoreStatus =
   | { kind: 'countdown'; done: number; total: number; left: number };
 
 // How far an exercise is from the "try_more" nudge under ONE program's
-// threshold (the exercise's own value there, else the program's). Computed
-// here rather than taken from p.suggestion: the backend judges an exercise
-// by the smallest threshold across all programs that include it, while a
-// program card should count down to its own. When this program sets no
-// count, the card uses the backend's (another program's, else the category
-// default), or it could say "due" while nothing nudges.
+// threshold (the exercise's own value there, else the category default).
+// Computed here rather than taken from p.suggestion: the backend judges an
+// exercise by the smallest threshold across all programs that include it,
+// while a program card should count down to its own. Without a threshold
+// (null) it uses the backend's.
 export function tryMoreStatus(p: ExerciseProgression | undefined, threshold: number | null): TryMoreStatus {
   // Not in the overview at all (e.g. an archived exercise) - nothing to say.
   if (!p) return { kind: 'unknown' };

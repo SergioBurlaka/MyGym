@@ -123,7 +123,7 @@ export type ProgramExercise = {
   id: string;
   exerciseId: string;
   targetSets: number;
-  // Overrides Program.tryMoreAfterWorkouts for this exercise; null inherits it.
+  // Workouts without progress before "try_more"; null = category default.
   tryMoreAfterWorkouts: number | null;
   // A workout from this program can't add or remove sets of this exercise.
   lockSets: boolean;
@@ -136,9 +136,6 @@ export type Program = {
   userId: string;
   name: string;
   orderIndex: number;
-  // Workouts without progress before "try_more" for this program's
-  // exercises; null keeps the category default.
-  tryMoreAfterWorkouts: number | null;
   createdAt: string;
   programExercises: ProgramExercise[];
 };
