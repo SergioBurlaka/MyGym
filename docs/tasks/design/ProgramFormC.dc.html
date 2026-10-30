@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Редагування програми — компактні картки</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#151922}
+a{color:#ff8a55}a:hover{color:#ffb08c}
+input,button,select{font-family:inherit}
+input.fld:focus{border-color:#ff6b2c;outline:none}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #ff8a55;outline-offset:2px}
+input[type=range]{accent-color:#ff6b2c;width:100%;margin:0;height:28px}
+.scroll::-webkit-scrollbar{width:0}
+.scroll > *{flex-shrink:0}
+@keyframes expand{0%{opacity:0;transform:translateY(-4px)}100%{opacity:1;transform:none}}
+.expand{animation:expand .2s cubic-bezier(.23,1,.32,1) both}
+@keyframes sheetUp{0%{transform:translateY(100%)}100%{transform:none}}
+.sheet-up{animation:sheetUp .28s cubic-bezier(.23,1,.32,1) both}
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+.fade-in{animation:fadeIn .2s ease-out both}
+@keyframes pop{0%{opacity:0;transform:scale(.95)}100%{opacity:1;transform:none}}
+.pop{animation:pop .14s ease-out both;transform-origin:top right}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;transition:none!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; background: #151922; font-family: Inter, system-ui, sans-serif; color: #e9ecf2; display: flex; flex-direction: column">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; padding: 0 8px; border-bottom: 1px solid #262c38; display: flex; align-items: center; gap: 4px">
+<button onClick="{{cancel}}" aria-label="Назад до програм" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+<h1 style="margin: 0; font-size: 17px; font-weight: 700; flex-grow: 1">Редагування програми</h1>
+<span style="font-size: 12px; color: #9aa2b1; padding-right: 8px">{{exCount}}</span>
+</header>
+<div class="scroll" style="flex: 1 1 auto; overflow-y: auto; padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; color: #9aa2b1">Назва програми</span><input class="fld" value="{{name}}" onChange="{{setName}}" maxLength="50" style="height: 52px; box-sizing: border-box; border-radius: 12px; border: 1px solid #2a303c; background: #1b2029; color: #fff; font-size: 20px; font-weight: 700; padding: 0 14px"></label>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: -6px"><h2 style="margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9aa2b1">Вправи</h2></div><sc-for list="{{ex}}" as="e" hint-placeholder-count="6">
+<article style="border-radius: 14px; background: #1b2029; border: 1px solid #262c38; padding: 12px 12px 14px 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="position: relative; display: flex; align-items: center; gap: 8px">
+<span style="flex-grow: 1; font-size: 16px; font-weight: 600">{{e.name}}</span>
+<button onClick="{{e.toggleMenu}}" aria-haspopup="menu" aria-expanded="{{e.menuOpen}}" aria-label="Дії з вправою" style="width: 44px; height: 44px; margin: -8px -6px -8px 0; border: 0; border-radius: 10px; background: {{e.menuBg}}; color: #9aa2b1; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor"></circle><circle cx="19" cy="12" r="1.6" fill="currentColor"></circle></svg></button>
+<sc-if value="{{e.menuOpen}}" hint-placeholder-val="{{ false }}">
+<div role="menu" class="pop" style="position: absolute; right: -4px; top: 40px; z-index: 5; width: 200px; border-radius: 12px; background: #232935; border: 1px solid #333a48; box-shadow: 0 14px 32px rgba(0,0,0,0.5); padding: 4px; display: flex; flex-direction: column">
+<button role="menuitem" onClick="{{e.up}}" disabled="{{e.first}}" style="min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: {{e.upFg}}; text-align: left; padding: 0 10px; display: flex; align-items: center; gap: 10px; font: 500 15px Inter, sans-serif; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg>Підняти вище</button>
+<button role="menuitem" onClick="{{e.down}}" disabled="{{e.last}}" style="min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: {{e.downFg}}; text-align: left; padding: 0 10px; display: flex; align-items: center; gap: 10px; font: 500 15px Inter, sans-serif; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"></path></svg>Опустити нижче</button>
+<div style="height: 1px; background: #333a48; margin: 4px 6px"></div>
+<button role="menuitem" onClick="{{e.remove}}" style="min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: #f87171; text-align: left; padding: 0 10px; display: flex; align-items: center; gap: 10px; font: 600 15px Inter, sans-serif; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>Прибрати з програми</button>
+</div>
+</sc-if>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; padding-right: 12px">
+<span style="flex-grow: 1; font-size: 14px; color: #9aa2b1">Підходів</span>
+<button onClick="{{e.toggleLock}}" aria-pressed="{{e.lock}}" aria-label="{{e.lockAria}}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 10px; border: 1px solid {{e.lockBorder}}; background: {{e.lockBg}}; color: {{e.lockFg}}; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; transition: background .2s, color .2s"><sc-if value="{{e.lock}}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></sc-if><sc-if value="{{e.unlock}}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.6-1.8"></path></svg></sc-if></button>
+<div role="group" aria-label="Кількість підходів" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0"><button onClick="{{e.decSets}}" aria-label="Менше" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: #262c38; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button><span aria-live="polite" style="min-width: 40px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums">{{e.sets}}</span><button onClick="{{e.incSets}}" aria-label="Більше" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: #262c38; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></div>
+
+</div>
+<span style="margin-top: -6px; font-size: 12px; color: {{e.lockSubFg}}">{{e.lockSub}}</span>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; background: #151922">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px"><span style="font-size: 13px; color: #9aa2b1">До «Спробуй більше»</span><span style="font-size: 12px; color: #828a99">{{e.thrSub}}</span></span>
+<div role="group" aria-label="«Спробуй більше» після, тренувань" style="display: flex; align-items: center; gap: 4px; flex-shrink: 0"><button onClick="{{e.decThr}}" aria-label="Менше" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: #262c38; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button><span aria-live="polite" style="min-width: 40px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums">{{e.thrEff}}</span><button onClick="{{e.incThr}}" aria-label="Більше" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: #262c38; color: #e9ecf2; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></div>
+</div>
+<div role="group" aria-label="Вже без прогресу: тапніть сегмент" style="display: flex; gap: 4px">
+<sc-for list="{{e.segs}}" as="g" hint-placeholder-count="4"><button onClick="{{g.pick}}" aria-label="{{g.aria}}" style="flex: 1 1 0; height: 24px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; cursor: pointer"><span style="width: 100%; height: 6px; border-radius: 3px; background: {{g.c}}; transition: background .15s"></span></button></sc-for>
+</div>
+<span style="font-size: 12px; color: #9aa2b1"><b style="color: #e9ecf2">{{e.done}}</b> з {{e.thrEff}} тренувань без прогресу · тап на сегмент — змінити</span>
+<sc-if value="{{e.custom}}" hint-placeholder-val="{{ false }}"><button onClick="{{e.resetThr}}" style="align-self: flex-start; min-height: 36px; margin-top: -4px; border: 0; background: transparent; color: #ff8a55; padding: 0; font: 600 13px Inter, sans-serif; cursor: pointer">Скинути до стандарту ({{e.def}})</button></sc-if>
+</div>
+</article>
+</sc-for><div style="display: flex; flex-direction: column; gap: 8px">
+<button onClick="{{toggleAdd}}" aria-expanded="{{addOpen}}" style="height: 52px; border-radius: 12px; border: 1px dashed #4a3a33; background: transparent; color: #ff8a55; font: 700 15px Inter, sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Додати вправу</button>
+<sc-if value="{{addOpen}}" hint-placeholder-val="{{ false }}">
+<div class="expand" role="listbox" aria-label="Вправи, яких ще нема в програмі" style="border-radius: 12px; background: #1b2029; border: 1px solid #262c38; padding: 4px; display: flex; flex-direction: column">
+<sc-for list="{{available}}" as="a" hint-placeholder-count="3">
+<button role="option" onClick="{{a.add}}" style="min-height: 48px; border: 0; border-radius: 8px; background: transparent; color: #e9ecf2; text-align: left; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 500 15px Inter, sans-serif; cursor: pointer"><span>{{a.name}}</span><span style="font-size: 12px; color: #828a99">{{a.cat}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+</div><section style="border-radius: 14px; background: #1b2029; border: 1px solid #262c38; padding: 4px 14px">
+<button onClick="{{toggleHelp}}" aria-expanded="{{helpOpen}}" style="width: 100%; min-height: 48px; border: 0; background: transparent; color: #e9ecf2; padding: 0; display: flex; align-items: center; gap: 10px; text-align: left; font: 600 15px Inter, sans-serif; cursor: pointer"><span style="display: flex; color: #9aa2b1"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></span><span style="flex-grow: 1">Як рахується «Спробуй більше»</span><span style="display: flex; color: #828a99; transform: {{helpChevron}}; transition: transform .2s"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></button>
+<sc-if value="{{helpOpen}}" hint-placeholder-val="{{ false }}">
+<div class="expand" style="display: flex; flex-direction: column; gap: 10px; padding: 2px 0 14px; font-size: 13px; line-height: 1.5; color: #b4bbc8">
+<p style="margin: 0">Рахуються тренування цієї вправи без прогресу. Прогрес — більший обсяг (вага × повторення всіх підходів) або більша вага.</p>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+<div style="border-radius: 10px; background: #151922; padding: 8px; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 20px; color: #fff">4</b><span style="font-size: 12px; color: #9aa2b1">велика група</span></div>
+<div style="border-radius: 10px; background: #151922; padding: 8px; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 20px; color: #fff">6</b><span style="font-size: 12px; color: #9aa2b1">мала група</span></div>
+<div style="border-radius: 10px; background: #151922; padding: 8px; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 20px; color: #fff">5</b><span style="font-size: 12px; color: #9aa2b1">вага тіла</span></div>
+</div>
+<p style="margin: 0">Стандарт — з дослідження: повторення коливаються ±1 на підхід, тож 3 тренування без росту — лише підозра на застій, 4-те підтверджує. Малим вправам крок ваги відносно більший — потрібно ~в 1,5 раза більше спроб.</p>
+<p style="margin: 0">Після перерви 10–13 днів перше тренування не рахується, після 14+ — відлік з нуля.</p>
+</div>
+</sc-if>
+</section></div>
+<footer style="flex-shrink: 0; padding: 12px 16px 20px; border-top: 1px solid #262c38; background: #151922; display: flex; gap: 10px">
+<button onClick="{{cancel}}" style="height: 52px; padding: 0 18px; border-radius: 12px; border: 1px solid #2a303c; background: transparent; color: #e9ecf2; font: 700 15px Inter, sans-serif; cursor: pointer">Скасувати</button>
+<button onClick="{{save}}" style="flex: 1 1 auto; height: 52px; border-radius: 12px; border: 0; background: #ff6b2c; color: #151922; font: 800 16px Inter, sans-serif; cursor: pointer">{{saveLabel}}</button>
+</footer>
+<sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+<div role="status" class="fade-in" style="position: absolute; left: 16px; right: 16px; bottom: 96px; z-index: 30; border-radius: 12px; background: #e9ecf2; color: #151922; padding: 12px 14px; font-size: 14px; font-weight: 700; box-shadow: 0 10px 28px rgba(0,0,0,0.45)">{{toast}}</div>
+</sc-if></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+var VARIANT = 'C';
+var ALL = [
+  { id: 'sq', name: 'Присідання', cat: 'Велика група · 6–15 повт.', def: 4, sets: 4, lock: true, thr: null, done: 1 },
+  { id: 'lu', name: 'Випади', cat: 'Велика група · 6–15 повт.', def: 4, sets: 3, lock: false, thr: null, done: 1 },
+  { id: 'bp', name: 'Жим штанги лежачи', cat: 'Велика група · 6–15 повт.', def: 4, sets: 4, lock: true, thr: null, done: 2 },
+  { id: 'row', name: 'Тяга в нахилі', cat: 'Велика група · 6–15 повт.', def: 4, sets: 3, lock: false, thr: null, done: 0 },
+  { id: 'bi', name: 'Піднімання на біцепс', cat: 'Мала група · 6–20 повт.', def: 6, sets: 3, lock: false, thr: null, done: 1 },
+  { id: 'fly', name: 'Розведення в нахилі в сторону', cat: 'Мала група · 6–20 повт.', def: 6, sets: 3, lock: false, thr: 8, done: 2 }
+];
+var EXTRA = [
+  { id: 'dl', name: 'Станова тяга', cat: 'Велика група · 6–15 повт.', def: 4, sets: 3, lock: false, thr: null, done: 0 },
+  { id: 'ohp', name: 'Жим стоячи', cat: 'Мала група · 6–20 повт.', def: 6, sets: 3, lock: false, thr: null, done: 0 },
+  { id: 'pu', name: 'Віджимання', cat: 'Вага тіла · 6–30 повт.', def: 5, sets: 3, lock: false, thr: null, done: 0 }
+];
+function setsWord(n) {
+  var a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return 'підхід';
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'підходи';
+  return 'підходів';
+}
+function exWord(n) {
+  var a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return 'вправа';
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'вправи';
+  return 'вправ';
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      name: 'Б', ex: ALL.map(function (e) { return Object.assign({}, e); }),
+      openId: VARIANT === 'A' ? 'sq' : null, sheetId: null, menuId: null,
+      addOpen: false, helpOpen: false, toast: null, saved: false
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  patch(id, fn) {
+    this.setState({ ex: this.state.ex.map(function (e) { return e.id === id ? Object.assign({}, e, fn(e)) : e; }), saved: false });
+  }
+  move(id, d) {
+    var ex = this.state.ex.slice(), i = ex.findIndex(function (e) { return e.id === id; }), j = i + d;
+    if (j < 0 || j >= ex.length) return;
+    var t = ex[i]; ex[i] = ex[j]; ex[j] = t;
+    this.setState({ ex: ex, menuId: null });
+  }
+  remove(id) {
+    var e = this.state.ex.filter(function (x) { return x.id === id; })[0];
+    this.setState({ ex: this.state.ex.filter(function (x) { return x.id !== id; }), sheetId: null, menuId: null, openId: null });
+    this.flash('«' + e.name + '» прибрано з програми');
+  }
+  flash(msg) {
+    var self = this;
+    clearTimeout(this._t);
+    this.setState({ toast: msg });
+    this._t = setTimeout(function () { self.setState({ toast: null }); }, 2200);
+  }
+  thrEff(e) { return e.thr != null ? e.thr : e.def; }
+  view(e, i, n) {
+    var self = this, s = this.state, T = this.thrEff(e);
+    var group = e.cat.split(' · ')[0].toLowerCase();
+    var custom = e.thr != null && e.thr !== e.def;
+    var thrSub = custom ? 'власне значення · стандарт для групи — ' + e.def : 'стандарт: ' + group + ' — ' + e.def;
+    var segs = [];
+    for (var k = 0; k < T; k++) {
+      (function (k) {
+        segs.push({ c: k < e.done ? '#ff5a36' : '#3a4150', aria: 'Вже пройшло ' + (k + 1) + ' з ' + T,
+          pick: function () { self.patch(e.id, function (x) { return { done: x.done === k + 1 ? k : k + 1 }; }); } });
+      })(k);
+    }
+    return {
+      id: e.id, n: i + 1, name: e.name, cat: e.cat, sets: e.sets, setsWord: setsWord(e.sets),
+      lock: e.lock, unlock: !e.lock, lockId: 'lk-' + e.id,
+      lockSub: e.lock ? 'На тренуванні рівно ' + e.sets + ' — без «+» і видалення' : 'На тренуванні можна додати чи видалити підхід',
+      lockSubFg: e.lock ? '#b4bbc8' : '#828a99',
+      lockAria: 'Фіксована кількість підходів: ' + (e.lock ? 'увімкнено' : 'вимкнено'),
+      lockBg: e.lock ? '#2a303c' : 'transparent', lockFg: e.lock ? '#e9ecf2' : '#ff8a55', lockBorder: e.lock ? '#3a4150' : '#4a3a33',
+      tileBg: e.lock ? '#2a303c' : 'rgba(255,107,44,0.14)', tileFg: e.lock ? '#e9ecf2' : '#ff8a55',
+      swBg: e.lock ? '#ff6b2c' : '#3a4150', swKnob: e.lock ? 'translateX(20px)' : 'none',
+      thrEff: T, thrSub: thrSub, def: e.def, custom: custom,
+      thrTag: custom ? '(власне)' : '(стандарт)', thrTagFg: custom ? '#ff8a55' : '#828a99',
+      resetThr: function () { self.patch(e.id, function (x) { return { thr: null, done: Math.min(x.done, x.def) }; }); }, done: Math.min(e.done, T), segs: segs,
+      first: i === 0, last: i === n - 1, upFg: i === 0 ? '#4d5463' : '#e9ecf2', downFg: i === n - 1 ? '#4d5463' : '#e9ecf2',
+      open: s.openId === e.id, chevron: s.openId === e.id ? 'rotate(180deg)' : 'none',
+      border: s.openId === e.id ? '#3a4150' : '#262c38',
+      divider: i === n - 1 ? '0' : '1px solid #262c38',
+      menuOpen: s.menuId === e.id, menuBg: s.menuId === e.id ? '#262c38' : 'transparent',
+      toggleOpen: function () { self.setState({ openId: s.openId === e.id ? null : e.id }); },
+      openSheet: function () { self.setState({ sheetId: e.id }); },
+      toggleMenu: function () { self.setState({ menuId: s.menuId === e.id ? null : e.id }); },
+      incSets: function () { self.patch(e.id, function (x) { return { sets: clamp(x.sets + 1, 1, 20) }; }); },
+      decSets: function () { self.patch(e.id, function (x) { return { sets: clamp(x.sets - 1, 1, 20) }; }); },
+      toggleLock: function () { self.patch(e.id, function (x) { return { lock: !x.lock }; }); },
+      incThr: function () { self.patch(e.id, function (x) { return { thr: clamp(self.thrEff(x) + 1, 1, 60) }; }); },
+      decThr: function () { self.patch(e.id, function (x) { var t = clamp(self.thrEff(x) - 1, 1, 60); return { thr: t, done: Math.min(x.done, t) }; }); },
+      setDone: function (ev) { var v = parseInt(ev.target.value, 10) || 0; self.patch(e.id, function () { return { done: v }; }); },
+      up: function () { self.move(e.id, -1); },
+      down: function () { self.move(e.id, 1); },
+      remove: function () { self.remove(e.id); }
+    };
+  }
+  renderVals() {
+    var self = this, s = this.state, n = s.ex.length;
+    var ex = s.ex.map(function (e, i) { return self.view(e, i, n); });
+    var have = {};
+    s.ex.forEach(function (e) { have[e.id] = 1; });
+    var available = ALL.concat(EXTRA).filter(function (e) { return !have[e.id]; }).map(function (e) {
+      return { name: e.name, cat: e.cat.split(' · ')[0], add: function () {
+        self.setState({ ex: s.ex.concat([Object.assign({}, e)]), addOpen: false, openId: VARIANT === 'A' ? e.id : s.openId, sheetId: VARIANT === 'B' ? e.id : null });
+      } };
+    });
+    var sheet = s.sheetId ? ex.filter(function (e) { return e.id === s.sheetId; })[0] : null;
+    return {
+      name: s.name, setName: function (ev) { self.setState({ name: ev.target.value }); },
+      exCount: n + ' ' + exWord(n), ex: ex, available: available,
+      addOpen: s.addOpen, toggleAdd: function () { self.setState({ addOpen: !s.addOpen }); },
+      helpOpen: s.helpOpen, toggleHelp: function () { self.setState({ helpOpen: !s.helpOpen }); },
+      helpChevron: s.helpOpen ? 'rotate(180deg)' : 'none',
+      sheetOpen: !!sheet, s: sheet || ex[0] || {},
+      closeSheet: function () { self.setState({ sheetId: null }); },
+      toast: s.toast,
+      saveLabel: s.saved ? '✓ Збережено' : 'Зберегти програму',
+      save: function () { self.setState({ saved: true }); self.flash('Програму «' + s.name + '» збережено'); },
+      cancel: function () { self.flash('Зміни скасовано — повернення до списку програм'); }
+    };
+  }
+}
+
+</script>
+</body>
+</html>
