@@ -271,13 +271,23 @@ function ProgramForm({
   const [helpOpen, setHelpOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The form replaces the list - start at its top, not where the list was scrolled.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const usedIds = useMemo(() => new Set(blocks.map((b) => b.exerciseId)), [blocks]);
   const availableExercises = exercises.filter((e) => !usedIds.has(e.id));
   const categoryLabel = (category: string) => t(`exercises.category.${category}`);
 
   function addExercise(exerciseId: string) {
-    setBlocks((prev) => [...prev, { exerciseId, targetSets: 3, tryMoreAfterWorkouts: null, lockSets: false, sessionsDone: null }]);
+    // Removed by a stray tap and added back: keep its saved settings.
+    const saved = toEditable(program).find((b) => b.exerciseId === exerciseId);
+    setBlocks((prev) => [
+      ...prev,
+      saved ?? { exerciseId, targetSets: 3, tryMoreAfterWorkouts: null, lockSets: false, sessionsDone: null },
+    ]);
     setAddOpen(false);
   }
 
@@ -348,7 +358,7 @@ function ProgramForm({
         <button
           type="button"
           aria-label={t('programs.form.back')}
-          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-100 hover:bg-surface-raised"
+          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-100 hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={onDone}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -401,7 +411,7 @@ function ProgramForm({
             type="button"
             aria-expanded={addOpen}
             disabled={availableExercises.length === 0}
-            className="flex h-[52px] items-center justify-center gap-2 rounded-xl border border-dashed border-accent/40 text-[15px] font-bold text-accent-hover hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-[52px] items-center justify-center gap-2 rounded-xl border border-dashed border-accent/40 text-[15px] font-bold text-accent-hover hover:border-accent disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => setAddOpen((v) => !v)}
           >
             <PlusIcon />
@@ -419,7 +429,7 @@ function ProgramForm({
                   type="button"
                   role="option"
                   aria-selected={false}
-                  className="flex min-h-12 items-center justify-between gap-2 rounded-lg px-3 text-left text-[15px] font-medium text-slate-100 hover:bg-surface-border"
+                  className="flex min-h-12 items-center justify-between gap-2 rounded-lg px-3 text-left text-[15px] font-medium text-slate-100 hover:bg-surface-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   onClick={() => addExercise(e.id)}
                 >
                   <span>{e.name}</span>
@@ -434,7 +444,7 @@ function ProgramForm({
           <button
             type="button"
             aria-expanded={helpOpen}
-            className="flex min-h-12 w-full items-center gap-2.5 text-left text-[15px] font-semibold text-slate-100"
+            className="flex min-h-12 w-full items-center gap-2.5 text-left text-[15px] font-semibold text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => setHelpOpen((v) => !v)}
           >
             <span className="flex text-slate-400">
@@ -476,12 +486,12 @@ function ProgramForm({
           </p>
         )}
         <div className="flex gap-2.5">
-          <button type="button" className="btn-secondary h-[52px] px-[18px] text-[15px] font-bold" onClick={onDone}>
+          <button type="button" className="btn-secondary h-[52px] px-[18px] text-[15px] font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent" onClick={onDone}>
             {t('common.cancel')}
           </button>
           <button
             type="button"
-            className="btn-primary h-[52px] flex-1 text-base font-extrabold"
+            className="btn-primary h-[52px] flex-1 text-base font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={handleSave}
             disabled={saving}
           >
@@ -540,7 +550,7 @@ function ExerciseBlockCard({
           type="button"
           aria-pressed={block.lockSets}
           aria-label={t('programs.form.lockSetsLabel')}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors motion-reduce:transition-none ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
             block.lockSets
               ? 'border-slate-600 bg-surface-border text-slate-100'
               : 'border-accent/40 bg-transparent text-accent-hover hover:border-accent'
@@ -591,7 +601,7 @@ function ExerciseBlockCard({
         {custom && (
           <button
             type="button"
-            className="-mt-1 min-h-9 self-start text-[13px] font-semibold text-accent-hover hover:text-accent"
+            className="-mb-1.5 -mt-2.5 min-h-11 self-start text-[13px] font-semibold text-accent-hover hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => onChange({ tryMoreAfterWorkouts: null })}
           >
             {t('programs.form.resetThreshold', { count: defaultValue })}
@@ -648,7 +658,7 @@ function SessionsDoneScale({
               disabled={disabled}
               aria-label={t('programs.form.segmentAria', { done: k + 1, total: threshold })}
               aria-pressed={!disabled && k < done}
-              className="flex h-6 flex-1 items-center disabled:cursor-not-allowed"
+              className="flex h-6 flex-1 items-center disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               onClick={() => onChange(done === k + 1 ? k : k + 1)}
             >
               <span
@@ -704,7 +714,7 @@ function Stepper({
 }) {
   const { t } = useTranslation();
   const button =
-    'flex h-11 w-11 items-center justify-center rounded-lg bg-surface-border text-slate-100 hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40';
+    'flex h-11 w-11 items-center justify-center rounded-lg bg-surface-border text-slate-100 hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
   return (
     <div role="group" aria-label={label} className="flex shrink-0 items-center gap-1">
       <button
@@ -770,7 +780,7 @@ function ExerciseMenu({
   }, [open]);
 
   const item =
-    'flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-left text-[15px] font-medium hover:bg-surface-border disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
+    'flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-left text-[15px] font-medium hover:bg-surface-border disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
   return (
     <div className="relative -my-2 -mr-1.5" ref={ref}>
@@ -779,7 +789,7 @@ function ExerciseMenu({
         aria-label={t('programs.form.exerciseMenuLabel', { name })}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-white ${
+        className={`flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
           open ? 'bg-surface-border' : ''
         }`}
         onClick={() => setOpen((v) => !v)}
