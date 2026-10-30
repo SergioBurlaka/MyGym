@@ -14,6 +14,7 @@ import {
 import { useCreateProgramMutation, useProgramsQuery } from '../shared/api/programs/index.js';
 import { formatDuration, parseKg } from '../utils/weight.js';
 import { translateApiError } from '../utils/apiError.js';
+import { useWakeLock } from '../hooks/useWakeLock.js';
 import ConfirmDialog from '../components/ConfirmDialog.js';
 import DatePicker from '../components/DatePicker.js';
 import Select from '../components/Select.js';
@@ -95,6 +96,10 @@ export default function WorkoutFormPage() {
 
   const exercises = exercisesQuery.data ?? [];
   const progression = progressionQuery.data ?? [];
+
+  // The screen stays on while the workout is running - not once it is
+  // finished (also by the 90-min auto-finish) and not while it is paused.
+  useWakeLock(workoutQuery.data != null && workoutQuery.data.timeEnd == null && workoutQuery.data.pausedAt == null);
 
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
   // null until the form is seeded from the server - nothing may be saved
