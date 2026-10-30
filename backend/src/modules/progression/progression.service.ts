@@ -357,23 +357,26 @@ export function localDate(now: Date, timezone: string | null | undefined): strin
   }
 }
 
-// Smallest own tryMoreAfterWorkouts of an exercise across all of the user's
-// programs that include it (programExercises.tryMoreAfterWorkouts). Exercises
-// in no program, or without an own value, are absent (category default applies).
+// Smallest effective tryMoreAfterWorkouts of an exercise across all of the
+// user's programs that include it: in each program its own value there
+// (programExercises.tryMoreAfterWorkouts), else the category default - a
+// program without an own value nudges at the default, so it counts too.
+// Exercises in no program are absent (category default applies).
 async function getTryMoreAfterWorkoutsByExercise(userId: string): Promise<Map<string, number>> {
   const rows = await db
     .select({
       exerciseId: programExercises.exerciseId,
       value: programExercises.tryMoreAfterWorkouts,
+      category: exercises.category,
     })
     .from(programExercises)
     .innerJoin(programs, eq(programExercises.programId, programs.id))
+    .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
     .where(eq(programs.userId, userId));
 
   const byExercise = new Map<string, number>();
   for (const row of rows) {
-    const value = row.value;
-    if (value == null || value < 1) continue;
+    const value = effectiveTryMoreAfterWorkouts(row.value, row.category);
     const current = byExercise.get(row.exerciseId);
     if (current == null || value < current) {
       byExercise.set(row.exerciseId, value);
@@ -616,9 +619,12 @@ export async function attachProgressAt<W extends JournalWorkout>(
     workoutExercises: w.workoutExercises.map((we) => {
       const timeline = timelineOf(we);
       const point = timeline.byDate.get(w.date);
-      const fromProgram = w.programId != null ? programThresholds.get(`${w.programId}:${we.exerciseId}`) : null;
+      // Started from a program that has the exercise: that program's
+      // threshold (own value, else the default - null here); otherwise the
+      // smallest across programs, as the overview judges it.
+      const key = `${w.programId}:${we.exerciseId}`;
       const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(
-        fromProgram ?? smallestThresholds.get(we.exerciseId),
+        w.programId != null && programThresholds.has(key) ? programThresholds.get(key) : smallestThresholds.get(we.exerciseId),
         we.exercise.category,
       );
       // Nothing done yet (no sets): no state of its own - history is grouped
@@ -677,7 +683,7 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
     const weightStepKg = Number(ex.weightStepKg);
     const fromPrograms = tryMoreAfterWorkoutsByExercise.get(ex.id);
     const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(fromPrograms, ex.category);
-    const tryMoreIsDefault = fromPrograms == null;
+    const tryMoreIsDefault = fromPrograms == null || fromPrograms === DEFAULT_TRY_MORE_AFTER_WORKOUTS[ex.category];
 
     if (history.length === 0) {
       results.push({
