@@ -43,6 +43,49 @@ async function overviewThreshold(auth: Record<string, string>, exerciseId: strin
   return (await overviewRow(auth, exerciseId)).tryMoreAfterWorkouts;
 }
 
+describe('fixed number of sets (lockSets)', () => {
+  it('defaults to false, saves it and returns it with the program', async () => {
+    const { auth } = await registerUser(app);
+    const [a, b] = await exerciseIds(auth);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: {
+        name: 'A',
+        exercises: [
+          { exerciseId: a, targetSets: 4, lockSets: true },
+          { exerciseId: b, targetSets: 3 },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const program = res.json() as { id: string; programExercises: { lockSets: boolean }[] };
+    expect(program.programExercises.map((pe) => pe.lockSets)).toEqual([true, false]);
+
+    const updated = await app.inject({
+      method: 'PUT',
+      url: `/api/programs/${program.id}`,
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 4, lockSets: false }, { exerciseId: b, targetSets: 3, lockSets: true }] },
+    });
+    expect(updated.statusCode).toBe(200);
+    expect((updated.json() as { programExercises: { lockSets: boolean }[] }).programExercises.map((pe) => pe.lockSets)).toEqual([false, true]);
+  });
+
+  it('rejects a non-boolean value', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 3, lockSets: 'yes' }] },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe('per-exercise try-more threshold', () => {
   it('saves it and returns it with the program', async () => {
     const { auth } = await registerUser(app);
