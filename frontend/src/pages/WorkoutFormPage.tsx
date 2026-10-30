@@ -156,6 +156,11 @@ export default function WorkoutFormPage() {
     () => new Map((workoutProgram?.programExercises ?? []).map((pe) => [pe.exerciseId, pe.targetSets])),
     [workoutProgram],
   );
+  // Exercises whose set count the program fixes: no adding or removing sets.
+  const lockedSetsIds = useMemo(
+    () => new Set((workoutProgram?.programExercises ?? []).filter((pe) => pe.lockSets).map((pe) => pe.exerciseId)),
+    [workoutProgram],
+  );
 
   // Seed the local edit state once per workout - not on every cache update
   // a save/finish triggers for this same id - and only once programs are in
@@ -266,12 +271,14 @@ export default function WorkoutFormPage() {
   }
 
   function addSet(exerciseId: string) {
+    if (lockedSetsIds.has(exerciseId)) return;
     setBlocks((prev) =>
       prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: [...b.sets, newSet()] } : b)),
     );
   }
 
   function removeSet(exerciseId: string, setKey: string) {
+    if (lockedSetsIds.has(exerciseId)) return;
     setBlocks((prev) =>
       prev.map((b) => (b.exerciseId === exerciseId ? { ...b, sets: b.sets.filter((s) => s.key !== setKey) } : b)),
     );
@@ -622,6 +629,7 @@ export default function WorkoutFormPage() {
               exercise={exercise}
               progression={progressionByExerciseId.get(block.exerciseId)}
               saved={savedById.get(block.exerciseId)}
+              setsLocked={lockedSetsIds.has(block.exerciseId)}
               onChange={(patch) => updateBlock(block.exerciseId, patch)}
               onCommit={requestSave}
               onAddSet={() => addSet(block.exerciseId)}

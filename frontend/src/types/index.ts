@@ -125,6 +125,8 @@ export type ProgramExercise = {
   targetSets: number;
   // Overrides Program.tryMoreAfterWorkouts for this exercise; null inherits it.
   tryMoreAfterWorkouts: number | null;
+  // A workout from this program can't add or remove sets of this exercise.
+  lockSets: boolean;
   orderIndex: number;
   exercise: Exercise;
 };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import {
@@ -14,6 +14,7 @@ import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
 import { DEFAULT_TRY_MORE_AFTER_WORKOUTS, tryMoreStatus } from '../utils/tryMoreCountdown.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
+import LockIcon from '../components/LockIcon.js';
 
 // Max per-exercise "try more" workout count (backend's limit); 0 = inherit
 // the program's value.
@@ -24,6 +25,8 @@ type EditableExercise = {
   targetSets: string;
   // '' or '0' = inherit the program's value.
   tryMoreAfterWorkouts: string;
+  // A workout from this program can't add or remove sets of this exercise.
+  lockSets: boolean;
   // Try-more slider position (workouts without progress); null = untouched,
   // not sent, so saving the program leaves the counter as it is.
   sessionsDone: number | null;
@@ -221,6 +224,11 @@ function ProgramCard({
             <span className="min-w-0 text-slate-200">
               {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
               <span className="text-slate-400">×{pe.targetSets}</span>
+              {pe.lockSets && (
+                <span role="img" aria-label={t('programs.setsLocked')} title={t('programs.setsLocked')} className="ml-1.5 inline-flex align-[-2px] text-hint">
+                  <LockIcon size={15} />
+                </span>
+              )}
             </span>
             {progressionById && (
               <TryMoreCountdown
@@ -295,6 +303,7 @@ function ProgramForm({
           exerciseId: pe.exerciseId,
           targetSets: String(pe.targetSets),
           tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts != null ? String(pe.tryMoreAfterWorkouts) : '',
+          lockSets: pe.lockSets,
           sessionsDone: null,
         }))
       : [],
@@ -311,6 +320,7 @@ function ProgramForm({
             exerciseId: pe.exerciseId,
             targetSets: String(pe.targetSets),
             tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts != null ? String(pe.tryMoreAfterWorkouts) : '',
+          lockSets: pe.lockSets,
           sessionsDone: null,
           }))
         : [],
@@ -327,7 +337,7 @@ function ProgramForm({
 
   function addExercise() {
     if (!addExerciseId) return;
-    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3', tryMoreAfterWorkouts: '', sessionsDone: null }]);
+    setBlocks((prev) => [...prev, { exerciseId: addExerciseId, targetSets: '3', tryMoreAfterWorkouts: '', lockSets: false, sessionsDone: null }]);
     setAddExerciseId('');
   }
 
@@ -387,6 +397,7 @@ function ProgramForm({
         exerciseId: b.exerciseId,
         targetSets: Number(b.targetSets),
         tryMoreAfterWorkouts: parseThreshold(b.tryMoreAfterWorkouts),
+        lockSets: b.lockSets,
         ...sessionsDoneToSend(b, parseThreshold(trimmedTryMore), defaultThresholdOf(b.exerciseId)),
       })),
       tryMoreAfterWorkouts: trimmedTryMore === '' ? null : Number(trimmedTryMore),
@@ -462,14 +473,21 @@ function ProgramForm({
                 </button>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-3">
-                <div>
-                  <label className="label">{t('programs.form.targetSetsLabel')}</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="input w-32"
-                    value={block.targetSets}
-                    onChange={(e) => updateBlock(block.exerciseId, { targetSets: e.target.value })}
+                <div className="flex w-full max-w-sm flex-col gap-2">
+                  <div>
+                    <label className="label">{t('programs.form.targetSetsLabel')}</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="input w-32"
+                      value={block.targetSets}
+                      onChange={(e) => updateBlock(block.exerciseId, { targetSets: e.target.value })}
+                    />
+                  </div>
+                  <LockSetsSwitch
+                    locked={block.lockSets}
+                    sets={Number(block.targetSets) || 0}
+                    onChange={(lockSets) => updateBlock(block.exerciseId, { lockSets })}
                   />
                 </div>
                 <ExerciseTryMoreField
@@ -645,6 +663,46 @@ function ExerciseTryMoreField({
         )}
       </div>
       <p className="text-xs text-slate-400">{t('programs.form.exerciseTryMoreHint')}</p>
+    </div>
+  );
+}
+
+// "Fixed number of sets" for one exercise of the program: a workout started
+// from it shows exactly that many set cells - no "+", no long-press removal.
+function LockSetsSwitch({ locked, sets, onChange }: { locked: boolean; sets: number; onChange: (v: boolean) => void }) {
+  const { t } = useTranslation();
+  const labelId = useId();
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-surface-border bg-surface p-3">
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+          locked ? 'bg-surface-border text-slate-100' : 'bg-accent/15 text-accent'
+        }`}
+      >
+        <LockIcon open={!locked} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <span id={labelId} className="block text-[15px] font-semibold text-slate-100">
+          {t('programs.form.lockSetsLabel')}
+        </span>
+        <span className="block text-xs leading-snug text-slate-400">
+          {locked ? t('programs.form.lockSetsOn', { count: sets }) : t('programs.form.lockSetsOff')}
+        </span>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={locked}
+        aria-labelledby={labelId}
+        className="flex h-11 w-14 shrink-0 items-center justify-center rounded-lg"
+        onClick={() => onChange(!locked)}
+      >
+        <span className={`relative h-[26px] w-[46px] rounded-full transition-colors ${locked ? 'bg-accent' : 'bg-slate-600'}`}>
+          <span
+            className={`absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white transition-transform ${locked ? 'translate-x-5' : ''}`}
+          />
+        </span>
+      </button>
     </div>
   );
 }
