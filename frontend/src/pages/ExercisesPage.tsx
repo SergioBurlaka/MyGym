@@ -7,6 +7,7 @@ import {
   useUpdateExerciseMutation,
 } from '../shared/api/exercises/index.js';
 import type { Equipment, Exercise } from '../types/index.js';
+import EquipmentIcon from '../components/EquipmentIcon.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
@@ -127,33 +128,6 @@ export default function ExercisesPage() {
   );
 }
 
-function EquipmentIcon({ equipment }: { equipment: Equipment }) {
-  if (equipment === 'dumbbell') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-        <path d="M8 12h8" />
-        <rect x="3" y="8" width="5" height="8" rx="1.5" />
-        <rect x="16" y="8" width="5" height="8" rx="1.5" />
-      </svg>
-    );
-  }
-  if (equipment === 'bodyweight') {
-    return (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="12" cy="4.5" r="2" />
-        <path d="M12 7v7M8 10h8M12 14l-3 7M12 14l3 7" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <path d="M2 12h20" />
-      <rect x="5" y="7" width="3" height="10" rx="1" />
-      <rect x="16" y="7" width="3" height="10" rx="1" />
-    </svg>
-  );
-}
-
 function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => void }) {
   const { t } = useTranslation();
   const archiveMutation = useArchiveExerciseMutation();
@@ -233,7 +207,7 @@ function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => 
 
       <div className="flex flex-wrap gap-1.5 text-[13px] text-slate-200">
         <span className="flex items-center gap-1.5 rounded-lg bg-surface-border px-2.5 py-1">
-          <EquipmentIcon equipment={exercise.equipment} />
+          <EquipmentIcon equipment={exercise.equipment} filled />
           {t(`exercises.equipment.${exercise.equipment}`)}
         </span>
         <span className="rounded-lg bg-surface-border px-2.5 py-1">
