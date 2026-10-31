@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -6,7 +6,14 @@ import { useScheduleHistoryQuery } from '../shared/api/settings/index.js';
 import { useWorkoutDatesQuery } from '../shared/api/workouts/index.js';
 import { formatDate } from '../utils/weight.js';
 import { addDays, startOfWeekMonday, todayIso, weekdayMonday } from '../utils/date.js';
-import { calendarWeeks, historyStart, monthLabels } from '../utils/consistencyCalendar.js';
+import {
+  calendarWeeks,
+  COLUMN_PX,
+  fitWeeks,
+  historyColumn,
+  historyStart,
+  monthLabels,
+} from '../utils/consistencyCalendar.js';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 // The whole history in one request: the dates endpoint is light (~150 bytes a
@@ -57,37 +64,67 @@ export default function ConsistencyCalendar() {
     return historyStart(firstWorkout, history[0]?.effectiveFrom ?? null);
   }, [trainedByDate, history]);
 
-  const weeks = useMemo(() => calendarWeeks(start, todayStr), [start, todayStr]);
+  // Columns that fit into the scroll area - measured by the ResizeObserver
+  // below, so a wide screen is filled edge to edge.
+  const [fit, setFit] = useState(0);
+  const weeks = useMemo(() => calendarWeeks(start, todayStr, fit), [start, todayStr, fit]);
+  // The first column with history in it (the rest on the left are padding).
+  const historyIndex = useMemo(() => historyColumn(weeks, start), [weeks, start]);
   const labels = useMemo(() => monthLabels(weeks, i18n.language), [weeks, i18n.language]);
 
   const ready = !historyQuery.isPending && !datesQuery.isPending;
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once the
-  // standard scrollbar-width/-color are set (thin = 10 px with arrows), so the
-  // standard ones are only for browsers without ::-webkit-scrollbar (Firefox).
-  const [canScroll, setCanScroll] = useState(false);
+  const [historyHiddenLeft, setHistoryHiddenLeft] = useState(false);
   const [tip, setTip] = useState<Tip | null>(null);
   const pointerTypeRef = useRef<string>('mouse');
 
-  // Opens on the current week: the newest column is on the right.
-  const scrolledToEnd = useRef(false);
+  // The "scroll left" hint only when weeks with history are hidden on the
+  // left - not for the padded empty weeks before the history starts.
+  const historyIndexRef = useRef(historyIndex);
+  historyIndexRef.current = historyIndex;
+  const updateHint = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx = historyIndexRef.current;
+    setHistoryHiddenLeft(idx >= 0 && idx * COLUMN_PX < el.scrollLeft - 1);
+  }, []);
+
+  // Opens on the current week: the newest column is on the right. It stays
+  // pinned there when the column count changes (resize), until the user
+  // scrolls away from the right edge.
+  const stickToEnd = useRef(true);
+  // The area width at the last ResizeObserver run. On narrowing, Chromium
+  // re-snaps the columns and fires `scroll` before the observer runs - that
+  // scroll is the layout's, not the user's, and must not unpin the end.
+  const measuredWidth = useRef<number | null>(null);
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!ready || !el || scrolledToEnd.current) return;
-    el.scrollLeft = el.scrollWidth;
-    scrolledToEnd.current = true;
-  }, [ready, weeks.length]);
+    if (!ready || !el) return;
+    if (stickToEnd.current) el.scrollLeft = el.scrollWidth;
+    updateHint();
+  }, [ready, weeks.length, historyIndex, updateHint]);
 
-  // The "scroll left" hint only when there is something to scroll to.
-  useEffect(() => {
+  // Measured before the first paint (a wide screen must not flash 52 columns
+  // pressed to the left), then on every resize. The fractional width: a
+  // rounded-up clientWidth could fit one column more than there is room for.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!ready || !el) return;
-    const update = () => setCanScroll(el.scrollWidth > el.clientWidth + 1);
+    const update = () => {
+      measuredWidth.current = el.clientWidth;
+      setFit(fitWeeks(el.getBoundingClientRect().width));
+      // Nothing to scroll = already at the end; no scroll event would tell.
+      if (el.scrollWidth <= el.clientWidth + 1) stickToEnd.current = true;
+      // Narrowing without a change in the column count does not re-run the
+      // layout effect above - keep the current week in view here too.
+      if (stickToEnd.current) el.scrollLeft = el.scrollWidth;
+      updateHint();
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [ready, weeks.length]);
+  }, [ready, updateHint]);
 
   // A tapped tooltip closes on a tap anywhere else and when the page moves.
   useEffect(() => {
@@ -194,13 +231,24 @@ export default function ConsistencyCalendar() {
           role="group"
           tabIndex={0}
           aria-label={t('calendar.gridAria')}
-          onScroll={() => setTip(null)}
+          // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once
+          // the standard scrollbar-width/-color are set (thin = 10 px with
+          // arrows), so the standard ones are only for browsers without
+          // ::-webkit-scrollbar (Firefox).
+          onScroll={(e) => {
+            setTip(null);
+            const el = e.currentTarget;
+            if (el.clientWidth === measuredWidth.current) {
+              stickToEnd.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+            }
+            updateHint();
+          }}
           className="flex min-w-0 flex-1 snap-x snap-proximity gap-[3px] overflow-x-auto overscroll-x-contain pb-2 [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-color:#5a6272_#262c38] [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5a6272] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[#262c38] [&::-webkit-scrollbar]:h-1.5"
         >
           {grid}
         </div>
       </div>
-      {canScroll && <p className="text-xs text-hint">{t('calendar.scrollHint')}</p>}
+      {historyHiddenLeft && <p className="text-xs text-hint">{t('calendar.scrollHint')}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-good" /> {t('calendar.legend.trainedPlanned')}
