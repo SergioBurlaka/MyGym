@@ -15,6 +15,15 @@ paths:
 
 # Персональні токени доступу та OAuth для MCP-клієнтів
 
+**Таблиці.** `api_tokens` — PAT (`name`, sha256 `tokenHash` unique, `lastUsedAt`, `revokedAt`;
+відкликання м'яке — рядок лишається); тут же OAuth access-токени (`grantId` не null, `expiresAt`
+= +1 год). `oauth_authorization_requests` — запит на згоду (10 хв, прив'язаний до браузера
+`browserHash`, потім одноразовий код); `oauth_grants` — підключення (рядок у «Підключених
+застосунках»); `oauth_refresh_tokens` — його ротовані refresh-токени. `client_logo_uri` (nullable,
+лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`.
+`oauth_clients` — клієнти DCR (`id` = `mygym_cli_…`, хеш секрету, метод автентифікації,
+`redirect_uris` jsonb); не FK до grant-ів.
+
 ## Персональні токени доступу (`modules/apiTokens/`, MCP, частина 1)
 
 Довгоживучий токен `mygym_pat_<64 hex>` для програм, що діють від імені

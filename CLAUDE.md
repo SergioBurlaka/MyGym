@@ -62,6 +62,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 | Сесії, refresh-токени, вхід через Google | `.claude/rules/auth.md` |
 | PAT, OAuth для MCP-клієнтів (CIMD, DCR, згода, іконки) | `.claude/rules/oauth-and-tokens.md` |
 | MCP-сервер (`mcp-server/`) | `.claude/rules/mcp-server.md` |
+| Вправи: унікальність назви, архів, однобічні, гриф | `.claude/rules/exercises.md` |
 | Прогресія: «Спробуй більше», перерви, ручний зсув, модель навантаження, аналітика | `.claude/rules/progression.md` |
 | Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер, екран | `.claude/rules/workouts.md` |
 | Шаблони А/Б і програми | `.claude/rules/programs.md` |
@@ -80,22 +81,34 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 
 ## Модель даних (backend/src/db/schema.ts)
 
-Детальне пояснення архітектури БД (ER-діаграма, FK on delete, індекси, вибір
-типів) — `docs/db/ARCHITECTURE.md`; `docs/db/schema.sql` — `pg_dump
---schema-only` (перезнімати після міграцій, команда — в кінці ARCHITECTURE.md).
-Повні дампи з даними — тільки в `backups/` (у `.gitignore`: хеш пароля, refresh-токени).
+Повна архітектура БД (ER-діаграма, FK on delete, індекси, обмеження, вибір типів) —
+`docs/db/ARCHITECTURE.md`; `docs/db/schema.sql` — `pg_dump --schema-only` (перезнімати після
+міграцій, команда — в кінці ARCHITECTURE.md). Повні дампи з даними — тільки в `backups/` (у
+`.gitignore`: хеш пароля, refresh-токени).
 
-- `users` — email/пароль. `passwordHash` nullable (акаунт, створений через Google, пароля не має), `googleSub` — Google ID (unique, nullable). `trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд, default `[1,3,5]`), плановий розклад тренувань користувача (керується через `GET/PATCH /api/settings`, сторінка «Розклад» `/schedule`, `pages/SchedulePage.tsx` — з 2026-10-25 окремо від «Вправ», пункт у меню профілю й мобільному меню, посилання «Змінити розклад» у легенді календаря журналу); використовується календарем консистентності на журналі. `trainingTime`/`trainingDurationMin`/`timezone` + `calendarFeedTokenHash`/`calendarFeedCreatedAt` — для календарного фіда (див. "Календарний фід" у `.claude/rules/schedule-calendar.md`). `isDemo` (частковий unique-індекс `users_demo_idx` — максимум один) + `demoResetAt` — спільний демо-акаунт (див. "Демо-акаунт і стартові дані" у `.claude/rules/demo-template.md`)
-- `refresh_tokens` — хеші refresh-токенів (unique-індекс на `token_hash` — кожен refresh шукає за ним). Ротація ставить `revokedAt`, logout рядок **видаляє** (див. "Auth: життя токенів" у `.claude/rules/auth.md`)
-- `api_tokens` — персональні токени доступу (PAT) для програм (MCP-сервер, Claude Code): `name`, sha256 `tokenHash` (unique), `lastUsedAt`, `revokedAt` (відкликання м'яке — рядок лишається). Див. "Персональні токени доступу" у `.claude/rules/oauth-and-tokens.md`. Тут же живуть OAuth access-токени (`grantId` не null, `expiresAt` = +1 год)
-- `oauth_authorization_requests` / `oauth_grants` / `oauth_refresh_tokens` — OAuth для MCP-клієнтів: запит на згоду (10 хв, прив'язаний до браузера `browserHash`, потім одноразовий код), підключення (grant — рядок у «Підключених застосунках») і його ротовані refresh-токени. `client_logo_uri` (nullable, лише https) — `logo_uri` з CIMD-документа, копіюється запит → grant так само, як `clientName`. `oauth_clients` — клієнти, зареєстровані через DCR (`id` = `mygym_cli_…`, хеш секрету, метод автентифікації, `redirect_uris` jsonb); не FK до grant-ів. Див. "OAuth для MCP-клієнтів" у `.claude/rules/oauth-and-tokens.md`
-- `exercises` — вправи користувача (кожен юзер має свій список, сідиться 13 вправами при реєстрації, можна додавати свої через UI). Назва унікальна на користувача **разом з архівними** (без регістру й крайових пробілів): створення з назвою архівної вправи її **відновлює** (той самий id та історія, нові параметри; ручний зсув лічильника `tryMore*` лишається — оживе, якщо прогресу після архівації не було, як і для вправи, прибраної з програм), з назвою активної → 409 `exercise_name_taken`; PATCH, що робить `repRangeMin > repRangeMax`, → 400 `rep_range_invalid`. `tryMoreCounterAdjust` (smallint, default 0) + `tryMoreCounterAnchor` (date, nullable) — ручний зсув лічильника «тренувань без прогресу» (див. "Правила нагадування" у `.claude/rules/progression.md`). `unilateral` (bool) — ліва й права окремо, повторення пишуться **на одну сторону**; `limb` (`arm`/`leg`, лише при `unilateral`, CHECK) — для підписів «на руку / на ногу»; `defaultBarKg` (0–50, лише `barbell`, CHECK; сід і нові штанги — 20, `DEFAULT_BAR_KG`) — гриф за замовчуванням (міграція 0026, див. "Модель навантаження" у `.claude/rules/progression.md`)
-- `workouts` — одне тренування (дата, timeStart/timeEnd — виставляються **автоматично**, не вручну; `autoFinished` — timeEnd поставив sweep, див. "Автозавершення тренування" у `.claude/rules/workouts.md`). `programLabel` — довільний текст (напр. «А»/«Б»), яким користувач сам позначає тренування для чергування програм (див. "Шаблони тренувань" у `.claude/rules/programs.md`). `programId` — nullable FK на `programs` (`onDelete: 'set null'`) — яка саме Програма (не мітка-текст) стартувала це тренування; видалення програми обнуляє лише це поле, саме тренування й підходи не чіпає. `pausedMs`/`pausedAt`/`resumedAt` — пауза таймера в хедері (міграція 0024, див. "Таймер тренування в хедері" у `.claude/rules/workouts.md`); тривалість = `timeEnd − timeStart − pausedMs`. `isSample` — приклад, скопійований з акаунта-шаблону при реєстрації (міграція 0025)
-- `workout_exercises` — вправа в межах тренування. **Вага фіксується один раз на всю вправу** (не змінюється між підходами — підтверджено користувачем). Сенс полів залежить від `exercises.equipment` (з 2026-10-29, міграція 0026): штанга — `weightPerUnitKg` = диски на **одну** сторону, `weightUnits` завжди 2, `barKg` — снепшот грифа (0–50; без нього в запиті — `defaultBarKg` вправи); гантелі — `weightPerUnitKg` = **одна** гантель, `weightUnits` = скільки гантелей рухається в **одному** повторенні (1/2), `barKg` null; власна вага — `weightPerUnitKg` = обтяження. Нормалізує `storedLoad` (`workouts.service.ts`) — і для форми, і для CSV
-- `sets` — підходи: тільки `setNumber` + `reps`. Кількість підходів довільна й незалежна для кожної вправи в межах тренування. **Вправа без жодного підходу** (з 2026-10-29) = «у тренуванні, ще не виконана»: зберігається (`sets: []` у `PUT …/exercises`), але не потрапляє в історію, `progressAt` (= null), календар консистентності й `getWorkoutDates` — усі вони читають лише вправи з підходами.
-- **CHECK/UNIQUE-обмеження** (міграції 0021–0022, з 2026-10-24) дублюють межі Zod (повторення, вага, одиниці лише з вагою, діапазон повторень, пороги, `targetSets`, тривалість, PAT vs OAuth-токен) + одна вправа один раз у програмі (дубль у `POST/PUT /api/programs` → 400 `validation_error` / `duplicate_exercise` ще в Zod). Нова межа в Zod → поправити й CHECK. Default `weight_units` прибрано — писати явно. Міграція 0024 додала `workouts_paused_ms_check` (≥ 0) і `workouts_paused_open_check` (у завершеного тренування нема відкритої паузи). Список — `docs/db/ARCHITECTURE.md` → «Обмеження».
-- `programs` / `program_exercises` — іменована багаторазова програма (напр. «Програма А») з ротацією: `programs.orderIndex` визначає чергу (A→Б→A…), присвоюється автоматично в кінець черги при створенні. `program_exercises.tryMoreAfterWorkouts` (nullable) — поріг `try_more` вправи в цій програмі, `null` = стандарт категорії (див. "Правила нагадування" у `.claude/rules/progression.md`); порогу на всю програму нема — `programs.try_more_after_workouts` видалено міграцією 0028 **без переносу** у вправи (рішення користувача 2026-10-31). `program_exercises.lockSets` — фіксована кількість підходів (міграція 0027). `program_exercises` НЕ зберігає вагу (`targetSets` + `orderIndex` замість `weightPerUnitKg`/`weightUnits`) — вага й повторення підтягуються з останнього фактичного виконання вправи при старті тренування, а не зі старого "стартового" значення (див. "Програми" у `.claude/rules/programs.md`).
-- `training_schedule_history` — один рядок на кожен день, коли `users.trainingDays` реально змінився (`trainingDays` + `effectiveFrom`, unique по `(userId, effectiveFrom)` — повторна зміна того ж дня перезаписує рядок, а не плодить нові). Дає змогу календарю консистентності судити про минулі дати за розкладом, який діяв **тоді**, а не поточним (див. "Календар консистентності" у `.claude/rules/schedule-calendar.md`).
+Таблиці й де описані їхні поля (`.claude/rules/…`):
+- `users` — акаунт (`passwordHash` nullable — вхід лише через Google, `googleSub`) → `auth.md`;
+  розклад і календарний фід → `schedule-calendar.md`; демо → `demo-template.md`
+- `refresh_tokens` (unique `token_hash` — кожен refresh шукає за ним) → `auth.md`; `api_tokens`, `oauth_*` → `oauth-and-tokens.md`
+- `exercises` → `exercises.md`; `workouts` → `workouts.md`
+- `programs`, `program_exercises` → `programs.md`; `training_schedule_history` → `schedule-calendar.md`
+- `workout_exercises` (вправа в тренуванні) і `sets` (`setNumber` + `reps`) — правила нижче
+
+Правила, що діють скрізь:
+- **Вага фіксується один раз на всю вправу** в тренуванні (не між підходами). Сенс полів
+  `workout_exercises` — за `exercises.equipment` (міграція 0026): штанга — `weightPerUnitKg` = диски
+  на **одну** сторону, `weightUnits` завжди 2, `barKg` — снепшот грифа (0–50; без нього в запиті —
+  `defaultBarKg` вправи); гантелі — `weightPerUnitKg` = **одна** гантель, `weightUnits` = скільки
+  гантелей у **одному** повторенні (1/2), `barKg` null; власна вага — `weightPerUnitKg` = обтяження.
+  Нормалізує `storedLoad` (`workouts.service.ts`) — і для форми, і для CSV.
+- **Вправа без жодного підходу** = «у тренуванні, ще не виконана»: зберігається (`sets: []` у
+  `PUT …/exercises`), але не потрапляє в історію, `progressAt` (= null), календар консистентності й
+  `getWorkoutDates` — усі читають лише вправи з підходами. Кількість підходів довільна й
+  незалежна для кожної вправи.
+- **CHECK/UNIQUE** (міграції 0021–0022, 0024) дублюють межі Zod (повторення, вага, одиниці лише з
+  вагою, діапазон повторень, пороги, `targetSets`, тривалість, PAT vs OAuth-токен): нова межа в Zod →
+  поправити й CHECK. Default `weight_units` нема — писати явно. Список —
+  `docs/db/ARCHITECTURE.md` → «Обмеження».
 
 ## Захист API та тести
 
