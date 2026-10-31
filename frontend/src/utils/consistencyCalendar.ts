@@ -31,9 +31,10 @@ export function calendarWeeks(start: string | null, today: string): string[] {
 }
 
 // A short month name over the first column whose Monday falls in a new month
-// (and over the first column), e.g. «лип.» / "Jul". A label is wider than one
-// 26 px column, so the first column's label is dropped when the next month
-// starts right in the second column - they would run into each other.
+// (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is wider
+// than two 17 px columns, so the first column's label is dropped when the next
+// month starts in the second or third column - they would run into each other.
+// Later labels are a whole month (4+ columns) apart.
 export function monthLabels(mondays: string[], lang: string): string[] {
   const fmt = new Intl.DateTimeFormat(lang, { month: 'short' });
   const labels = mondays.map((m, i) => {
@@ -41,6 +42,6 @@ export function monthLabels(mondays: string[], lang: string): string[] {
     if (i > 0 && parseIso(mondays[i - 1]).getMonth() === month) return '';
     return fmt.format(parseIso(m));
   });
-  if (labels.length > 1 && labels[1]) labels[0] = '';
+  if (labels[1] || labels[2]) labels[0] = '';
   return labels;
 }

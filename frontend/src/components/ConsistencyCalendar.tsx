@@ -136,14 +136,14 @@ export default function ConsistencyCalendar() {
   const grid = useMemo(
     () =>
       days.map((week, wi) => (
-        <div key={week[0].date} className="flex shrink-0 snap-end flex-col gap-1">
-          <span className="h-4 w-[22px] whitespace-nowrap text-[11px] leading-4 text-slate-300">{labels[wi]}</span>
+        <div key={week[0].date} className="flex shrink-0 snap-end flex-col gap-[3px]">
+          <span className="h-4 w-3.5 whitespace-nowrap text-[11px] leading-4 text-slate-300">{labels[wi]}</span>
           {week.map(({ date, muted, state, today }) => (
             <div
               key={date}
               data-calendar-cell
-              className={`h-[22px] w-[22px] rounded-[5px] ${muted ? MUTED_COLOR : STATE_COLOR[state]} ${
-                today ? 'shadow-[inset_0_0_0_1.5px_theme(colors.accent.DEFAULT)]' : ''
+              className={`h-3.5 w-3.5 rounded-[3px] ${muted ? MUTED_COLOR : STATE_COLOR[state]} ${
+                today ? 'shadow-[inset_0_0_0_1px_theme(colors.accent.DEFAULT)]' : ''
               }`}
               onPointerDown={(e) => {
                 pointerTypeRef.current = e.pointerType;
@@ -178,10 +178,10 @@ export default function ConsistencyCalendar() {
   return (
     <div>
       <div className="flex gap-1.5">
-        <div aria-hidden className="flex shrink-0 flex-col gap-1">
+        <div aria-hidden className="flex shrink-0 flex-col gap-[3px]">
           <span className="h-4" />
           {WEEKDAY_KEYS.map((key) => (
-            <span key={key} className="h-[22px] text-[11px] leading-[22px] text-slate-400">
+            <span key={key} className="h-3.5 text-[11px] leading-3.5 text-slate-400">
               {t(`weekdays.${key}`)}
             </span>
           ))}
@@ -192,7 +192,7 @@ export default function ConsistencyCalendar() {
           tabIndex={0}
           aria-label={t('calendar.gridAria')}
           onScroll={() => setTip(null)}
-          className="flex min-w-0 flex-1 snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-color:#3a4150_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#3a4150] [&::-webkit-scrollbar]:h-1"
+          className="flex min-w-0 flex-1 snap-x snap-proximity gap-[3px] overflow-x-auto overscroll-x-contain pb-2 [scrollbar-color:#5a6272_#262c38] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5a6272] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[#262c38] [&::-webkit-scrollbar]:h-1.5"
         >
           {grid}
         </div>
