@@ -4,13 +4,13 @@ argument-hint: (без аргументів)
 allowed-tools: Bash(git status*), Bash(git diff*), Bash(git log*), Bash(git branch*), Bash(git switch*), Bash(git add*), Bash(git commit*), Bash(git rev-parse*), Bash(git merge-base*), Read, Task
 ---
 
-Документація (`CLAUDE.md`, `docs/db/`) описує поточний стан коду. `/feature` оновлює її
+Документація (`CLAUDE.md`, `.claude/rules/`, `docs/db/`) описує поточний стан коду. `/feature` оновлює її
 сам (крок 5); ця команда — для змін, що пройшли повз нього.
 
 ## 1. Перевір стан
 
 1. `git branch --show-current` і `git status --porcelain`.
-2. **Незакомічені зміни коду** (не `CLAUDE.md` / `docs/`) → зупинись: документувати можна
+2. **Незакомічені зміни коду** (не `CLAUDE.md` / `.claude/rules/` / `docs/`) → зупинись: документувати можна
    лише закомічене (`docs/.docs-synced` фіксує SHA коміту). Скажи користувачу закомітити
    їх (або оформити через `/feature`) і вийди.
 3. **На `main`** → у `main` комітити не можна: `git switch -c docs/sync-<YYYY-MM-DD>`.
@@ -26,7 +26,7 @@ allowed-tools: Bash(git status*), Bash(git diff*), Bash(git log*), Bash(git bran
 
 ## 3. Перевір і закоміть
 
-- `git diff -- CLAUDE.md docs/` — вигадане чи зайве прибери (docs-keeper пише лише
+- `git diff -- CLAUDE.md .claude/rules/ docs/` — вигадане чи зайве прибери (docs-keeper пише лише
   підтверджене кодом, але перевір).
 - Коміт лише документів і `docs/.docs-synced`:
   - були зміни → `docs: sync docs with <що саме, коротко>` (або `docs(db): …`, якщо лише схема);
