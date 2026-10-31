@@ -14,6 +14,16 @@ paths:
 
 # Розклад, календар консистентності, календарний фід
 
+**Дані розкладу.** `users.trainingDays` — jsonb-масив ISO-номерів днів тижня (1=Пн..7=Нд,
+default `[1,3,5]`), плановий розклад користувача: керується через `GET/PATCH /api/settings`,
+сторінка «Розклад» `/schedule` (`pages/SchedulePage.tsx`, окремо від «Вправ»; пункт у меню профілю
+й мобільному меню, посилання «Змінити розклад» у легенді календаря журналу). `trainingTime` /
+`trainingDurationMin` / `timezone` + `calendarFeedTokenHash` / `calendarFeedCreatedAt` — для
+календарного фіда. `training_schedule_history` — один рядок на кожен день, коли `trainingDays`
+реально змінився (`trainingDays` + `effectiveFrom`, unique `(userId, effectiveFrom)` — повторна
+зміна того ж дня перезаписує рядок): календар консистентності судить про минулі дати за
+розкладом, який діяв **тоді**.
+
 **Календар консистентності** (`components/ConsistencyCalendar.tsx`, на журналі
 над списком тренувань) — сітка тижні×дні (16 тижнів, GitHub-style) на основі
 `GET /api/settings/history` (повна історія `training_schedule_history`,

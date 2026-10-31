@@ -20,6 +20,15 @@ paths:
 
 # Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер
 
+**Дані тренування** (`workouts`). `timeStart`/`timeEnd` виставляються **автоматично**, не вручну;
+`autoFinished` — `timeEnd` поставив sweep. `programLabel` — довільний текст (напр. «А»/«Б»), яким
+користувач сам позначає тренування (див. `.claude/rules/programs.md`). `programId` — nullable FK на
+`programs` (`onDelete: 'set null'`): яка Програма стартувала тренування; видалення програми
+обнуляє лише це поле. `pausedMs`/`pausedAt`/`resumedAt` — пауза таймера (міграція 0024, CHECK
+`workouts_paused_ms_check` ≥ 0 і `workouts_paused_open_check` — у завершеного тренування нема
+відкритої паузи); тривалість = `timeEnd − timeStart − pausedMs`. `isSample` — див.
+`.claude/rules/demo-template.md`.
+
 Журнал тренувань (Dashboard) використовує класичну пагінацію зі сторінками:
 `GET /api/workouts?page=&pageSize=` повертає `{ data, total, page, pageSize,
 totalPages }` (offset-запит + `count()` в одному запиті), фронтенд —
