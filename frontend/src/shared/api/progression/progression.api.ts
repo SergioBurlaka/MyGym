@@ -8,7 +8,7 @@ export const ProgressionApi = {
   async history(exerciseId: string) {
     return api.get<HistoryPoint[]>(`/progression/${exerciseId}/history`);
   },
-  async volumeByCategory(weeks: number) {
+  async volumeByCategory(weeks: number | 'all') {
     return api.get<WeeklyCategoryVolume[]>('/progression/volume-by-category', { params: { weeks } });
   },
 };

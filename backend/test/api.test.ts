@@ -141,3 +141,56 @@ describe('progression overview (end to end)', () => {
     expect(untouched.suggestion).toBe('no_data');
   });
 });
+
+describe('volume by category', () => {
+  async function logWorkout(auth: Record<string, string>, date: string, exerciseId: string, payload: object) {
+    const workout = (await app.inject({ method: 'POST', url: '/api/workouts', headers: auth, payload: { date } })).json();
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/api/workouts/${workout.id}/exercises`,
+      headers: auth,
+      payload: { exercises: [{ exerciseId, ...payload }] },
+    });
+    expect(res.statusCode).toBe(200);
+  }
+
+  it('weeks=all returns the whole history, a number keeps its window', async () => {
+    const { auth } = await registerUser(app);
+    const exercises = (await app.inject({ method: 'GET', url: '/api/exercises', headers: auth })).json();
+    const large = exercises.find(
+      (e: { category: string; equipment: string; unilateral: boolean }) =>
+        e.category === 'large' && e.equipment === 'barbell' && !e.unilateral,
+    );
+    const bodyweight = exercises.find((e: { category: string }) => e.category === 'bodyweight');
+
+    const old = new Date();
+    old.setUTCDate(old.getUTCDate() - 400);
+    const oldDate = old.toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
+    // Bar 20 + 2 x 10 kg plates = 40 kg x (10 + 10) reps = 800 kg.
+    await logWorkout(auth, oldDate, large.id, {
+      weightPerUnitKg: 10,
+      weightUnits: 2,
+      barKg: 20,
+      sets: [
+        { setNumber: 1, reps: 10 },
+        { setNumber: 2, reps: 10 },
+      ],
+    });
+    await logWorkout(auth, today, bodyweight.id, { sets: [{ setNumber: 1, reps: 15 }] });
+
+    const all = await app.inject({ method: 'GET', url: '/api/progression/volume-by-category?weeks=all', headers: auth });
+    expect(all.statusCode).toBe(200);
+    const weeks = all.json() as { weekStart: string; large: number; small: number; bodyweight: number }[];
+    expect(weeks).toHaveLength(2);
+    expect(weeks[0]).toMatchObject({ large: 800, small: 0, bodyweight: 0 });
+    expect(weeks[0].weekStart <= oldDate).toBe(true);
+    expect(weeks[1]).toMatchObject({ large: 0, small: 0, bodyweight: 15 });
+
+    const recent = (
+      await app.inject({ method: 'GET', url: '/api/progression/volume-by-category?weeks=12', headers: auth })
+    ).json();
+    expect(recent).toHaveLength(1);
+    expect(recent[0].bodyweight).toBe(15);
+  });
+});

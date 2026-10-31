@@ -9,6 +9,9 @@ export default async function progressionRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get<{ Querystring: { weeks?: string } }>('/volume-by-category', async (request) => {
+    // weeks=all - the whole history (the Progress page scrolls through it);
+    // a number keeps the old 1-52 window for any client still sending one.
+    if (request.query.weeks === 'all') return getVolumeByCategory(request.userId, null);
     const weeks = Number(request.query.weeks);
     return getVolumeByCategory(request.userId, Number.isFinite(weeks) ? Math.min(Math.max(weeks, 1), 52) : 12);
   });

@@ -857,11 +857,14 @@ function isoWeekStart(dateStr: string): string {
 // Progress page: for weighted exercises, volume = weight * reps per set
 // (sums to the same totalWeightKg * totalReps as buildHistoryPoints' volumeKg);
 // for bodyweight exercises (no weight logged), volume = reps. Both sides of
-// a unilateral exercise count.
-export async function getVolumeByCategory(userId: string, weeks: number): Promise<WeeklyCategoryVolume[]> {
-  const cutoff = new Date();
-  cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+// a unilateral exercise count. `weeks` null = the whole history.
+export async function getVolumeByCategory(userId: string, weeks: number | null): Promise<WeeklyCategoryVolume[]> {
+  let cutoffStr: string | null = null;
+  if (weeks != null) {
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
+    cutoffStr = cutoff.toISOString().slice(0, 10);
+  }
 
   const rows = await db
     .select({
@@ -878,7 +881,7 @@ export async function getVolumeByCategory(userId: string, weeks: number): Promis
     .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
     .innerJoin(exercises, eq(workoutExercises.exerciseId, exercises.id))
     .innerJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
-    .where(and(eq(workouts.userId, userId), gte(workouts.date, cutoffStr)));
+    .where(and(eq(workouts.userId, userId), cutoffStr ? gte(workouts.date, cutoffStr) : undefined));
 
   const byWeek = new Map<string, WeeklyCategoryVolume>();
   for (const row of rows) {

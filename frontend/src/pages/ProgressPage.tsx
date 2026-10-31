@@ -15,7 +15,7 @@ import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 export default function ProgressPage() {
   const { t } = useTranslation();
   const progressionQuery = useProgressionQuery();
-  const volumeByCategoryQuery = useVolumeByCategoryQuery(12);
+  const volumeByCategoryQuery = useVolumeByCategoryQuery('all');
 
   // Chips show the same countdown as the program cards (the backend's
   // threshold - smallest across programs, else the category default) and are
@@ -60,12 +60,13 @@ export default function ProgressPage() {
   if (progressionQuery.isPending) return <p className="text-slate-400">{t('common.loading')}</p>;
 
   return (
-    <div className="space-y-6">
+    // 12 px side margins on a phone (main has 16) - the chart needs the width.
+    <div className="-mx-1 space-y-6 sm:mx-0">
       <h1 className="text-3xl text-slate-100">{t('progress.title')}</h1>
 
-      <div className="card">
-        <h2 className="text-lg text-slate-100">{t('progress.weeklyVolumeTitle')}</h2>
-        <p className="mt-1 text-sm text-slate-400">{t('progress.weeklyVolumeDescription')}</p>
+      <div className="card p-3 sm:p-4">
+        <h2 className="text-[17px] font-semibold text-slate-100">{t('progress.weeklyVolumeTitle')}</h2>
+        <p className="mt-0.5 text-[13px] text-slate-400">{t('progress.weeklyVolumeDescription')}</p>
         <div className="mt-3">
           {volumeByCategoryQuery.isPending ? (
             <p className="text-slate-400">{t('common.loading')}</p>
@@ -75,23 +76,26 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {chips.map(({ p, status }) => (
-          <button
-            key={p.exerciseId}
-            onClick={() => setManualSelectedId(p.exerciseId)}
-            aria-pressed={selectedId === p.exerciseId}
-            className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-              selectedId === p.exerciseId
-                ? 'border-accent bg-accent/10'
-                : 'border-surface-border bg-surface-raised hover:border-slate-600'
-            }`}
-          >
-            <div className="font-medium text-slate-200">{p.name}</div>
-            <TryMoreStatusBadge status={status} className="mt-1 w-40" />
-          </button>
-        ))}
-      </div>
+      <section className="space-y-2">
+        <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-slate-400">{t('progress.exercisesTitle')}</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {chips.map(({ p, status }) => (
+            <button
+              key={p.exerciseId}
+              onClick={() => setManualSelectedId(p.exerciseId)}
+              aria-pressed={selectedId === p.exerciseId}
+              className={`flex min-h-[76px] flex-col justify-between gap-2 rounded-xl border p-2.5 text-left transition-colors ${
+                selectedId === p.exerciseId
+                  ? 'border-accent/70 bg-accent/[0.08]'
+                  : 'border-surface-border bg-surface-raised hover:border-slate-600'
+              }`}
+            >
+              <span className="line-clamp-2 text-sm font-semibold leading-snug text-slate-200">{p.name}</span>
+              <TryMoreStatusBadge status={status} className="w-full" compact />
+            </button>
+          ))}
+        </div>
+      </section>
 
       {selected && (
         <div className="space-y-4">
