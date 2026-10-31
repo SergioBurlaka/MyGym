@@ -1,13 +1,9 @@
 import { addDays, parseIso, startOfWeekMonday } from './date.js';
 
 // The consistency calendar shows every week from the start of the user's
-// history to the current one - but never fewer than a year (as GitHub does):
-// on a phone that is always wider than the screen, so the grid scrolls.
-export const MIN_WEEKS = 52;
-// A column is a 14 px cell plus the 3 px gap.
-export const COLUMN_PX = 17;
-const GAP_PX = 3;
-// ...and never more than ~5 years.
+// history to the current one - no empty weeks before it. A short history is
+// stretched over the card (cells up to 18 px), a long one scrolls at 14 px.
+// Never more than ~5 years.
 export const MAX_WEEKS = 53 * 5;
 
 // The start of history is the earliest of the first workout and the first
@@ -18,40 +14,24 @@ export function historyStart(firstWorkout: string | null, firstSchedule: string 
   return firstWorkout ?? firstSchedule;
 }
 
-// How many whole columns fit into a scroll area this wide (n columns take
-// n * 17 - 3 px: no gap after the last one).
-export function fitWeeks(clientWidth: number): number {
-  return Math.max(0, Math.floor((clientWidth + GAP_PX) / COLUMN_PX));
-}
-
-// Mondays of every column, oldest first: from the week of `start` to the week
-// of `today`, padded on the left to MIN_WEEKS and to `fit` - the columns that
-// fit into the area, so a wide screen has no empty space on the right. The
-// padded weeks before `start` are rendered muted.
-export function calendarWeeks(start: string | null, today: string, fit = 0): string[] {
+// Mondays of every column, oldest first: from the week of `start` to the
+// week of `today`. Without any history - just the current week.
+export function calendarWeeks(start: string | null, today: string): string[] {
   const lastMonday = startOfWeekMonday(today);
-  const minCount = Math.min(Math.max(MIN_WEEKS, fit), MAX_WEEKS);
-  const minFirst = addDays(lastMonday, -7 * (minCount - 1));
   const maxFirst = addDays(lastMonday, -7 * (MAX_WEEKS - 1));
-  let startMonday = start ? startOfWeekMonday(start) : minFirst;
+  let first = start ? startOfWeekMonday(start) : lastMonday;
   // A typo'd year (2006 for 2026, via CSV or MCP) must not render 1000 weeks.
-  if (startMonday < maxFirst) startMonday = maxFirst;
-  const first = startMonday < minFirst ? startMonday : minFirst;
+  if (first < maxFirst) first = maxFirst;
+  if (first > lastMonday) first = lastMonday;
   const weeks: string[] = [];
   for (let m = first; m <= lastMonday; m = addDays(m, 7)) weeks.push(m);
   return weeks;
 }
 
-// Index of the first column with history in it (the columns before it are
-// padding); -1 when there is no history or it starts after the grid.
-export function historyColumn(mondays: string[], start: string | null): number {
-  if (start == null) return -1;
-  return mondays.findIndex((monday) => addDays(monday, 6) >= start);
-}
-
 // A short month name over the first column whose Monday falls in a new month
-// (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is wider
-// than two 17 px columns, so the first column's label is dropped when the next
+// (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is about
+// as wide as two 14 px columns with their gap (31 px, the scrolling layout;
+// stretched to 18 px they are 39 px), so the first column's label is dropped when the next
 // month starts in the second or third column - they would run into each other.
 // Later labels are a whole month (4+ columns) apart.
 export function monthLabels(mondays: string[], lang: string): string[] {
