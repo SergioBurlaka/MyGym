@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import {
@@ -269,6 +269,7 @@ function ProgramForm({
   const [blocks, setBlocks] = useState<EditableExercise[]>(() => toEditable(program));
   const [addOpen, setAddOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId();
   const [error, setError] = useState<string | null>(null);
 
   // The form replaces the list - start at its top, not where the list was scrolled.
@@ -444,6 +445,7 @@ function ProgramForm({
           <button
             type="button"
             aria-expanded={helpOpen}
+            aria-controls={helpId}
             className="flex min-h-12 w-full items-center gap-2.5 text-left text-[15px] font-semibold text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => setHelpOpen((v) => !v)}
           >
@@ -460,21 +462,31 @@ function ProgramForm({
               </svg>
             </span>
           </button>
-          {helpOpen && (
-            <div className="flex animate-pop-in flex-col gap-2.5 pb-3.5 pt-0.5 text-[13px] leading-normal text-slate-300">
-              <p>{t('programs.form.helpProgress')}</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(['large', 'small', 'bodyweight'] as const).map((c) => (
-                  <div key={c} className="flex flex-col gap-0.5 rounded-lg bg-surface p-2">
-                    <b className="text-xl text-white">{DEFAULT_TRY_MORE_AFTER_WORKOUTS[c]}</b>
-                    <span className="text-xs text-slate-400">{categoryLabel(c).toLocaleLowerCase()}</span>
-                  </div>
-                ))}
+          {/* Height animates 0fr -> 1fr (open and close). `invisible` when
+              closed keeps the hidden text out of Tab and screen readers -
+              visibility switches at the end of the closing transition. */}
+          <div
+            id={helpId}
+            className={`grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
+              helpOpen ? 'visible grid-rows-[1fr] opacity-100' : 'invisible grid-rows-[0fr] opacity-0'
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="flex flex-col gap-2.5 pb-3.5 pt-0.5 text-[13px] leading-normal text-slate-300">
+                <p>{t('programs.form.helpProgress')}</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['large', 'small', 'bodyweight'] as const).map((c) => (
+                    <div key={c} className="flex flex-col gap-0.5 rounded-lg bg-surface p-2">
+                      <b className="text-xl text-white">{DEFAULT_TRY_MORE_AFTER_WORKOUTS[c]}</b>
+                      <span className="text-xs text-slate-400">{categoryLabel(c).toLocaleLowerCase()}</span>
+                    </div>
+                  ))}
+                </div>
+                <p>{t('programs.form.helpStandard')}</p>
+                <p>{t('programs.form.helpBreaks')}</p>
               </div>
-              <p>{t('programs.form.helpStandard')}</p>
-              <p>{t('programs.form.helpBreaks')}</p>
             </div>
-          )}
+          </div>
         </section>
       </div>
 
