@@ -7,113 +7,208 @@ Postgres, без абстракцій Drizzle.
 
 ## Загальна картина
 
+Підписи на зв'язках — що стається з рядком, коли видаляють батьківський (деталі — «Поведінка при видаленні»). `|o` — зв'язок необов'язковий: тренування без програми, `api_tokens` без grant-а (тобто PAT).
+
+### Тренування
+
 ```mermaid
 erDiagram
-    users ||--o{ refresh_tokens : "сесії"
-    users ||--o{ training_schedule_history : "історія розкладу"
-    users ||--o{ exercises : "свій список вправ"
-    users ||--o{ programs : "програми А/Б"
-    users ||--o{ workouts : "тренування"
+    users ||--o{ training_schedule_history : "CASCADE"
+    users ||--o{ exercises : "CASCADE"
+    users ||--o{ programs : "CASCADE"
+    users ||--o{ workouts : "CASCADE"
 
-    programs ||--o{ program_exercises : "склад програми"
-    exercises ||--o{ program_exercises : "NO ACTION (deferred)"
+    programs ||--o{ program_exercises : "CASCADE"
+    exercises ||--o{ program_exercises : "NO ACTION deferred"
     programs |o--o{ workouts : "SET NULL"
 
-    workouts ||--o{ workout_exercises : "вправи тренування"
-    exercises ||--o{ workout_exercises : "NO ACTION (deferred)"
-    workout_exercises ||--o{ sets : "підходи"
+    workouts ||--o{ workout_exercises : "CASCADE"
+    exercises ||--o{ workout_exercises : "NO ACTION deferred"
+    workout_exercises ||--o{ sets : "CASCADE"
 
     users {
         uuid id PK
         text email "unique lower(email)"
-        text password_hash "argon2, null = Google"
+        text password_hash "null = лише Google"
         text google_sub "unique, nullable"
-        jsonb training_days "[1,3,5]"
+        jsonb training_days "default [1,3,5]"
         text training_time "HH:MM"
-        smallint training_duration_min
+        smallint training_duration_min "15-300"
         text timezone "IANA"
         text calendar_feed_token_hash "unique, nullable"
+        timestamptz calendar_feed_created_at
         boolean is_demo "unique where true"
-        timestamptz demo_reset_at "nullable"
+        timestamptz demo_reset_at
         timestamptz created_at
-    }
-    refresh_tokens {
-        uuid id PK
-        uuid user_id FK
-        text token_hash
-        timestamptz expires_at
-        timestamptz revoked_at "null = активний"
     }
     training_schedule_history {
         uuid id PK
         uuid user_id FK
         jsonb training_days
         date effective_from "unique (user_id, effective_from)"
+        timestamptz created_at
     }
     exercises {
         uuid id PK
         uuid user_id FK
-        text name
-        enum equipment "barbell|dumbbell|bodyweight"
-        enum category "large|small|bodyweight"
+        text name "unique (user_id, lower(btrim(name)))"
+        enum equipment "barbell | dumbbell | bodyweight"
+        enum category "large | small | bodyweight"
         smallint rep_range_min
         smallint rep_range_max
-        numeric weight_step_kg
-        boolean unilateral "ліва і права окремо"
-        enum limb "arm|leg, лише з unilateral"
-        numeric default_bar_kg "лише штанга"
+        numeric weight_step_kg "0-50"
+        boolean unilateral
+        enum limb "arm | leg, лише з unilateral"
+        numeric default_bar_kg "0-50, лише штанга"
+        smallint try_more_counter_adjust "ручний зсув"
+        date try_more_counter_anchor
         timestamptz archived_at
+        timestamptz created_at
     }
     programs {
         uuid id PK
         uuid user_id FK
         text name
         smallint order_index "черга ротації"
+        timestamptz created_at
     }
     program_exercises {
         uuid id PK
         uuid program_id FK
         uuid exercise_id FK "unique (program_id, exercise_id)"
-        smallint target_sets
-        smallint try_more_after_workouts "nullable"
+        smallint target_sets "1-20"
+        smallint try_more_after_workouts "1-60, null = стандарт"
         boolean lock_sets
         smallint order_index
     }
     workouts {
         uuid id PK
         uuid user_id FK
+        uuid program_id FK "nullable"
         date date
         timestamptz time_start
         timestamptz time_end
         boolean auto_finished
         int paused_ms
-        timestamptz paused_at "nullable"
-        timestamptz resumed_at "nullable"
+        timestamptz paused_at
+        timestamptz resumed_at
         boolean is_sample
         text program_label "вільний текст"
-        uuid program_id FK "nullable"
+        timestamptz created_at
     }
     workout_exercises {
         uuid id PK
         uuid workout_id FK
         uuid exercise_id FK
-        numeric weight_per_unit_kg "null = без ваги"
-        smallint weight_units "1 або 2, лише з вагою"
-        numeric bar_kg "гриф того дня, лише штанга"
+        numeric weight_per_unit_kg "0-500, null = без ваги"
+        smallint weight_units "1 | 2, лише з вагою"
+        numeric bar_kg "0-50, лише штанга"
         smallint order_index
         text notes
+        timestamptz created_at
     }
     sets {
         uuid id PK
         uuid workout_exercise_id FK
         smallint set_number "unique у межах вправи"
-        smallint reps
+        smallint reps "0-200"
+        timestamptz created_at
     }
 ```
 
+### Автентифікація, PAT, OAuth
+
+`users` тут лише з `id` і `email`, щоб не дублювати поля з діаграми вище.
+
+```mermaid
+erDiagram
+    users ||--o{ refresh_tokens : "CASCADE"
+    users ||--o{ api_tokens : "CASCADE"
+    users ||--o{ oauth_grants : "CASCADE"
+    users |o--o{ oauth_authorization_requests : "CASCADE"
+    oauth_grants ||--o{ oauth_refresh_tokens : "CASCADE"
+    oauth_grants |o--o{ api_tokens : "CASCADE, null = PAT"
+
+    users {
+        uuid id PK
+        text email
+    }
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        text token_hash "unique"
+        timestamptz expires_at
+        timestamptz revoked_at "ротація; logout видаляє"
+        timestamptz created_at
+    }
+    api_tokens {
+        uuid id PK
+        uuid user_id FK
+        uuid grant_id FK "null = PAT, інакше OAuth access"
+        text name
+        text token_hash "unique"
+        timestamptz expires_at "null тоді й лише тоді, коли grant_id null"
+        timestamptz last_used_at
+        timestamptz revoked_at
+        timestamptz created_at
+    }
+    oauth_authorization_requests {
+        uuid id PK
+        uuid user_id FK "nullable до згоди"
+        text client_id "CIMD URL або mygym_cli_"
+        text client_name
+        text client_logo_uri
+        text redirect_uri
+        text code_challenge "PKCE S256"
+        text state
+        text resource
+        text scope
+        text browser_hash
+        timestamptz expires_at
+        text code_hash "unique"
+        timestamptz code_expires_at
+        timestamptz used_at
+        timestamptz created_at
+    }
+    oauth_grants {
+        uuid id PK
+        uuid user_id FK
+        text client_id
+        text client_name
+        text client_logo_uri
+        text resource
+        text scope
+        timestamptz last_used_at
+        timestamptz revoked_at
+        timestamptz created_at
+    }
+    oauth_refresh_tokens {
+        uuid id PK
+        uuid grant_id FK
+        text token_hash "unique"
+        timestamptz expires_at
+        timestamptz used_at "повтор = відкликати grant"
+        timestamptz created_at
+    }
+    oauth_clients {
+        text id PK "mygym_cli_ (DCR)"
+        text client_secret_hash "null для auth none"
+        text token_endpoint_auth_method
+        text client_name
+        text client_uri
+        jsonb redirect_uris
+        timestamptz created_at
+    }
+```
+
+`oauth_clients` навмисно без FK: grant і запит на згоду тримають `client_id` текстом, бо це або CIMD-URL (Claude, ChatGPT), або `mygym_cli_…` з DCR.
+
 Схема має три шари:
 
-1. **Користувач і доступ:** `users`, `refresh_tokens`, `training_schedule_history`.
+1. **Користувач і доступ:** `users`, `refresh_tokens`, `training_schedule_history`,
+   а також токени для програм — `api_tokens` (PAT і OAuth access) та OAuth для
+   MCP-клієнтів: `oauth_authorization_requests`, `oauth_grants`,
+   `oauth_refresh_tokens`, `oauth_clients`.
 2. **Довідники користувача:** `exercises` (що він уміє робити) і `programs` +
    `program_exercises` (заплановані набори вправ).
 3. **Факти тренувань:** `workouts` → `workout_exercises` → `sets`. Це ієрархія
