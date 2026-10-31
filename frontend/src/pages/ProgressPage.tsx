@@ -78,7 +78,7 @@ export default function ProgressPage() {
 
       <section className="space-y-2">
         <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-slate-400">{t('progress.exercisesTitle')}</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2">
           {chips.map(({ p, status }) => (
             <button
               key={p.exerciseId}

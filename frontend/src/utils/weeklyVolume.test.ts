@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { fillWeeks, niceMax } from './weeklyVolume.js';
+import { fillWeeks, niceMax, repsMax, weekAverage } from './weeklyVolume.js';
 
-const week = (weekStart: string, large = 0) => ({ weekStart, large, small: 0, bodyweight: 0 });
+const week = (weekStart: string, large = 0, bodyweight = 0) => ({ weekStart, large, small: 0, bodyweight });
 
 describe('fillWeeks', () => {
   it('fills the weeks off with zeros and runs to the current week', () => {
@@ -28,5 +28,38 @@ describe('niceMax', () => {
     expect(niceMax(15000)).toBe(15000);
     expect(niceMax(800)).toBe(900);
     expect(niceMax(0)).toBe(3);
+  });
+});
+
+describe('weekAverage', () => {
+  const series = (values: number[]) => values.map((v, i) => week(`w${String(i).padStart(2, '0')}`, v));
+
+  it('averages over the weeks up to the selected one when the history is shorter', () => {
+    expect(weekAverage(series([100, 200, 300]), 2, 'large')).toBe(200);
+    expect(weekAverage(series([100, 200, 300]), 0, 'large')).toBe(100);
+  });
+
+  it('counts the weeks off as zeros', () => {
+    expect(weekAverage(series([300, 0, 0]), 2, 'large')).toBe(100);
+  });
+
+  it('takes the 12 weeks up to and including the selected one', () => {
+    // 13 weeks: the first (1300) falls out of the window of the last week.
+    const weeks = series([1300, ...Array<number>(12).fill(120)]);
+    expect(weekAverage(weeks, 12, 'large')).toBe(120);
+    expect(weekAverage(weeks, 11, 'large')).toBe((1300 + 11 * 120) / 12);
+  });
+
+  it('works per series', () => {
+    expect(weekAverage([week('a', 0, 10), week('b', 0, 30)], 1, 'bodyweight')).toBe(20);
+  });
+});
+
+describe('repsMax', () => {
+  it('rounds the reps scale up to 50', () => {
+    expect(repsMax(121)).toBe(150);
+    expect(repsMax(300)).toBe(300);
+    expect(repsMax(1)).toBe(50);
+    expect(repsMax(0)).toBe(50);
   });
 });
