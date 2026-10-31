@@ -12,7 +12,7 @@ paths:
 
 # Прод: HTTPS, nginx, деплой
 
-**Прод: HTTPS** (з 2026-10-21): https://my-gym-com.duckdns.org, VPS
+**Прод: HTTPS**: https://my-gym-com.duckdns.org, VPS
 `91.232.30.91`, репозиторій на сервері — `/root/MyGym`.
 - nginx-конфіг — шаблон `nginx/templates/default.conf.template`, офіційний
   образ nginx підставляє `${DOMAIN}` через envsubst при старті. HTTP (і голий
@@ -28,16 +28,15 @@ paths:
   Compose ≠ shell).
 - **Усі upstream-и** (`backend`, `frontend`, `mcp`) — через `resolver 127.0.0.11`
   + змінну в `proxy_pass`, тобто DNS на кожен запит. **Gotcha:** зі статичним
-  `proxy_pass http://frontend:80` деплой, що перестворив контейнер (нова IP),
-  лишив nginx зі старою адресою — 502 на весь сайт до `docker compose restart
-  nginx` (2026-10-21, після merge PR #13). Заодно nginx стартує й без
+  `proxy_pass http://frontend:80` деплой, що перестворює контейнер (нова IP),
+  лишає nginx зі старою адресою — 502 на весь сайт до `docker compose restart
+  nginx`. Заодно nginx стартує й без
   якогось контейнера.
 - HSTS навмисно `max-age=86400` — підняти до року, коли HTTPS стабільний.
 - **Gotcha:** nginx рендерить конфіг із `nginx/templates` лише при старті
   контейнера, а `docker compose up -d` не перестворює його через зміну
   примонтованого файлу (і перечитування раз на 6 год бере старий готовий
   конфіг). Тому `deploy.yml` робить `restart nginx`, якщо між старим і новим
-  HEAD змінилось щось у `nginx/` (після PR #14 `/.well-known` віддавав SPA до
-  ручного рестарту).
+  HEAD змінилось щось у `nginx/`.
 - Відома прогалина: `deploy.yml` не перевіряє, що контейнери реально
   піднялись (`docker compose up -d` зелений і при nginx у циклі рестартів).

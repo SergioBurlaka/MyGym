@@ -14,8 +14,8 @@ paths:
   (`sessionIdGenerator: undefined`, `enableJsonResponse: true`) + `apiClient` з
   `Authorization` саме цього запиту → пересилається в бекенд без перевірки
   (вирішує бекенд — PAT вище). Ніколи не тримати сервер/клієнт між запитами:
-  інструменти «запам'ятали б» токен першого користувача (тест ізоляції це ловить —
-  перевірено навмисною поломкою). Без `Bearer` → 401; `GET/DELETE /mcp` → 405;
+  інструменти «запам'ятали б» токен першого користувача (тест ізоляції це ловить).
+  Без `Bearer` → 401; `GET/DELETE /mcp` → 405;
   `GET /health`. Єдиний конфіг — `MYGYM_API_URL`, `PORT` (8080).
 - 12 інструментів (`src/tools/*.ts`): вправи (list/create), тренування
   (list/get/start/finish, `log_workout_exercises`), програми (list/create/suggested),
@@ -26,25 +26,24 @@ paths:
   бекенду як є; помилки → `isError` з текстом, з яким Claude може щось зробити
   (`tools/result.ts`: 401 → «токен відкликано, створіть новий в Інтеграціях»).
 - **`log_workout_exercises` = `PUT …/exercises`, що ЗАМІНЮЄ весь список** (на цьому
-  стоїть автозбереження форми). Рішення користувача (2026-10-21): бекенд не чіпати,
+  стоїть автозбереження форми). Рішення користувача: бекенд не чіпати,
   а в описі інструмента прямо написати «REPLACES ALL… спершу get_workout». Додати
   merge-ендпоінт у бекенд — якщо колись Claude таки зітре вправи.
-  `sets: []` дозволено (з 2026-10-29) — так `get_workout` віддає вправи щойно після
+  `sets: []` дозволено — так `get_workout` віддає вправи щойно після
   `start_workout`; описи `start_workout`/`log_workout_exercises`/`get_workout` пояснюють, що
   записаний підхід = виконаний, а минулі повтори й ціль +1 — у `previous`/`target`, і семантику
   ваги за `equipment` (диски на сторону, одна гантель, гантелей у повторенні, повтори на сторону
   для `unilateral`). `barKg` — теж через `z.coerce`.
 - `create_program`: у вправи — `targetSets`, `tryMoreAfterWorkouts` (без нього — стандарт
-  4/6/5) і `lockSets`; програмного порогу нема (з 2026-10-31).
+  4/6/5) і `lockSets`; програмного порогу нема.
 - Видалення через MCP свідомо нема — деструктивне лишається в UI.
 - Ліміт 60 запитів/хв на токен (ключ — sha256 заголовка). **Gotcha:** роути мусять
   бути всередині `app.register(...)` — оголошені на корені додаються до того, як
-  `@fastify/rate-limit` завантажився, і `config.rateLimit` тихо не діє (так і було,
-  зловив тест).
+  `@fastify/rate-limit` завантажився, і `config.rateLimit` тихо не діє.
 - Запит до бекенду з таймаутом 15 с; помилка після `reply.hijack()` закриває
   відповідь сама (500 JSON-RPC) — Fastify після hijack цього вже не робить.
 - Docker: сервіс `mcp` у `docker-compose.yml` (образ працює від `USER node`) (nginx `/mcp` → `mcp:8080` через
-  `resolver` — з етапу HTTPS); у dev — `mcp` на `:8080` з hot-reload, і Vite
+  `resolver`); у dev — `mcp` на `:8080` з hot-reload, і Vite
   проксить `^/mcp(/|$)` туди ж (регекс, як у nginx — щоб не ковтати SPA-маршрути
   `/mcp-…`), тож `<origin>/mcp` однаковий у dev і проді.
 - Тести (`mcp-server/test/mcp.test.ts`, `npm test` у `mcp-server/`): справжній
@@ -58,23 +57,22 @@ paths:
   Request headers конектора (Authentication **No sign-in**) теж працює. Значення
   заголовка форма не показує повторно — при «токен відхилено» перевірити токен
   окремо (`Invoke-RestMethod …/api/workouts -Headers @{Authorization="Bearer …"}`);
-  першою причиною колись виявився dev-токен у прод-конекторі.
+  типова причина — dev-токен у прод-конекторі.
 - **401 з `WWW-Authenticate`:** без `Bearer` або з токеном, який API відхиляє
   (перевірка `GET /api/settings` на **кожен** запит — без кешу: кешоване
   «прийнято» після протухання OAuth-токена давало б `isError` у 200 замість 401,
-  і клієнт не робив би refresh; знахідка рев'ю), MCP-сервер відповідає справжнім HTTP 401 з `Bearer
+  і клієнт не робив би refresh), MCP-сервер відповідає справжнім HTTP 401 з `Bearer
   resource_metadata="<PUBLIC_URL>/.well-known/oauth-protected-resource/mcp"`.
   Саме на 401 (а не на `isError` у 200) Claude/ChatGPT вмикають «Sign in» і
   оновлюють протухлий OAuth-токен. API недоступне → запит пропускається
   (інструменти скажуть «could not reach»), щоб не просити зайвий раз увійти.
   Конфіг — `PUBLIC_URL` (compose: `https://${DOMAIN}`, dev: `http://localhost:5173`).
-- **Gotcha (поза MCP, знайдено при e2e; виправлено 2026-10-23, міграція 0019):**
-  користувача з тренуваннями не можна було видалити — каскад `users → exercises`
-  падав на `restrict` у `workout_exercises.exerciseId` раніше, ніж каскад
-  `users → workouts` прибирав посилання. `NO ACTION` **не допомагає** (перевірено) —
-  потрібен `DEFERRABLE INITIALLY DEFERRED` (перевірка на коміті; `RESTRICT` не
-  відкладається). Тепер так на обох FK до вправ (`workout_exercises`,
+- **Gotcha (поза MCP, міграція 0019):** з `restrict` користувача з тренуваннями не
+  можна видалити — каскад `users → exercises` падає на `workout_exercises.exerciseId`
+  раніше, ніж каскад `users → workouts` прибирає посилання. `NO ACTION` **не
+  допомагає** (перевірено) — потрібен `DEFERRABLE INITIALLY DEFERRED` (перевірка на
+  коміті; `RESTRICT` не відкладається). Так на обох FK до вправ (`workout_exercises`,
   `program_exercises`): видалення користувача проходить, пряме видалення вправи з
-  історією — досі `23503`. Drizzle `DEFERRABLE` не описує — дописано в міграцію
+  історією — `23503`. Drizzle `DEFERRABLE` не описує — дописано в міграцію
   руками; якщо drizzle-kit колись перегенерує ці FK, повернути. Тест —
-  `test/db-constraints.test.ts` (звичайні тести не ловили, бо `TRUNCATE … CASCADE`).
+  `test/db-constraints.test.ts` (звичайні тести цього не ловлять, бо `TRUNCATE … CASCADE`).
