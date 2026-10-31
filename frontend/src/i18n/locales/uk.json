@@ -322,7 +322,7 @@
     "current": "поточний",
     "vsAverageUp": "↑ {{pct}}% від середнього",
     "vsAverageDown": "↓ {{pct}}% від середнього",
-    "averageNote": "Середнє — за 12 тижнів до вибраного"
+    "averageNote": "Середнє — за {{weeks}} тижнів до вибраного"
   },
   "exercises": {
     "title": "Вправи",

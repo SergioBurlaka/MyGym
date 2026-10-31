@@ -308,7 +308,7 @@
     "current": "current",
     "vsAverageUp": "↑ {{pct}}% vs average",
     "vsAverageDown": "↓ {{pct}}% vs average",
-    "averageNote": "Average — over the 12 weeks up to the selected one"
+    "averageNote": "Average — over the {{weeks}} weeks up to the selected one"
   },
   "exercises": {
     "title": "Exercises",

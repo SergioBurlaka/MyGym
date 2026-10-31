@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { WeeklyCategoryVolume } from '../types/index.js';
 import { addDays, todayIso } from '../utils/date.js';
 import { formatDate } from '../utils/weight.js';
-import { fillWeeks, niceMax, repsMax, weekAverage } from '../utils/weeklyVolume.js';
+import { AVERAGE_WEEKS, fillWeeks, niceMax, repsMax, weekAverage } from '../utils/weeklyVolume.js';
 
 type SeriesKey = keyof Omit<WeeklyCategoryVolume, 'weekStart'>;
 
@@ -20,10 +20,12 @@ const SERIES: { key: SeriesKey; color: string; unit: 'kg' | 'reps' }[] = [
   { key: 'bodyweight', color: '#c98500', unit: 'reps' },
 ];
 
-// Chart area: 14 px on top for the scale captions, bars up to 126 px.
+// Chart area: 14 px on top for the scale captions, bars up to 126 px. The
+// 1 px baseline is a border inside the 140, so bars stand on y = 139.
 const AREA_HEIGHT = 140;
 const TOP_PAD = 14;
 const BAR_MAX = AREA_HEIGHT - TOP_PAD;
+const BASELINE = AREA_HEIGHT - 1;
 
 // Drawn by hand, not with Recharts: the strip is wider than the card and
 // scrolls, and each week is a button (tap -> the tiles above, keyboard focus).
@@ -40,6 +42,8 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   const currentIndex = foundIndex >= 0 ? foundIndex : weeks.length - 1;
   const current = weeks[currentIndex];
   const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  // Announced only on a tap or a key - not on every column the mouse passes.
+  const [announced, setAnnounced] = useState('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once the
@@ -87,7 +91,23 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   };
   // Every 4th week is labelled, counted from the current one so it always has its date.
   const labelled = (i: number) => (weeks.length - 1 - i) % 4 === 0;
-  const isCurrentWeek = currentIndex === weeks.length - 1;
+  const weekTitle = (i: number) =>
+    t('progress.weekRange', { from: dm(weeks[i].weekStart), to: dmy(addDays(weeks[i].weekStart, 6)) }) +
+    (i === weeks.length - 1 ? ` · ${t('progress.current')}` : '');
+  const comparison = (i: number, key: SeriesKey) => {
+    const avg = weekAverage(weeks, i, key);
+    return avg > 0 ? Math.round(((weeks[i][key] - avg) / avg) * 100) : null;
+  };
+  // What the tiles say, for the screen reader after a tap or an arrow key.
+  const select = (i: number) => {
+    setSelected(weeks[i].weekStart);
+    const tiles = SERIES.map((s) => {
+      const pct = comparison(i, s.key);
+      const vs = pct == null ? '' : `, ${t(pct >= 0 ? 'progress.vsAverageUp' : 'progress.vsAverageDown', { pct: Math.abs(pct) })}`;
+      return `${t(`progress.week.${s.key}`)} ${value(s.key, weeks[i][s.key])}${vs}`;
+    });
+    setAnnounced(`${weekTitle(i)}: ${tiles.join('; ')}`);
+  };
 
   // The bars say nothing to a screen reader - expose period totals as text.
   const total = (key: SeriesKey) => Math.round(weeks.reduce((sum, w) => sum + w[key], 0));
@@ -104,15 +124,11 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
       <p className="sr-only">{summary}</p>
 
       <div className="flex flex-col gap-2">
-        <b aria-live="polite" className="text-sm text-slate-100">
-          {t('progress.weekRange', { from: dm(current.weekStart), to: dmy(addDays(current.weekStart, 6)) })}
-          {isCurrentWeek && ` · ${t('progress.current')}`}
-        </b>
+        <b className="text-sm text-slate-100">{weekTitle(currentIndex)}</b>
         <div className="grid grid-cols-3 gap-1.5">
           {SERIES.map((s) => {
             const v = current[s.key];
-            const avg = weekAverage(weeks, currentIndex, s.key);
-            const pct = avg > 0 ? Math.round(((v - avg) / avg) * 100) : null;
+            const pct = comparison(currentIndex, s.key);
             return (
               <div key={s.key} className="flex min-w-0 flex-col gap-[3px] rounded-[10px] bg-surface p-2">
                 <span className="flex items-center gap-[5px] text-[11px] text-slate-400">
@@ -129,7 +145,7 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
             );
           })}
         </div>
-        <span className="text-[11px] text-hint">{t('progress.averageNote')}</span>
+        <span className="text-[11px] text-hint">{t('progress.averageNote', { weeks: AVERAGE_WEEKS })}</span>
       </div>
 
       <div className="relative">
@@ -148,8 +164,8 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
         >
           <div className="w-max min-w-full">
             <div className="relative flex items-end gap-0.5 border-b border-[#3a4150]" style={{ height: AREA_HEIGHT }}>
-              {/* Grid: the top of the scale and its half. */}
-              {[TOP_PAD, TOP_PAD + BAR_MAX / 2].map((top) => (
+              {/* Grid: the top of the scale and its half, measured from the baseline. */}
+              {[BASELINE - BAR_MAX, BASELINE - BAR_MAX / 2].map((top) => (
                 <div
                   key={top}
                   aria-hidden="true"
@@ -175,13 +191,13 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
                       small: kg(w.small),
                       bodyweight: reps(w.bodyweight),
                     })}
-                    onClick={() => setSelected(w.weekStart)}
+                    onClick={() => select(i)}
                     onKeyDown={(e) => {
                       const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
                       const next = weeks[i + step];
                       if (!step || !next) return;
                       e.preventDefault();
-                      setSelected(next.weekStart);
+                      select(i + step);
                       buttonsRef.current[i + step]?.focus();
                     }}
                     onPointerEnter={(e) => {
@@ -213,6 +229,9 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
         </div>
       </div>
 
+      <p aria-live="polite" className="sr-only">
+        {announced}
+      </p>
       {canScroll && <p className="-mt-1 text-xs text-hint">{t('progress.scrollHint')}</p>}
 
       <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-xs text-slate-300" aria-hidden="true">
