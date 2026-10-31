@@ -99,7 +99,9 @@ export default function WorkoutFormPage() {
 
   // The screen stays on while the workout is running - not once it is
   // finished (also by the 90-min auto-finish) and not while it is paused.
-  useWakeLock(workoutQuery.data != null && workoutQuery.data.timeEnd == null && workoutQuery.data.pausedAt == null);
+  const workoutRunning = workoutQuery.data != null && workoutQuery.data.timeEnd == null;
+  const workoutPaused = workoutRunning && workoutQuery.data?.pausedAt != null;
+  const wakeLock = useWakeLock(workoutRunning && !workoutPaused);
 
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
   // null until the form is seeded from the server - nothing may be saved
@@ -593,6 +595,18 @@ export default function WorkoutFormPage() {
             <span className="text-slate-400">{t('workout.saveStatus.saved')}</span>
           ) : null}
         </p>
+
+        {/* Whether the screen is kept on - so a phone that still dims says why
+            (the browser refused, or it cannot hold the screen at all). */}
+        {workoutPaused ? (
+          <p className="-mt-2 text-xs text-slate-400">{t('workout.wakeLock.paused')}</p>
+        ) : wakeLock.kind === 'held' ? (
+          <p className="-mt-2 text-xs text-slate-400">{t('workout.wakeLock.held')}</p>
+        ) : wakeLock.kind === 'denied' ? (
+          <p className="-mt-2 text-xs text-amber-400">{t('workout.wakeLock.denied', { reason: wakeLock.reason })}</p>
+        ) : wakeLock.kind === 'unsupported' ? (
+          <p className="-mt-2 text-xs text-amber-400">{t('workout.wakeLock.unsupported')}</p>
+        ) : null}
 
         {!workout.timeEnd && (
           <button className="btn-primary h-12 w-full" onClick={handleFinish} disabled={saving}>

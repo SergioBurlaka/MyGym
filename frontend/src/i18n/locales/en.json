@@ -251,6 +251,12 @@
       "saved": "✓ All saved",
       "failed": "Couldn't save - trying again",
       "retry": "Retry"
+    },
+    "wakeLock": {
+      "held": "☀ The screen stays on",
+      "denied": "The screen may turn off - the browser refused ({{reason}})",
+      "unsupported": "This browser can't keep the screen on",
+      "paused": "Paused - the screen may turn off"
     }
   },
   "progress": {
