@@ -393,7 +393,9 @@
       "noExercises": "no exercises",
       "missedPlannedDay": "Missed a planned day",
       "noWorkout": "No workout"
-    }
+    },
+    "scrollHint": "← scroll left to see earlier weeks",
+    "gridAria": "Weeks up to today; scroll left for earlier weeks"
   },
   "progression": {
     "badge": {

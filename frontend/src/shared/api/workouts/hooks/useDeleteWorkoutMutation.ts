@@ -18,6 +18,7 @@ export const useDeleteWorkoutMutation = (id: string): UseMutationResult<unknown,
       // unmounts the page. Letting the query go stale and get garbage
       // collected after unmount avoids that spurious request.
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.dates._def });
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.active.queryKey });
       // Another workout's progressAt depends on this one - mark every open
       // workout page stale (refetched when next shown), without fetching now.
