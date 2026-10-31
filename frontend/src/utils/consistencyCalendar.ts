@@ -42,6 +42,13 @@ export function calendarWeeks(start: string | null, today: string, fit = 0): str
   return weeks;
 }
 
+// Index of the first column with history in it (the columns before it are
+// padding); -1 when there is no history or it starts after the grid.
+export function historyColumn(mondays: string[], start: string | null): number {
+  if (start == null) return -1;
+  return mondays.findIndex((monday) => addDays(monday, 6) >= start);
+}
+
 // A short month name over the first column whose Monday falls in a new month
 // (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is wider
 // than two 17 px columns, so the first column's label is dropped when the next

@@ -6,7 +6,14 @@ import { useScheduleHistoryQuery } from '../shared/api/settings/index.js';
 import { useWorkoutDatesQuery } from '../shared/api/workouts/index.js';
 import { formatDate } from '../utils/weight.js';
 import { addDays, startOfWeekMonday, todayIso, weekdayMonday } from '../utils/date.js';
-import { calendarWeeks, COLUMN_PX, fitWeeks, historyStart, monthLabels } from '../utils/consistencyCalendar.js';
+import {
+  calendarWeeks,
+  COLUMN_PX,
+  fitWeeks,
+  historyColumn,
+  historyStart,
+  monthLabels,
+} from '../utils/consistencyCalendar.js';
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 // The whole history in one request: the dates endpoint is light (~150 bytes a
@@ -62,18 +69,12 @@ export default function ConsistencyCalendar() {
   const [fit, setFit] = useState(0);
   const weeks = useMemo(() => calendarWeeks(start, todayStr, fit), [start, todayStr, fit]);
   // The first column with history in it (the rest on the left are padding).
-  const historyIndex = useMemo(
-    () => (start == null ? -1 : weeks.findIndex((monday) => addDays(monday, 6) >= start)),
-    [weeks, start],
-  );
+  const historyIndex = useMemo(() => historyColumn(weeks, start), [weeks, start]);
   const labels = useMemo(() => monthLabels(weeks, i18n.language), [weeks, i18n.language]);
 
   const ready = !historyQuery.isPending && !datesQuery.isPending;
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once the
-  // standard scrollbar-width/-color are set (thin = 10 px with arrows), so the
-  // standard ones are only for browsers without ::-webkit-scrollbar (Firefox).
-  const [canScroll, setCanScroll] = useState(false);
+  const [historyHiddenLeft, setHistoryHiddenLeft] = useState(false);
   const [tip, setTip] = useState<Tip | null>(null);
   const pointerTypeRef = useRef<string>('mouse');
 
@@ -85,7 +86,7 @@ export default function ConsistencyCalendar() {
     const el = scrollRef.current;
     if (!el) return;
     const idx = historyIndexRef.current;
-    setCanScroll(idx >= 0 && idx * COLUMN_PX < el.scrollLeft - 1);
+    setHistoryHiddenLeft(idx >= 0 && idx * COLUMN_PX < el.scrollLeft - 1);
   }, []);
 
   // Opens on the current week: the newest column is on the right. It stays
@@ -99,11 +100,17 @@ export default function ConsistencyCalendar() {
     updateHint();
   }, [ready, weeks.length, historyIndex, updateHint]);
 
-  useEffect(() => {
+  // Measured before the first paint (a wide screen must not flash 52 columns
+  // pressed to the left), then on every resize. The fractional width: a
+  // rounded-up clientWidth could fit one column more than there is room for.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!ready || !el) return;
     const update = () => {
-      setFit(fitWeeks(el.clientWidth));
+      setFit(fitWeeks(el.getBoundingClientRect().width));
+      // Narrowing without a change in the column count does not re-run the
+      // layout effect above - keep the current week in view here too.
+      if (stickToEnd.current) el.scrollLeft = el.scrollWidth;
       updateHint();
     };
     update();
@@ -217,6 +224,10 @@ export default function ConsistencyCalendar() {
           role="group"
           tabIndex={0}
           aria-label={t('calendar.gridAria')}
+          // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once
+          // the standard scrollbar-width/-color are set (thin = 10 px with
+          // arrows), so the standard ones are only for browsers without
+          // ::-webkit-scrollbar (Firefox).
           onScroll={(e) => {
             setTip(null);
             const el = e.currentTarget;
@@ -228,7 +239,7 @@ export default function ConsistencyCalendar() {
           {grid}
         </div>
       </div>
-      {canScroll && <p className="text-xs text-hint">{t('calendar.scrollHint')}</p>}
+      {historyHiddenLeft && <p className="text-xs text-hint">{t('calendar.scrollHint')}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-good" /> {t('calendar.legend.trainedPlanned')}

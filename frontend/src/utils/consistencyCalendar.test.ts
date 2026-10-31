@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calendarWeeks, fitWeeks, historyStart, MAX_WEEKS, MIN_WEEKS, monthLabels } from './consistencyCalendar.js';
+import { calendarWeeks, fitWeeks, historyColumn, historyStart, MAX_WEEKS, MIN_WEEKS, monthLabels } from './consistencyCalendar.js';
 
 describe('historyStart', () => {
   it('takes a workout older than the schedule history (CSV import after registration)', () => {
@@ -72,6 +72,24 @@ describe('fitWeeks', () => {
     expect(fitWeeks(52 * 17 - 3)).toBe(52);
     expect(fitWeeks(52 * 17 - 4)).toBe(51);
     expect(fitWeeks(0)).toBe(0);
+  });
+});
+
+describe('historyColumn', () => {
+  const today = '2026-10-31';
+
+  it('points at the week of the history start, after the padding', () => {
+    const weeks = calendarWeeks('2026-07-01', today); // 52 columns, 18 of history
+    expect(historyColumn(weeks, '2026-07-01')).toBe(52 - 18);
+    expect(weeks[52 - 18]).toBe('2026-06-29');
+  });
+
+  it('is the first column when the start was capped by MAX_WEEKS', () => {
+    expect(historyColumn(calendarWeeks('2006-07-01', today), '2006-07-01')).toBe(0);
+  });
+
+  it('is -1 without history', () => {
+    expect(historyColumn(calendarWeeks(null, today), null)).toBe(-1);
   });
 });
 
