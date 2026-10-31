@@ -128,7 +128,7 @@ describe('per-exercise try-more threshold', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it("overrides the program's value, falls back to it, and takes the smallest across programs", async () => {
+  it('is the own value, else the category default, the smallest across programs', async () => {
     const { auth } = await registerUser(app);
     const [a, b, c] = await exerciseIds(auth);
     await app.inject({
@@ -137,10 +137,10 @@ describe('per-exercise try-more threshold', () => {
       headers: auth,
       payload: {
         name: 'A',
-        tryMoreAfterWorkouts: 8,
         exercises: [
           { exerciseId: a, targetSets: 3, tryMoreAfterWorkouts: 5 },
           { exerciseId: b, targetSets: 3 },
+          { exerciseId: c, targetSets: 3 },
         ],
       },
     });
@@ -151,12 +151,56 @@ describe('per-exercise try-more threshold', () => {
       payload: { name: 'B', exercises: [{ exerciseId: b, targetSets: 3, tryMoreAfterWorkouts: 3 }] },
     });
 
-    expect(await overviewThreshold(auth, a)).toBe(5); // own value beats the program's 8
-    expect(await overviewThreshold(auth, b)).toBe(3); // 8 (A, inherited) vs 3 (B)
-    // In no program -> the category default.
+    expect(await overviewThreshold(auth, a)).toBe(5);
+    expect(await overviewThreshold(auth, b)).toBe(3); // default (A) vs own 3 (B)
+    // In a program, but without an own value -> the category default.
     const rowC = await overviewRow(auth, c);
     expect(rowC.tryMoreIsDefault).toBe(true);
     expect(rowC.tryMoreAfterWorkouts).toBe({ large: 4, small: 6, bodyweight: 5 }[rowC.category]);
+  });
+
+  it('counts a program without an own value at the default, below a bigger own value elsewhere', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const standard = { large: 4, small: 6, bodyweight: 5 }[(await overviewRow(auth, a)).category];
+    await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 3 }] },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'B', exercises: [{ exerciseId: a, targetSets: 3, tryMoreAfterWorkouts: standard + 4 }] },
+    });
+
+    const row = await overviewRow(auth, a);
+    expect(row.tryMoreAfterWorkouts).toBe(standard);
+    expect(row.tryMoreIsDefault).toBe(true);
+  });
+
+  it("ignores an old client's program-wide value instead of refusing it", async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', tryMoreAfterWorkouts: 2, exercises: [{ exerciseId: a, targetSets: 3 }] },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).not.toHaveProperty('tryMoreAfterWorkouts');
+    const updated = await app.inject({
+      method: 'PUT',
+      url: `/api/programs/${created.json().id}`,
+      headers: auth,
+      payload: { name: 'A', tryMoreAfterWorkouts: 2, exercises: [{ exerciseId: a, targetSets: 3 }] },
+    });
+    expect(updated.statusCode).toBe(200);
+    const row = await overviewRow(auth, a);
+    expect(row.tryMoreIsDefault).toBe(true);
   });
 });
 
@@ -289,6 +333,7 @@ describe('journal progressAt', () => {
         ],
       },
     });
+    return started.json().id as string;
   }
 
   type ListedWorkout = {
@@ -342,6 +387,52 @@ describe('journal progressAt', () => {
     const shifted = await journal(auth);
     expect(shifted.get(day(-6))).toMatchObject({ sessionsSinceProgress: 3 });
     expect(shifted.get(day(-8))).toMatchObject({ sessionsSinceProgress: 0 });
+  });
+
+  it('uses the same threshold in the journal and on the workout page, without an own value', async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2 }] },
+    });
+    const programId = created.json().id as string;
+    const category = (await overviewRow(auth, a)).category;
+    const standard = { large: 4, small: 6, bodyweight: 5 }[category];
+    await logWorkout(auth, day(-8), a, [8, 8], programId);
+    const id = await logWorkout(auth, day(-6), a, [8, 8], programId);
+
+    expect((await journal(auth)).get(day(-6))).toMatchObject({ tryMoreAfterWorkouts: standard });
+    const page = await app.inject({ method: 'GET', url: `/api/workouts/${id}`, headers: auth });
+    const we = page.json().workoutExercises[0];
+    expect(we.progressAt.tryMoreAfterWorkouts).toBe(standard);
+    expect(we.counterBefore).toEqual({ sessionsSinceProgress: 0, tryMoreAfterWorkouts: standard });
+  });
+
+  it("a workout from a program without an own value uses the default, not another program's", async () => {
+    const { auth } = await registerUser(app);
+    const [a] = await exerciseIds(auth);
+    const standard = { large: 4, small: 6, bodyweight: 5 }[(await overviewRow(auth, a)).category];
+    const programA = await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'A', exercises: [{ exerciseId: a, targetSets: 2 }] },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/programs',
+      headers: auth,
+      payload: { name: 'B', exercises: [{ exerciseId: a, targetSets: 2, tryMoreAfterWorkouts: standard + 4 }] },
+    });
+    await logWorkout(auth, day(-8), a, [8, 8], programA.json().id);
+    const id = await logWorkout(auth, day(-6), a, [8, 8], programA.json().id);
+
+    expect((await journal(auth)).get(day(-6))).toMatchObject({ tryMoreAfterWorkouts: standard });
+    const page = await app.inject({ method: 'GET', url: `/api/workouts/${id}`, headers: auth });
+    expect(page.json().workoutExercises[0].counterBefore).toEqual({ sessionsSinceProgress: 0, tryMoreAfterWorkouts: standard });
   });
 
   it('comes with a single workout and with its save response', async () => {

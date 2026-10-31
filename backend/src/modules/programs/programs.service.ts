@@ -90,7 +90,6 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
         userId,
         name: input.name,
         orderIndex: nextOrderIndex,
-        tryMoreAfterWorkouts: input.tryMoreAfterWorkouts ?? null,
       })
       .returning();
 
@@ -134,7 +133,7 @@ export async function updateProgram(userId: string, programId: string, input: Sa
 
     await tx
       .update(programs)
-      .set({ name: input.name, tryMoreAfterWorkouts: input.tryMoreAfterWorkouts ?? null })
+      .set({ name: input.name })
       .where(eq(programs.id, programId));
 
     // Starting from a program copies its name into the workout's label, so a

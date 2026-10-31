@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Xeyx9GIftyy93zRVXe7UrRvaRKS95KidRdTQGTQRDEMIoDOmkxoR5sWJPitywSw
+\restrict Fb3H4PmSvATJTCx14aCmuQrZR08eSLRUIt4kKVvG17clR3y5XYjwEnIThgkxt8N
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -219,6 +219,7 @@ CREATE TABLE public.program_exercises (
     order_index smallint DEFAULT 0 NOT NULL,
     target_sets smallint DEFAULT 3 NOT NULL,
     try_more_after_workouts smallint,
+    lock_sets boolean DEFAULT false NOT NULL,
     CONSTRAINT program_exercises_target_sets_check CHECK (((target_sets >= 1) AND (target_sets <= 20))),
     CONSTRAINT program_exercises_try_more_check CHECK (((try_more_after_workouts >= 1) AND (try_more_after_workouts <= 60)))
 );
@@ -233,9 +234,7 @@ CREATE TABLE public.programs (
     user_id uuid NOT NULL,
     name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    order_index smallint DEFAULT 0 NOT NULL,
-    try_more_after_workouts smallint,
-    CONSTRAINT programs_try_more_check CHECK (((try_more_after_workouts >= 1) AND (try_more_after_workouts <= 60)))
+    order_index smallint DEFAULT 0 NOT NULL
 );
 
 
@@ -794,5 +793,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Xeyx9GIftyy93zRVXe7UrRvaRKS95KidRdTQGTQRDEMIoDOmkxoR5sWJPitywSw
+\unrestrict Fb3H4PmSvATJTCx14aCmuQrZR08eSLRUIt4kKVvG17clR3y5XYjwEnIThgkxt8N
 

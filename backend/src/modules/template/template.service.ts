@@ -158,7 +158,6 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
           userId: targetId,
           name: p.name,
           orderIndex: next + i,
-          tryMoreAfterWorkouts: p.tryMoreAfterWorkouts,
         };
       }),
     );

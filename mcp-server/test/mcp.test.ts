@@ -55,6 +55,7 @@ beforeAll(async () => {
     reply.code(400).send({ error: 'validation_error', issues: [{ path: ['repRangeMax'], message: 'rep_range_invalid' }] }),
   );
   backend.get('/api/progression', async (_request, reply) => reply.code(500).send({ error: 'internal_error' }));
+  backend.post('/api/programs', async (request, reply) => reply.code(201).send({ id: 'program-1', ...(request.body as object) }));
   backendUrl = await backend.listen({ port: 0, host: '127.0.0.1' });
 });
 
@@ -282,6 +283,23 @@ describe('forwarding to the MyGym API', () => {
         body: expect.objectContaining({ unilateral: true, limb: 'arm' }),
       }),
     );
+  });
+
+  it('create_program passes lockSets through and back', async () => {
+    const client = await connect(TOKENS.alice);
+    const exercises = [
+      { exerciseId: '22222222-2222-4222-8222-222222222222', targetSets: 4, lockSets: true },
+      { exerciseId: '33333333-3333-4333-8333-333333333333', targetSets: '3', tryMoreAfterWorkouts: '6' },
+    ];
+    const result = await client.callTool({ name: 'create_program', arguments: { name: 'A', exercises } });
+
+    expect(result.isError).toBeFalsy();
+    const sent = [
+      { exerciseId: exercises[0].exerciseId, targetSets: 4, lockSets: true },
+      { exerciseId: exercises[1].exerciseId, targetSets: 3, tryMoreAfterWorkouts: 6 },
+    ];
+    expect(seen).toEqual([expect.objectContaining({ method: 'POST', url: '/api/programs', body: { name: 'A', exercises: sent } })]);
+    expect(JSON.parse(text(result)).exercises[0].lockSets).toBe(true);
   });
 
   it('rejects malformed input before calling the API', async () => {

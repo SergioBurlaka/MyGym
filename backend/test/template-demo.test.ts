@@ -7,6 +7,7 @@ import { exercises, refreshTokens, trainingScheduleHistory, users, workouts } fr
 import { env } from '../src/config/env.js';
 import { DEMO_EMAIL, DEMO_RESET_AFTER_MS } from '../src/modules/template/demo.service.js';
 import { SAMPLE_WORKOUT_COUNT } from '../src/modules/template/template.service.js';
+import { localDate } from '../src/modules/progression/progression.service.js';
 
 let app: FastifyInstance;
 
@@ -22,7 +23,9 @@ afterEach(async () => {
 
 const TEMPLATE_EMAIL = 'template-owner@example.com';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const daysAgo = (n: number) => new Date(Date.now() - n * DAY_MS).toISOString().slice(0, 10);
+// In the users' default time zone, as the server's "today" (getUserToday) -
+// a UTC date is a day behind in Kyiv's late evening and broke the tests.
+const daysAgo = (n: number) => localDate(new Date(Date.now() - n * DAY_MS), 'Europe/Kyiv');
 const weekday = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 
 type Auth = Record<string, string>;
@@ -55,7 +58,7 @@ async function setUpTemplate(latestDaysAgo = 20) {
       method: 'POST',
       url: '/api/programs',
       headers: owner.auth,
-      payload: { name, exercises: ids.map((exerciseId) => ({ exerciseId, targetSets: 3 })), tryMoreAfterWorkouts: 5 },
+      payload: { name, exercises: ids.map((exerciseId) => ({ exerciseId, targetSets: 3, tryMoreAfterWorkouts: 5 })) },
     });
     expect(res.statusCode).toBe(201);
     programIds.push(res.json().id);
@@ -137,9 +140,9 @@ describe('starter data for a new account', () => {
     const { auth, user } = await registerUser(app);
 
     const progs = await app.inject({ method: 'GET', url: '/api/programs', headers: auth });
-    const programs = progs.json() as { id: string; name: string; tryMoreAfterWorkouts: number | null; programExercises: { exerciseId: string }[] }[];
+    const programs = progs.json() as { id: string; name: string; programExercises: { exerciseId: string; tryMoreAfterWorkouts: number | null }[] }[];
     expect(programs.map((p) => p.name).sort()).toEqual(['A', 'B']);
-    expect(programs.every((p) => p.tryMoreAfterWorkouts === 5)).toBe(true);
+    expect(programs.flatMap((p) => p.programExercises).every((pe) => pe.tryMoreAfterWorkouts === 5)).toBe(true);
 
     // The custom exercise was created for the new user; default ones matched by name.
     const own = await exerciseList(auth);

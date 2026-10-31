@@ -9,5 +9,4 @@ export type SaveProgramExerciseBody = {
 export type SaveProgramBody = {
   name: string;
   exercises: SaveProgramExerciseBody[];
-  tryMoreAfterWorkouts?: number | null;
 };

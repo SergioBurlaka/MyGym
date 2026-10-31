@@ -266,15 +266,9 @@ export const programs = pgTable('programs', {
   // Rotation order between a user's programs (A, Б, ...) - assigned in
   // creation order, drives getSuggestedProgram()'s "next in the cycle" pick.
   orderIndex: smallint('order_index').notNull().default(0),
-  // Workouts of the exercise without progress before the "try_more"
-  // reminder, for every exercise in this program (skipped/missed schedule
-  // days just don't add to the count). Null keeps the category default
-  // (DEFAULT_TRY_MORE_AFTER_WORKOUTS in progression.service.ts).
-  tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('programs_user_idx').on(table.userId),
-  tryMoreCheck: check('programs_try_more_check', sql`${table.tryMoreAfterWorkouts} BETWEEN 1 AND 60`),
 }));
 
 export const programExercises = pgTable('program_exercises', {
@@ -292,10 +286,10 @@ export const programExercises = pgTable('program_exercises', {
   // weight (and rep counts) from the most recent time each exercise was
   // actually performed, not a stale "starting weight" set once up front.
   targetSets: smallint('target_sets').notNull().default(3),
-  // Per-exercise override of programs.tryMoreAfterWorkouts (same meaning:
-  // workouts of this exercise without progress before "try_more"). Null
-  // falls back to the program's value, then to the category default
-  // (DEFAULT_TRY_MORE_AFTER_WORKOUTS in progression.service.ts).
+  // Workouts of this exercise without progress before the "try_more"
+  // reminder (skipped/missed schedule days just don't add to the count).
+  // Null keeps the category default (DEFAULT_TRY_MORE_AFTER_WORKOUTS in
+  // progression.service.ts). There is no program-wide value (dropped in 0028).
   tryMoreAfterWorkouts: smallint('try_more_after_workouts'),
   // A workout started from this program has exactly targetSets set cells for
   // the exercise: no "+" cell, no long-press removal - a lock on the card says
