@@ -48,12 +48,22 @@ describe('monthLabels', () => {
   const mondays = ['2026-06-29', '2026-07-06', '2026-07-27', '2026-08-03', '2026-08-10'];
 
   it('labels each column starting a new month', () => {
-    const later = ['2026-06-22', '2026-06-29', '2026-07-06', '2026-07-13', '2026-08-03'];
-    expect(monthLabels(later, 'uk')).toEqual(['черв.', '', 'лип.', '', 'серп.']);
+    const later = ['2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22', '2026-07-06', '2026-08-03'];
+    expect(monthLabels(later, 'uk')).toEqual(['черв.', '', '', '', 'лип.', 'серп.']);
   });
 
   it('drops the first label when the next month starts in the second column (no overlap)', () => {
     expect(monthLabels(mondays, 'uk')).toEqual(['', 'лип.', '', 'серп.', '']);
+  });
+
+  it('drops the first label when the next month starts in the third column too', () => {
+    const third = ['2026-06-22', '2026-06-29', '2026-07-06', '2026-07-13', '2026-07-20'];
+    expect(monthLabels(third, 'uk')).toEqual(['', '', 'лип.', '', '']);
+  });
+
+  it('keeps the first label when the next month is four columns away', () => {
+    const fourth = ['2026-06-08', '2026-06-15', '2026-06-22', '2026-06-29', '2026-07-06'];
+    expect(monthLabels(fourth, 'uk')).toEqual(['черв.', '', '', '', 'лип.']);
   });
 
   it('follows the UI language', () => {
