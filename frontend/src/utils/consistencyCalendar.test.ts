@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calendarWeeks, historyStart, MIN_WEEKS, monthLabels } from './consistencyCalendar.js';
+import { calendarWeeks, historyStart, MAX_WEEKS, MIN_WEEKS, monthLabels } from './consistencyCalendar.js';
 
 describe('historyStart', () => {
   it('takes a workout older than the schedule history (CSV import after registration)', () => {
@@ -31,6 +31,12 @@ describe('calendarWeeks', () => {
     expect(calendarWeeks(null, today).length).toBe(MIN_WEEKS);
   });
 
+  it("caps a typo'd ancient date at MAX_WEEKS", () => {
+    const weeks = calendarWeeks('2006-07-01', today);
+    expect(weeks.length).toBe(MAX_WEEKS);
+    expect(weeks[weeks.length - 1]).toBe('2026-10-26');
+  });
+
   it('ends on the current week even when today is Monday', () => {
     const weeks = calendarWeeks('2026-01-05', '2026-10-26');
     expect(weeks[weeks.length - 1]).toBe('2026-10-26');
@@ -41,11 +47,16 @@ describe('calendarWeeks', () => {
 describe('monthLabels', () => {
   const mondays = ['2026-06-29', '2026-07-06', '2026-07-27', '2026-08-03', '2026-08-10'];
 
-  it('labels the first column and each column starting a new month', () => {
-    expect(monthLabels(mondays, 'uk')).toEqual(['черв.', 'лип.', '', 'серп.', '']);
+  it('labels each column starting a new month', () => {
+    const later = ['2026-06-22', '2026-06-29', '2026-07-06', '2026-07-13', '2026-08-03'];
+    expect(monthLabels(later, 'uk')).toEqual(['черв.', '', 'лип.', '', 'серп.']);
+  });
+
+  it('drops the first label when the next month starts in the second column (no overlap)', () => {
+    expect(monthLabels(mondays, 'uk')).toEqual(['', 'лип.', '', 'серп.', '']);
   });
 
   it('follows the UI language', () => {
-    expect(monthLabels(mondays, 'en')).toEqual(['Jun', 'Jul', '', 'Aug', '']);
+    expect(monthLabels(mondays, 'en')).toEqual(['', 'Jul', '', 'Aug', '']);
   });
 });

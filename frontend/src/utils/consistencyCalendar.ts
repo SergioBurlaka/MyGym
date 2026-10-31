@@ -4,6 +4,8 @@ import { addDays, parseIso, startOfWeekMonday } from './date.js';
 // history to the current one - but never fewer than this, so a new account
 // still gets a calendar-shaped grid.
 export const MIN_WEEKS = 16;
+// ...and never more than ~5 years.
+export const MAX_WEEKS = 53 * 5;
 
 // The start of history is the earliest of the first workout and the first
 // schedule entry. The schedule alone is not enough: workouts imported from CSV
@@ -18,7 +20,10 @@ export function historyStart(firstWorkout: string | null, firstSchedule: string 
 export function calendarWeeks(start: string | null, today: string): string[] {
   const lastMonday = startOfWeekMonday(today);
   const minFirst = addDays(lastMonday, -7 * (MIN_WEEKS - 1));
-  const startMonday = start ? startOfWeekMonday(start) : minFirst;
+  const maxFirst = addDays(lastMonday, -7 * (MAX_WEEKS - 1));
+  let startMonday = start ? startOfWeekMonday(start) : minFirst;
+  // A typo'd year (2006 for 2026, via CSV or MCP) must not render 1000 weeks.
+  if (startMonday < maxFirst) startMonday = maxFirst;
   const first = startMonday < minFirst ? startMonday : minFirst;
   const weeks: string[] = [];
   for (let m = first; m <= lastMonday; m = addDays(m, 7)) weeks.push(m);
@@ -26,12 +31,16 @@ export function calendarWeeks(start: string | null, today: string): string[] {
 }
 
 // A short month name over the first column whose Monday falls in a new month
-// (and over the first column), e.g. «лип.» / "Jul".
+// (and over the first column), e.g. «лип.» / "Jul". A label is wider than one
+// 26 px column, so the first column's label is dropped when the next month
+// starts right in the second column - they would run into each other.
 export function monthLabels(mondays: string[], lang: string): string[] {
   const fmt = new Intl.DateTimeFormat(lang, { month: 'short' });
-  return mondays.map((m, i) => {
+  const labels = mondays.map((m, i) => {
     const month = parseIso(m).getMonth();
     if (i > 0 && parseIso(mondays[i - 1]).getMonth() === month) return '';
     return fmt.format(parseIso(m));
   });
+  if (labels.length > 1 && labels[1]) labels[0] = '';
+  return labels;
 }
