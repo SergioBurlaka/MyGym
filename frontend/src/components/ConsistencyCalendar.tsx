@@ -93,6 +93,10 @@ export default function ConsistencyCalendar() {
   // pinned there when the column count changes (resize), until the user
   // scrolls away from the right edge.
   const stickToEnd = useRef(true);
+  // The area width at the last ResizeObserver run. On narrowing, Chromium
+  // re-snaps the columns and fires `scroll` before the observer runs - that
+  // scroll is the layout's, not the user's, and must not unpin the end.
+  const measuredWidth = useRef<number | null>(null);
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!ready || !el) return;
@@ -107,6 +111,7 @@ export default function ConsistencyCalendar() {
     const el = scrollRef.current;
     if (!ready || !el) return;
     const update = () => {
+      measuredWidth.current = el.clientWidth;
       setFit(fitWeeks(el.getBoundingClientRect().width));
       // Narrowing without a change in the column count does not re-run the
       // layout effect above - keep the current week in view here too.
@@ -231,7 +236,9 @@ export default function ConsistencyCalendar() {
           onScroll={(e) => {
             setTip(null);
             const el = e.currentTarget;
-            stickToEnd.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+            if (el.clientWidth === measuredWidth.current) {
+              stickToEnd.current = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+            }
             updateHint();
           }}
           className="flex min-w-0 flex-1 snap-x snap-proximity gap-[3px] overflow-x-auto overscroll-x-contain pb-2 [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-color:#5a6272_#262c38] [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5a6272] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[#262c38] [&::-webkit-scrollbar]:h-1.5"
