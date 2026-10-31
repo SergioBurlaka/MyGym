@@ -13,12 +13,16 @@ const MAX_SEGMENTS = 12;
 // finding 04). `className` sets the width - full on the workout page.
 // Empty segments are slate-600: visible (>= 1.5:1) on a card and on the
 // journal's surface-border rows alike, where a surface-border track vanished.
+// `compact` (the Progress page tiles): no "To 'Try more'" label - the section
+// title says it once - so a narrow tile doesn't wrap it onto three lines.
 export default function TryMoreStatusBadge({
   status,
   className = 'w-full sm:w-56',
+  compact = false,
 }: {
   status: TryMoreStatus;
   className?: string;
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -47,14 +51,21 @@ export default function TryMoreStatusBadge({
       aria-label={t(due ? 'progressStatus.dueAria' : 'progressStatus.countAria', { done, count: status.total })}
       className={`flex flex-col gap-1.5 ${className}`}
     >
-      <span className="flex items-baseline justify-between gap-2" aria-hidden="true">
-        <span className={`text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>
-          {due ? t('progressStatus.due') : t('progressStatus.toTryMore')}
+      {compact ? (
+        <span className="text-xs text-slate-400" aria-hidden="true">
+          <b className={`text-[13px] tabular-nums ${due ? 'text-warn' : 'text-slate-100'}`}>{done}</b>{' '}
+          {t('progressStatus.ofWorkouts', { count: status.total })}
         </span>
-        <span className="whitespace-nowrap text-sm font-bold tabular-nums text-slate-100">
-          {done} <span className="font-normal text-slate-400">{t('progressStatus.ofWorkouts', { count: status.total })}</span>
+      ) : (
+        <span className="flex items-baseline justify-between gap-2" aria-hidden="true">
+          <span className={`text-xs ${due ? 'font-semibold text-warn' : 'text-slate-400'}`}>
+            {due ? t('progressStatus.due') : t('progressStatus.toTryMore')}
+          </span>
+          <span className="whitespace-nowrap text-sm font-bold tabular-nums text-slate-100">
+            {done} <span className="font-normal text-slate-400">{t('progressStatus.ofWorkouts', { count: status.total })}</span>
+          </span>
         </span>
-      </span>
+      )}
       {status.total <= MAX_SEGMENTS ? (
         <span className="flex gap-1" aria-hidden="true">
           {Array.from({ length: status.total }, (_, i) => (
