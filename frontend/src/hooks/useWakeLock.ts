@@ -1,52 +1,29 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createWakeLockController, type WakeLockState } from './wakeLockController.js';
+
+export type { WakeLockState } from './wakeLockController.js';
 
 // Keeps the screen on while `active` - in the gym the phone lies on a bench
 // between sets, and a dimmed screen means unlocking it for every set.
-//
-// The browser drops the lock by itself whenever the tab is hidden (screen
-// off, app switch), so it is taken again on `visibilitychange`. Unsupported
-// browsers (Firefox before 126, older iOS) and refusals (battery saver, the
-// page not visible yet) are ignored: the screen just dims as usual.
-export function useWakeLock(active: boolean): void {
+// The re-acquire rules live in wakeLockController.ts. Returns the current
+// state, so the workout page can say when the browser refused the lock.
+export function useWakeLock(active: boolean): WakeLockState {
+  const [state, setState] = useState<WakeLockState>({ kind: 'inactive' });
+
   useEffect(() => {
-    if (!active || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
-
-    let sentinel: WakeLockSentinel | null = null;
-    let cancelled = false;
-    // One request at a time - a second one in flight would leak a lock.
-    let requesting = false;
-
-    async function acquire() {
-      if (cancelled || requesting || document.visibilityState !== 'visible' || (sentinel && !sentinel.released)) {
-        return;
-      }
-      requesting = true;
-      try {
-        const lock = await navigator.wakeLock.request('screen');
-        // The effect was cleaned up while the request was in flight.
-        if (cancelled) {
-          void lock.release().catch(() => {});
-          return;
-        }
-        sentinel = lock;
-      } catch {
-        // Not allowed right now - nothing to do, retried on the next visibility change.
-      } finally {
-        requesting = false;
-      }
+    if (!active || typeof navigator === 'undefined') {
+      setState({ kind: 'inactive' });
+      return;
     }
-
-    function onVisibilityChange() {
-      if (document.visibilityState === 'visible') void acquire();
-    }
-
-    void acquire();
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => {
-      cancelled = true;
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (sentinel && !sentinel.released) void sentinel.release().catch(() => {});
-      sentinel = null;
-    };
+    return createWakeLockController(
+      {
+        wakeLock: 'wakeLock' in navigator ? navigator.wakeLock : undefined,
+        document,
+        window,
+      },
+      setState,
+    );
   }, [active]);
+
+  return state;
 }
