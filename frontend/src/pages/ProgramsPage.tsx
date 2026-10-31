@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import {
@@ -269,6 +269,7 @@ function ProgramForm({
   const [blocks, setBlocks] = useState<EditableExercise[]>(() => toEditable(program));
   const [addOpen, setAddOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId();
   const [error, setError] = useState<string | null>(null);
 
   // The form replaces the list - start at its top, not where the list was scrolled.
@@ -444,6 +445,7 @@ function ProgramForm({
           <button
             type="button"
             aria-expanded={helpOpen}
+            aria-controls={helpId}
             className="flex min-h-12 w-full items-center gap-2.5 text-left text-[15px] font-semibold text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => setHelpOpen((v) => !v)}
           >
@@ -464,6 +466,7 @@ function ProgramForm({
               closed keeps the hidden text out of Tab and screen readers -
               visibility switches at the end of the closing transition. */}
           <div
+            id={helpId}
             className={`grid transition-[grid-template-rows,opacity,visibility] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
               helpOpen ? 'visible grid-rows-[1fr] opacity-100' : 'invisible grid-rows-[0fr] opacity-0'
             }`}
