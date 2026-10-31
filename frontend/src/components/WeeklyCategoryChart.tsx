@@ -29,6 +29,9 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
 
   const [selected, setSelected] = useState<string | null>(null);
   const current = weeks.find((w) => w.weekStart === selected) ?? weeks[weeks.length - 1];
+  // Announced only on a tap or a key - not on every column the mouse passes.
+  const [announced, setAnnounced] = useState('');
+  const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScroll, setCanScroll] = useState(false);
@@ -55,6 +58,10 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   }
 
   const dm = (iso: string) => formatDate(iso, { day: '2-digit', month: '2-digit' });
+  // With the whole history 26.10 can be two different years - add it off this year.
+  const thisYear = todayStr.slice(0, 4);
+  const dmy = (iso: string) =>
+    iso.slice(0, 4) === thisYear ? dm(iso) : formatDate(iso, { day: '2-digit', month: '2-digit', year: 'numeric' });
   const num = (n: number) => Math.round(n).toLocaleString(i18n.language);
   const kg = (n: number) => `${num(n)} ${t('common.kg')}`;
   const reps = (n: number) => `${num(n)} ${t('common.reps')}`;
@@ -117,22 +124,41 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
             ))}
             {weeks.map((w, i) => {
               const isSelected = w.weekStart === current.weekStart;
+              const label = t('progress.weekAria', {
+                date: dmy(w.weekStart),
+                large: kg(w.large),
+                small: kg(w.small),
+                bodyweight: reps(w.bodyweight),
+              });
               return (
                 <button
                   key={w.weekStart}
+                  ref={(el) => {
+                    buttonsRef.current[i] = el;
+                  }}
                   type="button"
+                  // One Tab stop for the whole strip; arrows move between weeks.
+                  tabIndex={isSelected ? 0 : -1}
                   aria-pressed={isSelected}
-                  aria-label={t('progress.weekAria', {
-                    date: dm(w.weekStart),
-                    large: kg(w.large),
-                    small: kg(w.small),
-                    bodyweight: reps(w.bodyweight),
-                  })}
-                  onClick={() => setSelected(w.weekStart)}
+                  aria-label={label}
+                  onClick={() => {
+                    setSelected(w.weekStart);
+                    setAnnounced(label);
+                  }}
+                  onKeyDown={(e) => {
+                    const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+                    const next = weeks[i + step];
+                    if (!step || !next) return;
+                    e.preventDefault();
+                    setSelected(next.weekStart);
+                    buttonsRef.current[i + step]?.focus();
+                  }}
                   onPointerEnter={(e) => {
                     if (e.pointerType === 'mouse') setSelected(w.weekStart);
                   }}
-                  className={`relative flex w-[30px] flex-col items-center rounded-md ${isSelected ? 'bg-white/[0.06]' : ''}`}
+                  className={`relative flex w-[30px] flex-col items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${
+                    isSelected ? 'bg-white/[0.06]' : ''
+                  }`}
                 >
                   <span
                     className="flex w-full items-end justify-center gap-0.5 border-b border-[#3a4150]"
@@ -156,9 +182,12 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
         </div>
       </div>
 
-      <div aria-live="polite" className="flex flex-col gap-1.5 rounded-[10px] bg-surface px-3 py-2.5">
+      <p aria-live="polite" className="sr-only">
+        {announced}
+      </p>
+      <div className="flex flex-col gap-1.5 rounded-[10px] bg-surface px-3 py-2.5">
         <b className="text-[13px] text-slate-100">
-          {t('progress.weekRange', { from: dm(current.weekStart), to: dm(addDays(current.weekStart, 6)) })}
+          {t('progress.weekRange', { from: dm(current.weekStart), to: dmy(addDays(current.weekStart, 6)) })}
         </b>
         <div className="grid grid-cols-3 gap-1.5 text-xs text-slate-400">
           {CATEGORY_SERIES.map((s) => (
