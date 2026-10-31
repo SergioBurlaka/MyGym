@@ -34,6 +34,8 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   const buttonsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once the
+  // standard scrollbar-width/-color are set, so those are Firefox-only here.
   const [canScroll, setCanScroll] = useState(false);
 
   // Opens on the current week: the newest column is on the right.
@@ -111,7 +113,7 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
           ref={scrollRef}
           role="group"
           aria-label={t('progress.chartAria')}
-          className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-color:#3a4150_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#3a4150] [&::-webkit-scrollbar]:h-1"
+          className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-color:#3a4150_transparent] [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#3a4150] [&::-webkit-scrollbar]:h-1"
         >
           <div className="relative flex w-max">
             {[0, 1, 2].map((k) => (
