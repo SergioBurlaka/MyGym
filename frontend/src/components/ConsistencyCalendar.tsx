@@ -62,6 +62,9 @@ export default function ConsistencyCalendar() {
 
   const ready = !historyQuery.isPending && !datesQuery.isPending;
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Scrollbar: Chromium 121+ ignores every ::-webkit-scrollbar rule once the
+  // standard scrollbar-width/-color are set (thin = 10 px with arrows), so the
+  // standard ones are only for browsers without ::-webkit-scrollbar (Firefox).
   const [canScroll, setCanScroll] = useState(false);
   const [tip, setTip] = useState<Tip | null>(null);
   const pointerTypeRef = useRef<string>('mouse');
@@ -192,7 +195,7 @@ export default function ConsistencyCalendar() {
           tabIndex={0}
           aria-label={t('calendar.gridAria')}
           onScroll={() => setTip(null)}
-          className="flex min-w-0 flex-1 snap-x snap-proximity gap-[3px] overflow-x-auto overscroll-x-contain pb-2 [scrollbar-color:#5a6272_#262c38] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5a6272] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[#262c38] [&::-webkit-scrollbar]:h-1.5"
+          className="flex min-w-0 flex-1 snap-x snap-proximity gap-[3px] overflow-x-auto overscroll-x-contain pb-2 [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-color:#5a6272_#262c38] [@supports_not_selector(::-webkit-scrollbar)]:[scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5a6272] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[#262c38] [&::-webkit-scrollbar]:h-1.5"
         >
           {grid}
         </div>
