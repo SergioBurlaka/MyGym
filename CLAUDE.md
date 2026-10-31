@@ -17,8 +17,8 @@
   циклі; щоб не чекати — `/sync-docs`.
   Дрібне питання чи однорядкова правка — без повного циклу.
 - **Git:** одна фіча — одна гілка, кілька комітів `feat:`/`fix:`/`chore:`…;
-  у `main` не комітити й не пушити (push у `main` = деплой). Деталі:
-  @.claude/rules/git-workflow.md
+  у `main` не комітити й не пушити (push у `main` = деплой). Деталі —
+  `.claude/rules/git-workflow.md` (правило без `paths`, вантажиться завжди саме).
 - **Заборонено:** читати/змінювати `.env*` (крім `.env.example`) і `backups/`;
   деструктивні команди. Це примусово тримає хук `.claude/hooks/guard.mjs`.
 - Субагенти: `researcher` (дослідження, без правок), `reviewer` (рев'ю диффу),
@@ -49,6 +49,34 @@
 Ці рішення — результат явного обговорення з користувачем (Fastify+Zod над
 Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT над
 сесіями в БД) — не пропонувати альтернативи без запиту.
+
+## Де що описано
+
+Тут — лише те, що потрібно в кожній сесії. Деталі модулів — у `.claude/rules/*.md`:
+кожне правило має `paths:` і підвантажується само, щойно читаєш чи редагуєш файл, що під
+нього підпадає (пошук `Grep` його **не** вантажить). Питання про тему без відкритого коду →
+спершу прочитай відповідне правило.
+
+| Тема | Правило |
+| :-- | :-- |
+| Сесії, refresh-токени, вхід через Google | `.claude/rules/auth.md` |
+| PAT, OAuth для MCP-клієнтів (CIMD, DCR, згода, іконки) | `.claude/rules/oauth-and-tokens.md` |
+| MCP-сервер (`mcp-server/`) | `.claude/rules/mcp-server.md` |
+| Прогресія: «Спробуй більше», перерви, ручний зсув, модель навантаження, аналітика | `.claude/rules/progression.md` |
+| Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер, екран | `.claude/rules/workouts.md` |
+| Шаблони А/Б і програми | `.claude/rules/programs.md` |
+| Розклад, календар консистентності, календарний фід | `.claude/rules/schedule-calendar.md` |
+| Демо-акаунт і стартові дані | `.claude/rules/demo-template.md` |
+| CSV-імпорт | `.claude/rules/csv-import.md` |
+| Прод: HTTPS, nginx, деплой | `.claude/rules/infra-prod.md` |
+| Dev-середовище на Windows (hot-reload, volumes, порти) | `.claude/rules/dev-env.md` |
+| Логотип, іконки, PWA | `.claude/rules/branding-pwa.md` |
+| Git-процес | `.claude/rules/git-workflow.md` (вантажиться завжди) |
+| Архітектура БД, ER-діаграма | `docs/db/ARCHITECTURE.md` |
+| Дизайн-стандарт | `DESIGN_PRINCIPLES.md` |
+
+Нова тема → нове правило з `paths:` (до ~200 рядків і 40 000 символів — довше обрізається),
+рядок у цій таблиці; спільне для всього застосунку — сюди.
 
 ## Модель даних (backend/src/db/schema.ts)
 
