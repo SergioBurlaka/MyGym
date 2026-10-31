@@ -606,6 +606,10 @@ export default function WorkoutFormPage() {
           <p className="-mt-2 text-xs text-amber-400">{t('workout.wakeLock.denied', { reason: wakeLock.reason })}</p>
         ) : wakeLock.kind === 'unsupported' ? (
           <p className="-mt-2 text-xs text-amber-400">{t('workout.wakeLock.unsupported')}</p>
+        ) : wakeLock.kind === 'pending' ? (
+          // Also the second after the system dropped the lock - seeing this
+          // flash mid-workout means the system keeps releasing it.
+          <p className="-mt-2 text-xs text-slate-400">{t('workout.wakeLock.pending')}</p>
         ) : null}
 
         {!workout.timeEnd && (

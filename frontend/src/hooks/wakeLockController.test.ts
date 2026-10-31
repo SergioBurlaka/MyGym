@@ -98,6 +98,19 @@ describe('createWakeLockController', () => {
     expect(t.held()).toBe(1);
   });
 
+  it('does not keep retrying on a timer when the retry after a release is refused', async () => {
+    const t = makeEnv();
+    createWakeLockController(t.env, t.onState);
+    await flush();
+    const err = new Error('nope');
+    err.name = 'NotAllowedError';
+    t.refuseWith(err);
+    t.sentinels[0]!.systemRelease();
+    await vi.advanceTimersByTimeAsync(RELEASE_RETRY_MS * 10);
+    expect(t.request).toHaveBeenCalledTimes(2);
+    expect(last(t.states)).toEqual({ kind: 'denied', reason: 'NotAllowedError' });
+  });
+
   it('reports a refusal with its reason and retries on a tap', async () => {
     const t = makeEnv();
     const err = new Error('nope');
