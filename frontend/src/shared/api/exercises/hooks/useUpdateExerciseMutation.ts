@@ -26,6 +26,8 @@ export const useUpdateExerciseMutation = (): UseMutationResult<
       // progressAt (journal, workout pages).
       await queryClient.invalidateQueries({ queryKey: progressionKeys._def });
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.list._def });
+      // Exercise names in the calendar tooltip.
+      await queryClient.invalidateQueries({ queryKey: workoutsKeys.dates._def });
       // Workout pages: mark stale (refetched when next shown), no fetch now.
       await queryClient.invalidateQueries({ queryKey: workoutsKeys.detail._def, refetchType: 'none' });
     },
