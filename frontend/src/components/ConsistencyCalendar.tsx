@@ -113,6 +113,8 @@ export default function ConsistencyCalendar() {
     const update = () => {
       measuredWidth.current = el.clientWidth;
       setFit(fitWeeks(el.getBoundingClientRect().width));
+      // Nothing to scroll = already at the end; no scroll event would tell.
+      if (el.scrollWidth <= el.clientWidth + 1) stickToEnd.current = true;
       // Narrowing without a change in the column count does not re-run the
       // layout effect above - keep the current week in view here too.
       if (stickToEnd.current) el.scrollLeft = el.scrollWidth;
