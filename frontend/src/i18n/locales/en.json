@@ -292,18 +292,23 @@
     "axisTonnes": "{{value}} t",
     "legend": {
       "large": "Large groups, kg",
-      "small": "Small groups, kg"
+      "small": "Small groups, kg",
+      "bodyweight": "No weight, reps — right scale"
     },
     "week": {
-      "large": "Large",
-      "small": "Small",
+      "large": "Large groups",
+      "small": "Small groups",
       "bodyweight": "No weight"
     },
     "weekRange": "Week {{from}}–{{to}}",
     "weekAria": "Week of {{date}}: large {{large}}, small {{small}}, no weight {{bodyweight}}",
     "chartAria": "Volume by week; scroll left for earlier weeks",
-    "scrollHint": "← scroll left for the whole history · tap a week for numbers",
-    "exercisesTitle": "Exercises · to “Try more”"
+    "scrollHint": "← scroll left for the whole history · tap a week to see it above",
+    "exercisesTitle": "Exercises · to “Try more”",
+    "current": "current",
+    "vsAverageUp": "↑ {{pct}}% vs average",
+    "vsAverageDown": "↓ {{pct}}% vs average",
+    "averageNote": "Average — over the 12 weeks up to the selected one"
   },
   "exercises": {
     "title": "Exercises",
