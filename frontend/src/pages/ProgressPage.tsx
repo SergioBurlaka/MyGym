@@ -15,7 +15,7 @@ import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 export default function ProgressPage() {
   const { t } = useTranslation();
   const progressionQuery = useProgressionQuery();
-  const volumeByCategoryQuery = useVolumeByCategoryQuery(12);
+  const volumeByCategoryQuery = useVolumeByCategoryQuery('all');
 
   // Chips show the same countdown as the program cards (the backend's
   // threshold - smallest across programs, else the category default) and are

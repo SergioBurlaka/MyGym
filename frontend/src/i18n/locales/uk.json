@@ -276,10 +276,9 @@
   },
   "progress": {
     "title": "Прогрес по вправах",
-    "weeklyVolumeTitle": "Обсяг по категоріях за тиждень",
-    "weeklyVolumeDescription": "Баланс навантаження між великими й малими групами м'язів — чи не занедбані малі групи.",
+    "weeklyVolumeTitle": "Обсяг за тиждень",
+    "weeklyVolumeDescription": "Баланс великих і малих груп м'язів",
     "noPeriodData": "Немає даних за цей період",
-    "weekOf": "Тиждень з {{date}}",
     "weeklyVolumeSummary": "Сумарний обсяг по категоріях за {{from}} – {{to}}: велика група {{large}} кг, мала група {{small}} кг, без ваги {{bodyweight}} повт.",
     "stats": {
       "lastWorkout": "Востаннє",
@@ -303,7 +302,22 @@
       "prBadge": "🏆 Особистий рекорд",
       "summary": "{{label}}: {{first}} → {{last}} {{unit}}, {{from}} – {{to}}",
       "summarySingle": "{{label}}: {{last}} {{unit}}, {{to}}"
-    }
+    },
+    "axisTonnes": "{{value}} т",
+    "legend": {
+      "large": "Великі групи, кг",
+      "small": "Малі групи, кг"
+    },
+    "week": {
+      "large": "Великі",
+      "small": "Малі",
+      "bodyweight": "Без ваги"
+    },
+    "weekRange": "Тиждень {{from}}–{{to}}",
+    "weekAria": "Тиждень з {{date}}: великі {{large}}, малі {{small}}, без ваги {{bodyweight}}",
+    "chartAria": "Обсяг по тижнях; гортайте вліво — раніші тижні",
+    "scrollHint": "← гортайте вліво — уся історія · тап по тижню — числа",
+    "exercisesTitle": "Вправи · до «Спробуй більше»"
   },
   "exercises": {
     "title": "Вправи",

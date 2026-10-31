@@ -262,10 +262,9 @@
   },
   "progress": {
     "title": "Exercise progress",
-    "weeklyVolumeTitle": "Weekly volume by category",
-    "weeklyVolumeDescription": "Balance of load between large and small muscle groups — check small groups aren't neglected.",
+    "weeklyVolumeTitle": "Weekly volume",
+    "weeklyVolumeDescription": "Balance of large and small muscle groups",
     "noPeriodData": "No data for this period",
-    "weekOf": "Week of {{date}}",
     "weeklyVolumeSummary": "Total volume by category, {{from}} – {{to}}: large group {{large}} kg, small group {{small}} kg, no weight {{bodyweight}} reps",
     "stats": {
       "lastWorkout": "Last time",
@@ -289,7 +288,22 @@
       "prBadge": "🏆 Personal record",
       "summary": "{{label}}: {{first}} → {{last}} {{unit}}, {{from}} – {{to}}",
       "summarySingle": "{{label}}: {{last}} {{unit}}, {{to}}"
-    }
+    },
+    "axisTonnes": "{{value}} t",
+    "legend": {
+      "large": "Large groups, kg",
+      "small": "Small groups, kg"
+    },
+    "week": {
+      "large": "Large",
+      "small": "Small",
+      "bodyweight": "No weight"
+    },
+    "weekRange": "Week {{from}}–{{to}}",
+    "weekAria": "Week of {{date}}: large {{large}}, small {{small}}, no weight {{bodyweight}}",
+    "chartAria": "Volume by week; scroll left for earlier weeks",
+    "scrollHint": "← scroll left for the whole history · tap a week for numbers",
+    "exercisesTitle": "Exercises · to “Try more”"
   },
   "exercises": {
     "title": "Exercises",
