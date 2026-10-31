@@ -29,8 +29,9 @@ export function calendarWeeks(start: string | null, today: string): string[] {
 }
 
 // A short month name over the first column whose Monday falls in a new month
-// (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is wider
-// than two 14 px columns, so the first column's label is dropped when the next
+// (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is about
+// as wide as two 14 px columns with their gap (31 px, the scrolling layout;
+// stretched to 18 px they are 39 px), so the first column's label is dropped when the next
 // month starts in the second or third column - they would run into each other.
 // Later labels are a whole month (4+ columns) apart.
 export function monthLabels(mondays: string[], lang: string): string[] {
