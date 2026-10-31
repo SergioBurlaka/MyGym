@@ -73,9 +73,9 @@ allowed-tools: Read, Grep, Glob, Bash, Edit, Write, Task, TaskCreate, TaskUpdate
 Лише після зелених рев'ю й тестів — щоб документувати остаточний код.
 
 `Task(subagent_type=docs-keeper)` з брифом: мета задачі + "онови живу документацію
-(`CLAUDE.md`, `docs/db/`) під усе, що змінилось від `docs/.docs-synced` — поточний стан,
+(`CLAUDE.md`, `.claude/rules/`, `docs/db/`) під усе, що змінилось від `docs/.docs-synced` — поточний стан,
 без історії". Базу він визначає сам, тож підхопить і зміни, зроблені поза `/feature`.
-- Перевір `git diff -- CLAUDE.md docs/` (вигадане чи зайве — прибери) →
+- Перевір `git diff -- CLAUDE.md .claude/rules/ docs/` (вигадане чи зайве — прибери) →
   коміт `docs: <що оновлено>` (або `docs(db): …`, якщо лише схема) разом із `docs/.docs-synced`.
 - `NO_DOC_CHANGES` → коміт лише `docs/.docs-synced`: `docs: mark docs synced`.
 - У звіті docs-keeper є коміти «поза оркестратором» → покажи їх користувачу.

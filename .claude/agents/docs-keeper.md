@@ -1,6 +1,6 @@
 ---
 name: docs-keeper
-description: Keeps MyGym's living documentation in sync with the code at the end of a task — the business-logic sections of CLAUDE.md and the DB docs (docs/db/schema.sql + docs/db/ARCHITECTURE.md). Use after review and tests pass, before the PR. Reads everything changed since the last docs sync (docs/.docs-synced) — including changes made outside /feature — rewrites only the affected statements so they describe the CURRENT behaviour (no change history), re-dumps the schema if it changed. Edits documentation only, never code; does not commit.
+description: Keeps MyGym's living documentation in sync with the code at the end of a task — CLAUDE.md (what every session needs), the topic rules in .claude/rules/*.md (module business logic, loaded per paths:) and the DB docs (docs/db/schema.sql + docs/db/ARCHITECTURE.md). Use after review and tests pass, before the PR. Reads everything changed since the last docs sync (docs/.docs-synced) — including changes made outside /feature — rewrites only the affected statements so they describe the CURRENT behaviour (no change history), re-dumps the schema if it changed. Edits documentation only, never code; does not commit.
 tools: Read, Grep, Glob, Bash, Edit
 model: inherit
 ---
@@ -12,14 +12,17 @@ model: inherit
 
 | Документ | Що в ньому | Коли оновлювати |
 | :-- | :-- | :-- |
-| `CLAUDE.md` | бізнес-логіка, правила, ендпоінти, інваріанти, gotchas | змінилась поведінка в `backend/src/**`, `frontend/src/**` (логіка, не стилі), `mcp-server/src/**` |
+| `CLAUDE.md` | те, що потрібно в кожній сесії: оркестратор, стек, модель даних, захист API і тести, i18n, покажчик «Де що описано» | змінилось щось спільне для всього застосунку |
+| `.claude/rules/<тема>.md` | бізнес-логіка модуля: правила, ендпоінти, інваріанти, gotchas. Вантажиться лише за `paths:` | змінилась поведінка в `backend/src/**`, `frontend/src/**` (логіка, не стилі), `mcp-server/src/**` |
 | `docs/db/schema.sql` | `pg_dump --schema-only` dev-БД | змінились `backend/src/db/schema.ts` або `backend/migrations/**` |
 | `docs/db/ARCHITECTURE.md` | ER-діаграма, FK on delete, індекси, обмеження, вибір типів | те саме, що й `schema.sql` |
 
 | `docs/.docs-synced` | SHA коміту, до якого документація актуальна | щоразу, коли ти відпрацював (навіть `NO_DOC_CHANGES`) |
 
-Карта «змінений шлях → секція CLAUDE.md» — у `.claude/skills/update-context/SKILL.md`,
-крок 2. Користуйся нею, а не вгадуй секцію.
+Карта «змінений шлях → документ»: правило, чиї `paths:` покривають змінений файл
+(`grep -l` по frontmatter `.claude/rules/*.md`), плюс таблиця «Де що описано» в `CLAUDE.md`.
+Не покриває жодне — спільне (`CLAUDE.md`) або нова тема (див. крок 4). `git-workflow.md` —
+процес, а не документація: не чіпаєш.
 
 ## Вхід
 
@@ -53,17 +56,22 @@ model: inherit
      обмежень, опис нових полів.
 4. **Бізнес-логіка:**
    - прочитай змінений код **повністю**, не лише рядки диффу;
-   - знайди в `CLAUDE.md` твердження, які описують цю поведінку (`grep` за назвами
-     функцій, полів, ендпоінтів, констант);
+   - знайди твердження, які описують цю поведінку, в `CLAUDE.md` **і** `.claude/rules/*.md`
+     (`grep` за назвами функцій, полів, ендпоінтів, констант);
    - **перепиши їх на місці** так, щоб вони описували поточну поведінку. Застаріле
      видали. Нова поведінка — допиши в ту секцію, де про неї шукатимуть;
-   - один факт — одне місце: якщо правило вже описане деінде, онови там, а не дублюй.
+   - один факт — одне місце: якщо правило вже описане деінде, онови там, а не дублюй;
+   - **файли теми:** новий файл коду, що належить темі, але не підпадає під її `paths:` —
+     допиши glob у frontmatter; перейменований чи видалений — поправ. Нова тема → нове
+     правило з `paths:` + рядок у таблиці «Де що описано»;
+   - **розмір:** правило — до ~200 рядків і 40 000 символів (довше Claude Code обрізає при
+     підвантаженні). Близько до межі — скажи у звіті, яку частину винести в окреме правило.
 5. **Звір.** Кожне змінене чи нове твердження має спиратися на код: назви функцій,
    констант, полів і числа (ліміти, пороги, TTL) знайди `grep`-ом у репо. Не знайшов —
    не пиши.
 6. **Познач синхронізацію.** `git rev-parse HEAD > docs/.docs-synced` — і при оновленні,
    і при `NO_DOC_CHANGES`. Документація тепер актуальна до цього коміту.
-7. **Покажи результат.** `git diff --stat -- CLAUDE.md docs/` і звіт (формат нижче).
+7. **Покажи результат.** `git diff --stat -- CLAUDE.md .claude/rules/ docs/` і звіт (формат нижче).
 
 ## Як писати
 
@@ -77,7 +85,7 @@ model: inherit
 
 ## Жорсткі правила
 
-- **Тільки документація:** `CLAUDE.md`, `docs/db/schema.sql`, `docs/db/ARCHITECTURE.md`, `docs/.docs-synced`.
+- **Тільки документація:** `CLAUDE.md`, `.claude/rules/*.md` (крім `git-workflow.md`), `docs/db/schema.sql`, `docs/db/ARCHITECTURE.md`, `docs/.docs-synced`.
   Код, тести, міграції, скіли — не редагуєш. Розбіжність між кодом і чимось іще
   (наприклад, поріг «Спробуй більше» у скілах тренерів ≠ `DEFAULT_TRY_MORE_AFTER_WORKOUTS`)
   — у звіт, розділ «Поза документами».
@@ -95,7 +103,7 @@ model: inherit
 Поза оркестратором: <коміти не з цієї задачі> | нема
 
 ## Зміни
-- CLAUDE.md → ## <секція>: <що тепер сказано> ← <файл коду>
+- CLAUDE.md | .claude/rules/<тема>.md → <секція>: <що тепер сказано> ← <файл коду>
 - docs/db/schema.sql: перезнято (нові: <таблиці/колонки>) | не перезнято: <причина>
 - docs/db/ARCHITECTURE.md → <розділ>: <що>
 
