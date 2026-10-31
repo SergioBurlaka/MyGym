@@ -52,6 +52,7 @@ function makeEnv() {
 }
 
 const flush = () => vi.advanceTimersByTimeAsync(0);
+const last = <T,>(xs: T[]): T | undefined => xs[xs.length - 1];
 
 describe('createWakeLockController', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -67,7 +68,7 @@ describe('createWakeLockController', () => {
     const t = makeEnv();
     createWakeLockController(t.env, t.onState);
     await flush();
-    expect(t.states.at(-1)).toEqual({ kind: 'held' });
+    expect(last(t.states)).toEqual({ kind: 'held' });
     expect(t.held()).toBe(1);
   });
 
@@ -76,11 +77,11 @@ describe('createWakeLockController', () => {
     createWakeLockController(t.env, t.onState);
     await flush();
     t.sentinels[0]!.systemRelease();
-    expect(t.states.at(-1)).toEqual({ kind: 'pending' });
+    expect(last(t.states)).toEqual({ kind: 'pending' });
     await vi.advanceTimersByTimeAsync(RELEASE_RETRY_MS);
     expect(t.request).toHaveBeenCalledTimes(2);
     expect(t.held()).toBe(1);
-    expect(t.states.at(-1)).toEqual({ kind: 'held' });
+    expect(last(t.states)).toEqual({ kind: 'held' });
   });
 
   it('waits for the page to be visible again after hiding', async () => {
@@ -104,11 +105,11 @@ describe('createWakeLockController', () => {
     t.refuseWith(err);
     createWakeLockController(t.env, t.onState);
     await flush();
-    expect(t.states.at(-1)).toEqual({ kind: 'denied', reason: 'NotAllowedError' });
+    expect(last(t.states)).toEqual({ kind: 'denied', reason: 'NotAllowedError' });
     t.refuseWith(null);
     t.doc.dispatchEvent(new Event('pointerdown'));
     await flush();
-    expect(t.states.at(-1)).toEqual({ kind: 'held' });
+    expect(last(t.states)).toEqual({ kind: 'held' });
   });
 
   it('re-acquires on focus and pageshow, never holding two locks', async () => {
