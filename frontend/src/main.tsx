@@ -17,7 +17,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <App />
         </AuthProvider>
       </BrowserRouter>
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+      {/* Top-left: bottom-right sits on the phone bottom bar's "More" tab. */}
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} buttonPosition="top-left" />}
     </QueryClientProvider>
   </React.StrictMode>,
 );
