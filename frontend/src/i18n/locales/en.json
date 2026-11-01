@@ -263,7 +263,8 @@
     "notFoundTitle": "Workout not found",
     "notFoundText": "It may have been deleted, or the link is old.",
     "loadError": "Couldn’t load the workout",
-    "retryLoad": "Try again"
+    "retryLoad": "Try again",
+    "pageHeading": "Workout {{title}}"
   },
   "progress": {
     "title": "Exercise progress",

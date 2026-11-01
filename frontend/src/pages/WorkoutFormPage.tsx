@@ -106,7 +106,8 @@ export default function WorkoutFormPage() {
 
   // The tab names the workout: "30 жовтня · Б · MyGym" (date, then its label).
   const titleDate = workoutQuery.data ? formatDate(workoutQuery.data.date, { day: 'numeric', month: 'long' }) : null;
-  usePageTitle(titleDate && [titleDate, workoutQuery.data?.programLabel].filter(Boolean).join(' · '));
+  const workoutTitle = titleDate && [titleDate, workoutQuery.data?.programLabel].filter(Boolean).join(' · ');
+  usePageTitle(workoutTitle);
 
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
   // null until the form is seeded from the server - nothing may be saved
@@ -496,6 +497,8 @@ export default function WorkoutFormPage() {
 
   return (
     <div className="space-y-4">
+      {/* The visible heading is the date button; the page still needs one H1. */}
+      <h1 className="sr-only">{t('workout.pageHeading', { title: workoutTitle })}</h1>
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
