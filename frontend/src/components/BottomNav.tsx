@@ -17,7 +17,7 @@ import {
 
 // The phone's main navigation (below lg; the header links take over from
 // lg up): four sections plus "More", a sheet with the rest. The bar is
-// 76 px + the home-indicator inset - App.tsx pads <main> by the same amount
+// --bottom-nav-h (styles/index.css) + the home-indicator inset - App.tsx pads <main> by the same amount
 // and the program form's sticky bar sits on top of it (ProgramsPage.tsx).
 // Design: docs/tasks/design/NavMobileA.dc.html.
 
@@ -102,7 +102,7 @@ export default function BottomNav() {
           {/* Dims the page, not the bar - the tabs stay usable. */}
           <div
             className="fixed inset-x-0 top-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
-            style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
+            style={{ bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))' }}
             aria-hidden
             onClick={() => closeMore(false)}
           />
@@ -111,7 +111,7 @@ export default function BottomNav() {
             role="dialog"
             aria-label={t('nav.more')}
             className="fixed left-2 right-2 z-40 animate-sheet-up rounded-[18px] border border-[#2f3542] bg-surface-raised px-3 pb-2.5 pt-3.5 shadow-[0_-12px_40px_rgba(0,0,0,0.5)] motion-reduce:animate-none lg:hidden"
-            style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+            style={{ bottom: 'calc(var(--bottom-nav-h) + 8px + env(safe-area-inset-bottom))' }}
           >
             <div className="flex items-center px-1 pb-2">
               <h2 className="flex-1 text-base font-bold text-slate-100">{t('nav.more')}</h2>
@@ -153,7 +153,7 @@ export default function BottomNav() {
       <nav
         aria-label={t('nav.mainNav')}
         className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-surface-border bg-[#1b2029] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-1.5 lg:hidden"
-        style={{ height: 'calc(76px + env(safe-area-inset-bottom))', paddingBottom: 'calc(14px + env(safe-area-inset-bottom))' }}
+        style={{ height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))', paddingBottom: 'calc(14px + env(safe-area-inset-bottom))' }}
       >
         {tabs.map((tab) => (
           <NavLink
