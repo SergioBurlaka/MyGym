@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
@@ -118,30 +118,35 @@ export default function DashboardPage() {
       </div>
 
       <div className="hidden space-y-3 sm:block">
+        {/* The phone list has month headings; this one needs its own above the cards' h3. */}
+        <h2 className="sr-only">{t('dashboard.workoutsHeading')}</h2>
         {workouts.length === 0 && <p className="text-slate-400">{t('dashboard.emptyJournal')}</p>}
         {workouts.map((w) => {
           const duration = formatDuration(w.timeStart, w.timeEnd, w.autoFinished, w.pausedMs);
           const colors = w.programLabel ? labelColor(w.programLabel) : null;
           return (
-            <button
+            // A link stretched over the card (see WorkoutCardLink), not a
+            // button around it: a short name, Ctrl-click / new tab work.
+            <div
               key={w.id}
-              onClick={() => navigate(`/workouts/${w.id}`)}
-              className={`card block w-full text-left transition-colors hover:border-accent/50 ${
+              className={`card relative transition-colors hover:border-accent/50 ${
                 colors ? `border-l-4 ${colors.border}` : ''
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-100">{formatDate(w.date)}</span>
+                <h3 className="flex items-center gap-2 font-sans text-base font-semibold tracking-normal text-slate-100">
+                  <WorkoutCardLink workout={w}>{formatDate(w.date)}</WorkoutCardLink>
                   {w.programLabel && colors && (
-                    <span className={`badge ${colors.badgeBg} ${colors.badgeText}`}>{w.programLabel}</span>
+                    <span aria-hidden="true" className={`badge ${colors.badgeBg} ${colors.badgeText}`}>
+                      {w.programLabel}
+                    </span>
                   )}
                   {w.isSample && <SampleBadge />}
-                </span>
+                </h3>
                 <span className="text-xs text-slate-400">
                   {duration ?? (w.timeEnd ? '' : t('dashboard.inProgress'))}
                   {w.autoFinished && (
-                    <span title={t('workout.autoFinishedHint')}>
+                    <span className="relative z-10" title={t('workout.autoFinishedHint')}>
                       {duration ? ' · ' : ''}
                       {t('dashboard.autoFinished')}
                     </span>
@@ -163,7 +168,7 @@ export default function DashboardPage() {
                   ))}
                 </ul>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -278,23 +283,19 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
   }
 
   return (
-    <div
-      className="card space-y-3"
-      role="button"
-      tabIndex={0}
-      onClick={goToWorkout}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') goToWorkout();
-      }}
-    >
+    <div className="card relative space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1.5">
           <h3 className="text-lg font-semibold text-slate-100">
-            {dateLabel} <span className="font-normal text-slate-400">· {weekday}</span>
+            <WorkoutCardLink workout={workout}>
+              {dateLabel} <span className="font-normal text-slate-400">· {weekday}</span>
+            </WorkoutCardLink>
           </h3>
           <div className="flex flex-wrap items-center gap-2">
             {workout.programLabel && colors && (
-              <span className={`badge ${colors.badgeBg} ${colors.badgeText}`}>{workout.programLabel}</span>
+              <span aria-hidden="true" className={`badge ${colors.badgeBg} ${colors.badgeText}`}>
+                {workout.programLabel}
+              </span>
             )}
             {workout.isSample && <SampleBadge />}
             <span className="text-xs text-slate-400">
@@ -302,17 +303,16 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
             </span>
           </div>
         </div>
-        <div className="relative shrink-0" ref={menuRef}>
+        {/* Above the stretched card link: a tap here opens the menu, not the workout.
+            Open, it also rises above the next card's menu button. */}
+        <div className={`relative shrink-0 ${menuOpen ? 'z-30' : 'z-10'}`} ref={menuRef}>
           <button
             type="button"
             aria-label={t('dashboard.workoutMenuLabel', { date: dateLabel })}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenuOpen((v) => !v);
-            }}
+            onClick={() => setMenuOpen((v) => !v)}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <circle cx="12" cy="5" r="1.8" />
@@ -322,10 +322,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
           </button>
 
           {menuOpen && (
-            <div
-              className="absolute right-0 z-20 mt-1 w-44 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-1.5 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute right-0 z-20 mt-1 w-44 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-1.5 shadow-xl">
               <button
                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 hover:bg-surface-border"
                 onClick={() => {
@@ -394,7 +391,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
           <span>
             {duration}
             {workout.autoFinished && (
-              <span title={t('workout.autoFinishedHint')}>
+              <span className="relative z-10" title={t('workout.autoFinishedHint')}>
                 {duration ? ' · ' : ''}
                 {t('dashboard.autoFinished')}
               </span>
@@ -403,6 +400,22 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
         </div>
       )}
     </div>
+  );
+}
+
+// The workout's link, stretched over its whole card (the card is `relative`):
+// the card stays clickable, but the link's name is just the date and label -
+// not the card's 500 characters, and no button nested in a button. The ring
+// goes round the card. Anything else clickable in the card sits above it.
+function WorkoutCardLink({ workout, children }: { workout: Workout; children: React.ReactNode }) {
+  return (
+    <Link
+      to={`/workouts/${workout.id}`}
+      className="outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-accent"
+    >
+      {children}
+      {workout.programLabel && <span className="sr-only"> · {workout.programLabel}</span>}
+    </Link>
   );
 }
 
