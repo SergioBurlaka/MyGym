@@ -63,10 +63,6 @@ export default function ConsistencyCalendar() {
   const ready = !historyQuery.isPending && !datesQuery.isPending;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScroll, setCanScroll] = useState(false);
-  // Cell size: 14 px when the history scrolls, up to 18 px when it is
-  // stretched over the card (pure CSS on the columns) - the weekday rows
-  // outside the scroll area follow the measured cell.
-  const [cellPx, setCellPx] = useState(14);
   const [tip, setTip] = useState<Tip | null>(null);
   const pointerTypeRef = useRef<string>('mouse');
 
@@ -87,8 +83,6 @@ export default function ConsistencyCalendar() {
     if (!scrollable) stickToEnd.current = true;
     if (stickToEnd.current) el.scrollLeft = el.scrollWidth;
     setCanScroll(scrollable);
-    const cell = el.querySelector('[data-calendar-cell]');
-    if (cell) setCellPx(cell.getBoundingClientRect().height);
   }, []);
 
   // Before the first paint, on a new column count and on every resize.
@@ -153,19 +147,17 @@ export default function ConsistencyCalendar() {
   const grid = useMemo(
     () =>
       days.map((week, wi) => (
-        // Stretches from 14 to 18 px; the first column's auto margin takes
-        // what is left, so a short history sits on the right (current week at
-        // the edge) - and it is 0 once the grid scrolls, unlike justify-end.
-        <div
-          key={week[0].date}
-          className={`flex min-w-3.5 max-w-[18px] flex-[1_0_14px] snap-end flex-col gap-[3px] ${wi === 0 ? 'ml-auto' : ''}`}
-        >
+        // Fixed 14 px columns from the left, right after the weekday labels:
+        // a short history leaves free space on the right, a long one scrolls
+        // by exactly the weeks that don't fit.
+        <div key={week[0].date} className="flex shrink-0 snap-end flex-col gap-[3px]">
           {/* The current week's label (a month starting this week, ~30 px) sticks
               out to the left: overflow on the right would count as scrollable
-              and bring a scrollbar and the hint to a short history. */}
+              and bring a scrollbar and the hint to a short history. A lone
+              column (a new account) has nothing on its left to stick into. */}
           <span
-            className={`flex h-4 w-full whitespace-nowrap text-[11px] leading-4 text-slate-300 ${
-              wi === days.length - 1 ? 'justify-end' : ''
+            className={`flex h-4 w-3.5 whitespace-nowrap text-[11px] leading-4 text-slate-300 ${
+              wi > 0 && wi === days.length - 1 ? 'justify-end' : ''
             }`}
           >
             <span>{labels[wi]}</span>
@@ -174,7 +166,7 @@ export default function ConsistencyCalendar() {
             <div
               key={date}
               data-calendar-cell
-              className={`aspect-square w-full rounded-[3px] ${muted ? MUTED_COLOR : STATE_COLOR[state]} ${
+              className={`h-3.5 w-3.5 rounded-[3px] ${muted ? MUTED_COLOR : STATE_COLOR[state]} ${
                 today ? 'shadow-[inset_0_0_0_1px_theme(colors.accent.DEFAULT)]' : ''
               }`}
               onPointerDown={(e) => {
@@ -213,11 +205,7 @@ export default function ConsistencyCalendar() {
         <div aria-hidden className="flex shrink-0 flex-col gap-[3px]">
           <span className="h-4" />
           {WEEKDAY_KEYS.map((key) => (
-            <span
-              key={key}
-              className="text-[11px] text-slate-400"
-              style={{ height: cellPx, lineHeight: `${cellPx}px` }}
-            >
+            <span key={key} className="h-3.5 text-[11px] leading-[14px] text-slate-400">
               {t(`weekdays.${key}`)}
             </span>
           ))}

@@ -1,9 +1,8 @@
 import { addDays, parseIso, startOfWeekMonday } from './date.js';
 
 // The consistency calendar shows every week from the start of the user's
-// history to the current one - no empty weeks before it. A short history is
-// stretched over the card (cells up to 18 px), a long one scrolls at 14 px.
-// Never more than ~5 years.
+// history to the current one - no empty weeks before it; a history wider than
+// the card scrolls. Never more than ~5 years.
 export const MAX_WEEKS = 53 * 5;
 
 // The start of history is the earliest of the first workout and the first
@@ -30,9 +29,8 @@ export function calendarWeeks(start: string | null, today: string): string[] {
 
 // A short month name over the first column whose Monday falls in a new month
 // (and over the first column), e.g. «лип.» / "Jul". A label (~30 px) is about
-// as wide as two 14 px columns with their gap (31 px, the scrolling layout;
-// stretched to 18 px they are 39 px), so the first column's label is dropped when the next
-// month starts in the second or third column - they would run into each other.
+// as wide as two 14 px columns with their gap (31 px), so the first column's
+// label is dropped when the next month starts in the second or third column - they would run into each other.
 // Later labels are a whole month (4+ columns) apart.
 export function monthLabels(mondays: string[], lang: string): string[] {
   const fmt = new Intl.DateTimeFormat(lang, { month: 'short' });
