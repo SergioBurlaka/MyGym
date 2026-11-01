@@ -11,7 +11,7 @@ import ProgressionBadge from '../components/ProgressionBadge.js';
 import WeeklyCategoryChart from '../components/WeeklyCategoryChart.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
-import { formatKg } from '../utils/weight.js';
+import { formatDate, formatKg } from '../utils/weight.js';
 import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 
 export default function ProgressPage() {
@@ -49,6 +49,7 @@ export default function ProgressPage() {
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
     [progression, selectedId],
   );
+  const selectedStatus = selected && selected.suggestion === 'ok' ? tryMoreStatus(selected, null) : null;
 
   const weightData = history.map((h) => ({ date: h.date, value: h.totalWeightKg, isPR: h.isWeightPR }));
   const repsData = history.map((h) => ({ date: h.date, value: h.maxReps, isPR: h.isRepsPR }));
@@ -105,13 +106,23 @@ export default function ProgressPage() {
           <div className="card">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-2xl text-slate-100">{selected.name}</h2>
-              <ProgressionBadge suggestion={selected.suggestion} />
+              {/* "ok" is a countdown, not a calm state - the same scale as its tile
+                  ("4 of 5 workouts"); the other suggestions are actions. */}
+              {selectedStatus?.kind === 'countdown' ? (
+                <TryMoreStatusBadge status={selectedStatus} />
+              ) : (
+                <ProgressionBadge suggestion={selected.suggestion} />
+              )}
             </div>
-            <p className="mt-1 text-sm text-slate-400">{progressionMessage(selected, t)}</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {selectedStatus?.kind === 'countdown'
+                ? t('progression.message.okCountdown', { count: selectedStatus.left })
+                : progressionMessage(selected, t)}
+            </p>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
               <div>
                 <dt className="label">{t('progress.stats.lastWorkout')}</dt>
-                <dd className="text-slate-200">{selected.lastWorkoutDate ?? '—'}</dd>
+                <dd className="text-slate-200">{selected.lastWorkoutDate ? formatDate(selected.lastWorkoutDate, { day: 'numeric', month: 'long' }) : '—'}</dd>
               </div>
               <div>
                 <dt className="label">{t('progress.stats.lastWeight')}</dt>
@@ -127,7 +138,7 @@ export default function ProgressPage() {
                 <dt className="label">{t('progress.stats.sessionsWithoutProgress')}</dt>
                 <dd className="text-slate-200">
                   {selected.sessionsSinceProgress != null
-                    ? `${selected.sessionsSinceProgress} / ${selected.tryMoreAfterWorkouts}`
+                    ? `${selected.sessionsSinceProgress} ${t('progressStatus.ofWorkouts', { count: selected.tryMoreAfterWorkouts })}`
                     : '—'}
                 </dd>
               </div>
