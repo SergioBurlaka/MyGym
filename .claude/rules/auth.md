@@ -33,6 +33,12 @@ Access-токен живе 15 хв (`JWT_ACCESS_TTL`), refresh — 30 днів (
   паралельно (інакше StrictMode в dev слав би два refresh на старті).
   Мережева помилка refresh токен НЕ скидає; лише справжній 401 від
   `/auth/refresh` → `setOnSessionLost` → `AuthContext` робить `setUser(null)`.
+- **Таймаут запитів** — `REQUEST_TIMEOUT_MS` = 20 с (`api/client.ts`) на інстансі `api` і на
+  самому refresh-запиті: у залі запит може висіти без відповіді, і сторінка вічно показувала б
+  «Завантаження…», а завислий single-flight refresh тримав би всі запити, що на нього чекають.
+  Таймаут — мережева помилка, сесію не скидає; `translateApiError` (`utils/apiError.ts`)
+  перекладає `ECONNABORTED`/`ETIMEDOUT` як `errors.timeout`. Свій таймаут — у
+  `PUT …/exercises` (`.claude/rules/workouts.md`) і CSV-імпорту (`.claude/rules/csv-import.md`).
 - **Gotcha: `Secure`-cookie по HTTP.** `secure: request.protocol === 'https'`
   (Fastify `trustProxy` + `X-Forwarded-Proto` від nginx), а не за `NODE_ENV`:
   браузер мовчки відкидає `Secure`-cookie, отриману по HTTP, і refresh по HTTP

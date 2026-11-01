@@ -7,6 +7,8 @@ export const ImportCsvApi = {
     formData.append('file', file);
     return api.post<ImportSummary>('/import/csv', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      // A big file from a phone uploads for longer than the usual 20 s.
+      timeout: 120_000,
     });
   },
 };

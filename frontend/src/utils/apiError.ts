@@ -6,6 +6,9 @@ import type { TFunction } from 'i18next';
 // server-side prose in a fixed language and would leak through untranslated
 // on a mismatched UI language.
 export function translateApiError(err: unknown, t: TFunction, fallbackKey = 'errors.generic'): string {
+  // No answer in time (the api/client.ts timeout) - axios marks it so.
+  const axiosCode = (err as { code?: string } | null)?.code;
+  if (axiosCode === 'ECONNABORTED' || axiosCode === 'ETIMEDOUT') return t('errors.timeout');
   const data = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
   const code = data?.error;
   if (code) {

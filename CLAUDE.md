@@ -59,12 +59,12 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 
 | Тема | Правило |
 | :-- | :-- |
-| Сесії, refresh-токени, вхід через Google | `.claude/rules/auth.md` |
+| Сесії, refresh-токени, таймаут запитів фронтенду, вхід через Google | `.claude/rules/auth.md` |
 | PAT, OAuth для MCP-клієнтів (CIMD, DCR, згода, іконки) | `.claude/rules/oauth-and-tokens.md` |
 | MCP-сервер (`mcp-server/`) | `.claude/rules/mcp-server.md` |
 | Вправи: унікальність назви, архів, однобічні, гриф | `.claude/rules/exercises.md` |
 | Прогресія: «Спробуй більше», перерви, ручний зсув, модель навантаження, аналітика | `.claude/rules/progression.md` |
-| Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер, екран | `.claude/rules/workouts.md` |
+| Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер, екран, офлайн-банер, сторінка 404 | `.claude/rules/workouts.md` |
 | Шаблони А/Б і програми | `.claude/rules/programs.md` |
 | Розклад, календар консистентності, календарний фід | `.claude/rules/schedule-calendar.md` |
 | Демо-акаунт і стартові дані | `.claude/rules/demo-template.md` |
