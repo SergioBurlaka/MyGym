@@ -31,8 +31,8 @@ export function JournalIcon({ size = 26 }: IconProps) {
       <rect x="6" y="3.5" width="12" height="17" rx="2" />
       <path d="M3.5 7.5H6M3.5 11H6M3.5 14.5H6M3.5 18H6" />
       {/* The pencil hides the page's edge under it: filled with the bar's
-          background (surface). */}
-      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" fill="#14171c" />
+          background (the surface token). */}
+      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" className="fill-surface" />
     </Icon>
   );
 }
