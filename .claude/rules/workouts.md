@@ -5,12 +5,9 @@ paths:
   - "backend/test/auto-finish.test.ts"
   - "backend/test/workout-pause.test.ts"
   - "frontend/src/pages/WorkoutFormPage.tsx"
-  - "frontend/src/pages/DashboardPage.tsx"
   - "frontend/src/components/WorkoutExerciseCard.tsx"
   - "frontend/src/components/WorkoutTimer.tsx"
-  - "frontend/src/components/Pagination.tsx"
   - "frontend/src/components/ConfirmDialog.tsx"
-  - "frontend/src/components/SetsSummary.tsx"
   - "frontend/src/components/DatePicker.tsx"
   - "frontend/src/components/Navbar.tsx"
   - "frontend/src/hooks/**"
@@ -20,7 +17,7 @@ paths:
   - "frontend/src/pages/NotFoundPage.tsx"
 ---
 
-# Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер
+# Тренування: сторінка тренування, автозбереження, автозавершення, таймер
 
 **Дані тренування** (`workouts`). `timeStart`/`timeEnd` виставляються **автоматично**, не вручну;
 `autoFinished` — `timeEnd` поставив sweep. `programLabel` — довільний текст (напр. «А»/«Б»), яким
@@ -31,22 +28,16 @@ paths:
 відкритої паузи); тривалість = `timeEnd − timeStart − pausedMs`. `isSample` — див.
 `.claude/rules/demo-template.md`.
 
-Журнал тренувань (Dashboard) використовує класичну пагінацію зі сторінками:
-`GET /api/workouts?page=&pageSize=` повертає `{ data, total, page, pageSize,
-totalPages }` (offset-запит + `count()` в одному запиті), фронтенд —
-`useWorkoutsQuery` + компонент `components/Pagination.tsx` (номери сторінок,
-prev/next). Без неї старі імпортовані тренування непомітні в UI.
-Номер сторінки живе в URL (`?page=N` через `useSearchParams`), не в
-локальному `useState`, — інакше перехід на сторінку тренування і назад
-скидав журнал на першу сторінку (`DashboardPage` розмонтовується при
-переході на `/workouts/:id`).
+Журнал (`/`, `DashboardPage.tsx`) — `.claude/rules/journal.md`.
 
 **Сторінка тренування — вигляд** («Дизайн 5» з канвасу «Таймер
 тренування в хедері»; макети — `docs/tasks/design/`): шапка — дата-кнопка, поле назви
 (`programLabel`), рядок статусу збереження, «Завершити», меню «⋯» («Зберегти як програму», «Видалити
 тренування…» через `ConfirmDialog`), легенда; картка вправи — `components/WorkoutExerciseCard.tsx`
 (рядок снаряда й кінцівок, поля ваги за `equipment` + вага в повторенні, сітка підходів 4 в
-ряд, «Минулого разу», «Обсяг сьогодні»).
+ряд, «Минулого разу», «Обсяг сьогодні»). Видимого заголовка-тексту нема (дата — кнопка), тож
+сторінка має `sr-only` `<h1>` `workout.pageHeading` — «Тренування <день місяць> · <мітка>», той
+самий рядок `workoutTitle`, що й назва вкладки.
 - **Повторення — плейсхолдери, не префіл:** порожня клітинка показує повторення того ж
   підходу минулого разу (`previous`, токен `hint`), підхід цілі +1 — `target` зі ↑. Тап
   (**`onClick`, не `onFocus`** — жест видалення й Tab теж фокусують клітинку і записали б
