@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Exercise, ExerciseProgression, PreviousSession, WorkoutExercise } from '../types/index.js';
-import { formatDate, lastRepsForSet, loadPerRep, parseKg, sidesOf } from '../utils/weight.js';
+import { formatDate, formatKg, lastRepsForSet, loadPerRep, parseKg, sidesOf } from '../utils/weight.js';
 import { journalTryMoreStatus, type TryMoreStatus } from '../utils/tryMoreCountdown.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
@@ -69,12 +69,6 @@ function useLongPress(onLongPress: (() => void) | null) {
       onLongPress();
     },
   };
-}
-
-function useKg() {
-  const { i18n } = useTranslation();
-  const format = new Intl.NumberFormat(i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US', { maximumFractionDigits: 2 });
-  return (n: number) => format.format(n);
 }
 
 function SetCell({
@@ -179,7 +173,7 @@ export default function WorkoutExerciseCard({
     clearTimeout(lockTipTimer.current);
     setLockTip(false);
   }
-  const kg = useKg();
+  const kg = formatKg;
   const hintId = useId();
   const [removingSet, setRemovingSet] = useState<number | null>(null);
 
@@ -485,6 +479,6 @@ function counterStatus(
 // "20 kg" / "EZ 10 kg" / "No bar" for the bar select.
 function barLabel(value: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (value === '0') return t('workout.barNone');
-  if (value === '10') return t('workout.barEz', { kg: value });
-  return t('workout.barKg', { kg: value });
+  if (value === '10') return t('workout.barEz', { kg: formatKg(Number(value)) });
+  return t('workout.barKg', { kg: formatKg(Number(value)) });
 }

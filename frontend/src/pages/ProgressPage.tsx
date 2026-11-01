@@ -11,6 +11,7 @@ import ProgressionBadge from '../components/ProgressionBadge.js';
 import WeeklyCategoryChart from '../components/WeeklyCategoryChart.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
+import { formatKg } from '../utils/weight.js';
 import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 
 export default function ProgressPage() {
@@ -115,7 +116,7 @@ export default function ProgressPage() {
               <div>
                 <dt className="label">{t('progress.stats.lastWeight')}</dt>
                 <dd className="text-slate-200">
-                  {selected.lastTotalWeightKg != null ? `${selected.lastTotalWeightKg} ${t('common.kg')}` : '—'}
+                  {selected.lastTotalWeightKg != null ? `${formatKg(Number(selected.lastTotalWeightKg))} ${t('common.kg')}` : '—'}
                 </dd>
               </div>
               <div>

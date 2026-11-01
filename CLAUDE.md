@@ -164,9 +164,14 @@ en/uk, автовизначення мови з браузера (див. "Ст�
   повністю. Фронтенд сам будує переклад з числових полів, які бекенд і так
   віддає (`repRangeMax`, `weightStepKg`, `daysSinceProgress`) через
   `utils/progressionMessage.ts`, ключі `progression.message.<suggestion>`.
-- Дати/тривалість/вага форматуються мовозалежно через `utils/weight.ts`
-  (`formatDate`/`formatDuration`/`formatTotalWeight`, використовують
-  `i18n.language` напряму — це plain-функції поза React-деревом, не хуки).
+- **Числа однакові в обох мовах** (рішення користувача): десяткова крапка, тисячі без
+  розділювача («40.5», «1728»). Весь вивід чисел — через `utils/weight.ts`: `formatKg` (вага,
+  до 2 знаків), `formatStepKg` (крок ваги, завжди 2 знаки — «0.50»), `formatDecimal(value, digits)`,
+  `formatCompactNumber` (осі; слово «тис.»/«K» — з мови). Усі йдуть через приватну
+  `formatNumber` (`Intl.NumberFormat.formatToParts`: `decimal` → «.», `group` прибирається).
+  Введення з комою приймає `parseKg`. Тест — `utils/weight.test.ts`.
+- Дати й тривалість — мовозалежні (`formatDate`/`formatDuration` у `utils/weight.ts`).
+  Ці функції читають `i18n.language` напряму — plain-функції поза React-деревом, не хуки.
 - **Назви вправ НЕ перекладаються** — це дані користувача (свої/сідовані при
   реєстрації), а не UI-текст; переклад зламав би зіставлення з CSV-імпортом.
 - **Звертання в `uk`** — на «ви»; назви функцій лишаються як є («Спробуй більше»).

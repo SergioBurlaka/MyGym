@@ -105,11 +105,37 @@ export function formatDuration(
   return h > 0 ? i18n.t('duration.hoursMinutes', { h, m }) : i18n.t('duration.minutes', { m });
 }
 
+// One number format in both languages (user's decision): a decimal POINT,
+// never a comma, and no thousands separator - "40.5", "16.25", "172063".
+// Words stay the language's own ("12 тис." / "12K"). Every number shown
+// to the user goes through here; typing a comma still works (parseKg).
+function formatNumber(value: number, options: Intl.NumberFormatOptions): string {
+  const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
+  return new Intl.NumberFormat(locale, options)
+    .formatToParts(value)
+    .map((part) => (part.type === 'decimal' ? '.' : part.type === 'group' ? '' : part.value))
+    .join('');
+}
+
+// A weight as it is: "40.5", "16.25", "20", "1728" (up to 2 decimals).
+export function formatKg(value: number): string {
+  return formatNumber(value, { maximumFractionDigits: 2 });
+}
+
+// A weight step is a setting, always with 2 decimals: "0.50", "1.25".
+export function formatStepKg(value: number): string {
+  return formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Up to `digits` decimals: tonnes on the weekly tiles, "16.1".
+export function formatDecimal(value: number, digits: number): string {
+  return formatNumber(value, { maximumFractionDigits: digits });
+}
+
 // Short axis labels for charts: 12000 -> "12K" / "12 тис." - a full
 // five-digit number doesn't fit the narrow Y axis on a phone.
 export function formatCompactNumber(value: number): string {
-  const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
-  return new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  return formatNumber(value, { notation: 'compact', maximumFractionDigits: 1 });
 }
 
 // Locale-aware date formatter driven by the current UI language, not a
