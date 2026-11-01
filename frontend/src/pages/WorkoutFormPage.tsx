@@ -104,7 +104,7 @@ export default function WorkoutFormPage() {
   const workoutPaused = workoutRunning && workoutQuery.data?.pausedAt != null;
   const wakeLock = useWakeLock(workoutRunning && !workoutPaused);
 
-  // The tab names the workout: "30 October · B · MyGym" (date, then its label).
+  // The tab names the workout: "30 жовтня · Б · MyGym" (date, then its label).
   const titleDate = workoutQuery.data ? formatDate(workoutQuery.data.date, { day: 'numeric', month: 'long' }) : null;
   usePageTitle(titleDate && [titleDate, workoutQuery.data?.programLabel].filter(Boolean).join(' · '));
 
