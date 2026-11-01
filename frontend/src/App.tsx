@@ -56,11 +56,11 @@ export default function App() {
       {/* Safe-area insets (viewport-fit=cover): home indicator / gesture bar
           at the bottom, camera cutout on the sides in landscape. The top one
           is on the Navbar, or on the page itself when there's no Navbar.
-          Logged in, below lg, the bottom bar (76 px + inset) is under the page. */}
+          Logged in, below lg, the bottom bar (--bottom-nav-h + inset) is under the page. */}
       <main
         className={`mx-auto max-w-5xl pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-6 ${
           user
-            ? 'pb-[calc(76px+1.5rem+env(safe-area-inset-bottom))] lg:pb-[max(1.5rem,env(safe-area-inset-bottom))]'
+            ? 'pb-[calc(var(--bottom-nav-h)+1.5rem+env(safe-area-inset-bottom))] lg:pb-[max(1.5rem,env(safe-area-inset-bottom))]'
             : 'pb-[max(1.5rem,env(safe-area-inset-bottom))]'
         }`}
       >

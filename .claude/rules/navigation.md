@@ -8,11 +8,13 @@ paths:
   - "frontend/src/utils/initials.ts"
   - "frontend/src/App.tsx"
   - "frontend/src/pages/ProgramsPage.tsx"
+  - "frontend/src/styles/index.css"
 ---
 
 # Навігація: хедер, нижній таб-бар, меню акаунта
 
-Макет — `docs/tasks/design/NavMobileA.dc.html`. Межа — `lg` (1024 px): нижче п'ять посилань
+Макети — `docs/tasks/design/NavMobileA.dc.html` (аркуш «Додатково», поведінка) і
+`docs/tasks/design/NavBarC.dc.html` (нижній бар). Межа — `lg` (1024 px): нижче п'ять посилань
 разом із таймером не вміщаються в хедер. Усе навігаційне рендериться лише для залогіненого
 (`if (!user) return null`).
 
@@ -29,9 +31,15 @@ paths:
 
 ## Нижній таб-бар (`BottomNav.tsx`, нижче `lg`)
 
-- `fixed bottom-0 z-30`, `aria-label` `nav.mainNav`. Чотири таби-іконки (`aria-label`/`title`
-  = назва розділу): Журнал (`/`, `end`), Програми, Прогрес, Вправи — і кнопка «Додатково»
-  (`nav.more`, `aria-haspopup="dialog"`, `aria-expanded`).
+- `fixed bottom-0 z-30`, `aria-label` `nav.mainNav`. Чотири таби: Журнал (`/`, `end`),
+  Програми, Прогрес, Вправи — і кнопка «Додатково» (`nav.more`, `aria-haspopup="dialog"`,
+  `aria-expanded`).
+- **Стиль (макет C):** плаский бар `bg-surface` з 1px верхньою лінією `border-surface-border`.
+  Кожен таб (`TabContent`) — іконка 26 px + видимий підпис 11px semibold (`truncate`); тап-зона —
+  уся п'ята частина бару. Неактивний — `#8b93a3` (5.8:1 на `surface`), активний — `accent` +
+  індикатор 28×3 на верхній лінії (`top-[-1px]`, заокруглений знизу); «пігулки» нема. Переходи
+  180 ms (`motion-reduce:transition-none`), натиск — `group-active:scale-[.92]`.
+- **Доступна назва таба — видимий підпис:** `aria-label`/`title` на табах нема, svg — `aria-hidden`.
 - **«Додатково» — аркуш** (`role="dialog"`, `aria-label` `nav.more`, `z-40`, над баром): Розклад,
   Імпорт, Інтеграції (для демо рядка нема — сторінка й так за `NotForDemo` в `App.tsx`).
   Кнопка «Додатково» підсвічена, поки аркуш відкритий або поточний маршрут — один з його пунктів;
@@ -41,23 +49,24 @@ paths:
   і хрестиком (фокус повертається на «Додатково»), тапом по затемненню, переходом ширини вікна на
   `lg+` (`matchMedia('(min-width: 1024px)')`) — інакше він повертався б відкритим при звуженні.
   При відкритті фокус — на перше посилання.
-- Іконки — `components/NavIcons.tsx` (сітка 24, `currentColor`; таби 30 px, рядки аркуша
-  22 px). Олівець `JournalIcon` залитий `var(--nav-icon-bg)`, щоб маскувати лінії під ним;
-  активна «пігулка» задає йому `ACTIVE_PILL_SOLID` — колір пігулки (accent 14% над баром
-  `#1b2029`), сплющений у непрозорий.
+- Іконки — `components/NavIcons.tsx` (сітка 24, `currentColor`; таби 26 px зі stroke 1.7,
+  рядки аркуша 22 px). Олівець `JournalIcon` залитий `fill-surface` — фоном бару, щоб маскувати
+  лінії під ним; змінив фон бару → зміни й заливку.
 
-## Висота бару — інваріант 76 px
+## Висота бару — одна змінна `--bottom-nav-h`
 
-Бар = **76 px + `env(safe-area-inset-bottom)`** (inset — у його `paddingBottom`). Те саме число
-стоїть у:
-- `App.tsx` — `<main>` залогіненого: `pb-[calc(76px+1.5rem+env(safe-area-inset-bottom))]`,
+Бар = **`--bottom-nav-h` + `env(safe-area-inset-bottom)`**; змінна — `:root` у `@layer base`
+`styles/index.css` (78px), inset — у `paddingBottom` бару (`calc(14px + inset)`). Її читають:
+- `App.tsx` — `<main>` залогіненого: `pb-[calc(var(--bottom-nav-h)+1.5rem+env(safe-area-inset-bottom))]`,
   з `lg` — звичайний `pb-[max(1.5rem,env(safe-area-inset-bottom))]`; незалогінений — без бару;
-- `BottomNav.tsx` — низ затемнення (76 px) і аркуша «Додатково» (84 px);
+- `BottomNav.tsx` — висота бару, низ затемнення (змінна + inset) і аркуша «Додатково»
+  (змінна + 8px + inset);
 - `ProgramsPage.tsx` — липка панель форми програми: нижче `lg`
-  `bottom-[calc(76px+env(safe-area-inset-bottom))]` (лежить на барі, свій inset уже не
-  додає), з `lg` — `bottom-0` + inset.
+  `bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom))]` (лежить на барі, свій inset
+  уже не додає), з `lg` — `bottom-0` + inset.
 
-Змінив висоту бару → онови всі місця. Новий липкий/fixed низ сторінки → так само над баром.
+Змінити висоту бару = змінити лише змінну. Новий липкий/fixed низ сторінки → теж через
+`var(--bottom-nav-h)`, над баром.
 `ReactQueryDevtools` (dev, `main.tsx`) — `buttonPosition="top-left"`: справа знизу кнопка
 перекривала б «Додатково».
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
@@ -17,27 +17,35 @@ import {
 
 // The phone's main navigation (below lg; the header links take over from
 // lg up): four sections plus "More", a sheet with the rest. The bar is
-// 76 px + the home-indicator inset - App.tsx pads <main> by the same amount
+// --bottom-nav-h (styles/index.css) + the home-indicator inset - App.tsx pads <main> by the same amount
 // and the program form's sticky bar sits on top of it (ProgramsPage.tsx).
-// Design: docs/tasks/design/NavMobileA.dc.html.
+// Design: docs/tasks/design/NavMobileA.dc.html (sheet, behaviour) and
+// NavBarC.dc.html (the bar: a top line and a label under every icon).
 
+// The whole fifth of the bar is the tap target; the visible label is the
+// accessible name (no aria-label / title).
 const TAB_CLASS =
-  'group flex flex-1 items-center justify-center rounded-2xl transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent';
+  'group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent';
 
-// The active pill's colour, flattened (accent at 14% over the bar #1b2029)
-// - the journal icon's pencil is filled with it to mask the page under it.
-const ACTIVE_PILL_SOLID = '#3b282b';
-
-function Pill({ active, children }: { active: boolean; children: ReactNode }) {
+// Inactive #8b93a3 is 5.8:1 on the bar (surface), accent 5.8:1.
+function TabContent({ active, icon, label }: { active: boolean; icon: ReactNode; label: string }) {
+  const colour = active ? 'text-accent' : 'text-[#8b93a3]';
   return (
-    <span
-      style={active ? ({ '--nav-icon-bg': ACTIVE_PILL_SOLID } as CSSProperties) : undefined}
-      className={`flex h-[52px] w-16 items-center justify-center rounded-[18px] transition-[background-color,transform] duration-150 group-active:scale-[.92] motion-reduce:transition-none ${
-        active ? 'bg-accent/[0.14] text-accent' : 'text-[#9aa2b1]'
-      }`}
-    >
-      {children}
-    </span>
+    <>
+      {/* The indicator line sits on the bar's top border. */}
+      <span
+        aria-hidden
+        className={`absolute left-1/2 top-[-1px] h-[3px] w-7 -translate-x-1/2 rounded-b-[3px] bg-accent transition-opacity duration-[180ms] motion-reduce:transition-none ${
+          active ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      <span className={`flex transition-[color,transform] duration-[180ms] group-active:scale-[.92] motion-reduce:transition-none ${colour}`}>
+        {icon}
+      </span>
+      <span className={`max-w-full truncate px-0.5 text-[11px] font-semibold leading-tight transition-colors duration-[180ms] motion-reduce:transition-none ${colour}`}>
+        {label}
+      </span>
+    </>
   );
 }
 
@@ -102,7 +110,7 @@ export default function BottomNav() {
           {/* Dims the page, not the bar - the tabs stay usable. */}
           <div
             className="fixed inset-x-0 top-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
-            style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}
+            style={{ bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))' }}
             aria-hidden
             onClick={() => closeMore(false)}
           />
@@ -111,7 +119,7 @@ export default function BottomNav() {
             role="dialog"
             aria-label={t('nav.more')}
             className="fixed left-2 right-2 z-40 animate-sheet-up rounded-[18px] border border-[#2f3542] bg-surface-raised px-3 pb-2.5 pt-3.5 shadow-[0_-12px_40px_rgba(0,0,0,0.5)] motion-reduce:animate-none lg:hidden"
-            style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+            style={{ bottom: 'calc(var(--bottom-nav-h) + 8px + env(safe-area-inset-bottom))' }}
           >
             <div className="flex items-center px-1 pb-2">
               <h2 className="flex-1 text-base font-bold text-slate-100">{t('nav.more')}</h2>
@@ -152,36 +160,30 @@ export default function BottomNav() {
 
       <nav
         aria-label={t('nav.mainNav')}
-        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-surface-border bg-[#1b2029] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-1.5 lg:hidden"
-        style={{ height: 'calc(76px + env(safe-area-inset-bottom))', paddingBottom: 'calc(14px + env(safe-area-inset-bottom))' }}
+        className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-surface-border bg-surface pl-[max(6px,env(safe-area-inset-left))] pr-[max(6px,env(safe-area-inset-right))] lg:hidden"
+        style={{ height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))', paddingBottom: 'calc(14px + env(safe-area-inset-bottom))' }}
       >
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
             end={tab.end}
-            aria-label={tab.label}
-            title={tab.label}
             className={TAB_CLASS}
             onClick={() => setMoreOpen(false)}
           >
             {/* While the sheet is open "More" is the highlighted one. */}
-            {({ isActive }) => <Pill active={isActive && !moreOpen}>{tab.icon}</Pill>}
+            {({ isActive }) => <TabContent active={isActive && !moreOpen} icon={tab.icon} label={tab.label} />}
           </NavLink>
         ))}
         <button
           ref={moreButtonRef}
           type="button"
-          aria-label={t('nav.more')}
-          title={t('nav.more')}
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
           className={TAB_CLASS}
           onClick={() => setMoreOpen((v) => !v)}
         >
-          <Pill active={moreOpen || onMoreRoute}>
-            <MoreIcon />
-          </Pill>
+          <TabContent active={moreOpen || onMoreRoute} icon={<MoreIcon />} label={t('nav.more')} />
         </button>
       </nav>
     </>

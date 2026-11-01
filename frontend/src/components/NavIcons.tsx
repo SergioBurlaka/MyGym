@@ -23,23 +23,23 @@ function Icon({ size, strokeWidth, children }: { size: number; strokeWidth: numb
 
 type IconProps = { size?: number };
 
-// Bottom bar: 30 px, stroke 1.75.
+// Bottom bar: 26 px, stroke 1.7.
 
-export function JournalIcon({ size = 30 }: IconProps) {
+export function JournalIcon({ size = 26 }: IconProps) {
   return (
-    <Icon size={size} strokeWidth={1.75}>
+    <Icon size={size} strokeWidth={1.7}>
       <rect x="6" y="3.5" width="12" height="17" rx="2" />
       <path d="M3.5 7.5H6M3.5 11H6M3.5 14.5H6M3.5 18H6" />
-      {/* The pencil hides the page's edge under it: filled with whatever is
-          behind the icon - the bar, or the active pill (BottomNav sets the var). */}
-      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" fill="var(--nav-icon-bg, #1b2029)" />
+      {/* The pencil hides the page's edge under it: filled with the bar's
+          background (the surface token). */}
+      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" className="fill-surface" />
     </Icon>
   );
 }
 
-export function ProgramsIcon({ size = 30 }: IconProps) {
+export function ProgramsIcon({ size = 26 }: IconProps) {
   return (
-    <Icon size={size} strokeWidth={1.75}>
+    <Icon size={size} strokeWidth={1.7}>
       <g transform="rotate(-45 12 12)">
         <path d="M8 12h8" />
         <rect x="5" y="7.5" width="3" height="9" rx="1" />
@@ -51,9 +51,9 @@ export function ProgramsIcon({ size = 30 }: IconProps) {
   );
 }
 
-export function ProgressIcon({ size = 30 }: IconProps) {
+export function ProgressIcon({ size = 26 }: IconProps) {
   return (
-    <Icon size={size} strokeWidth={1.75}>
+    <Icon size={size} strokeWidth={1.7}>
       <path d="M4 20h16" />
       <path d="M7 20v-4M11 20v-6M15 20v-5M19 20v-8" />
       <path d="M4 13l5-4 3 2 8-7" />
@@ -62,18 +62,18 @@ export function ProgressIcon({ size = 30 }: IconProps) {
   );
 }
 
-export function ExercisesIcon({ size = 30 }: IconProps) {
+export function ExercisesIcon({ size = 26 }: IconProps) {
   return (
-    <Icon size={size} strokeWidth={1.75}>
+    <Icon size={size} strokeWidth={1.7}>
       <path d="M9 6h11M9 12h11M9 18h11" />
       <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" strokeWidth={2.6} />
     </Icon>
   );
 }
 
-export function MoreIcon({ size = 30 }: IconProps) {
+export function MoreIcon({ size = 26 }: IconProps) {
   return (
-    <Icon size={size} strokeWidth={1.75}>
+    <Icon size={size} strokeWidth={1.7}>
       <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
       <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
       <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />

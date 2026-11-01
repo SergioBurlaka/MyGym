@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Height of the phone bottom bar (BottomNav, below lg) without the
+       home-indicator inset - <main>, the More sheet and the program form's
+       sticky bar all keep clear of it through this one value. */
+    --bottom-nav-h: 78px;
+  }
   html {
     color-scheme: dark;
   }

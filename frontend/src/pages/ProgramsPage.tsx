@@ -493,9 +493,9 @@ function ProgramForm({
       </div>
 
       {/* Pinned to the bottom of the screen while the form scrolls - below lg
-          on top of the bottom bar (BottomNav, 76 px + the home-indicator
+          on top of the bottom bar (BottomNav, --bottom-nav-h + the home-indicator
           inset), which already keeps clear of the inset. */}
-      <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-10 -mx-4 mt-4 border-t border-surface-border bg-surface px-4 pb-4 pt-3 lg:bottom-0 lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="sticky bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom))] z-10 -mx-4 mt-4 border-t border-surface-border bg-surface px-4 pb-4 pt-3 lg:bottom-0 lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
         {error && (
           <p role="alert" className="mb-2 text-sm text-red-400">
             {error}
