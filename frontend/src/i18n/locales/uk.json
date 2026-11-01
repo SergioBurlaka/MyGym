@@ -33,8 +33,6 @@
     "exercises": "Вправи",
     "import": "Імпорт",
     "logout": "Вийти",
-    "openMenu": "Відкрити меню",
-    "closeMenu": "Закрити меню",
     "profileMenu": "Меню профілю",
     "integrations": "Інтеграції",
     "schedule": "Розклад",
@@ -49,7 +47,8 @@
     "more": "Додатково",
     "mainNav": "Головна навігація",
     "account": "Обліковий запис",
-    "logoutLong": "Вийти з акаунта"
+    "logoutLong": "Вийти з акаунта",
+    "languageShort": "Мова"
   },
   "auth": {
     "login": {

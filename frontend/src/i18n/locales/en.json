@@ -33,8 +33,6 @@
     "exercises": "Exercises",
     "import": "Import",
     "logout": "Log out",
-    "openMenu": "Open menu",
-    "closeMenu": "Close menu",
     "profileMenu": "Profile menu",
     "integrations": "Integrations",
     "schedule": "Schedule",
@@ -49,7 +47,8 @@
     "more": "More",
     "mainNav": "Main navigation",
     "account": "Account",
-    "logoutLong": "Log out of the account"
+    "logoutLong": "Log out of the account",
+    "languageShort": "Language"
   },
   "auth": {
     "login": {
