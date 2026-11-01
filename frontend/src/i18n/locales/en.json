@@ -43,7 +43,8 @@
       "resume": "Resume the workout timer",
       "openPaused": "Open the paused workout, {{time}}",
       "error": "Couldn't change the timer. Check the connection and try again."
-    }
+    },
+    "language": "Interface language"
   },
   "auth": {
     "login": {
@@ -398,7 +399,8 @@
     "setsImported": "Sets imported:",
     "skippedExisting": "Skipped (already exist):",
     "exercisesCreated": "New exercises created:",
-    "rowsSkipped": "Rows skipped (unrecognized):"
+    "rowsSkipped": "Rows skipped (unrecognized):",
+    "fileLabel": "CSV file with workouts"
   },
   "calendar": {
     "legend": {
