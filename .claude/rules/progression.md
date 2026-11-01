@@ -191,6 +191,14 @@ paths:
   попередні хронологічно (running max, рахується в тому ж проході `buildHistory`).
   Рендериться на графіку як більша точка + рядок "🏆 Особистий рекорд" у тултипі
   (`components/ProgressChart.tsx`, кастомний `dot`-рендерер і `content` для Tooltip).
+- **Картка вправи на «Прогресі»** (`ProgressPage.tsx`): при `suggestion = 'ok'` — той самий
+  лічильник, що й плитка (`tryMoreStatus(selected, null)` → `TryMoreStatusBadge`), і текст
+  `progression.message.okCountdown` (плюральний, `count` = скільки лишилось); дії
+  (`increase_weight`/`start_adding_weight`/`try_more`/`no_data`) — `ProgressionBadge` +
+  `progressionMessage`. «Востаннє» — `formatDate` (день + місяць словом; рік — лише не
+  поточного року), «Тренувань без прогресу» — «N з M тренувань» (`progressStatus.ofWorkouts`).
+  Вправа, у якої в жодній сесії нема ваги (`hasWeight`), не показує графіків робочої ваги й 1ПМ;
+  без історії — видно всі чотири, кожен зі своїм порожнім підписом.
 - `GET /api/progression/volume-by-category?weeks=all|N` — сума обсягу по (ISO-тиждень, категорія)
   лише за тижні з підходами; `all` — уся історія (так кличе «Прогрес»), число — вікно 1–52, default 12.
   `large`/`small` — кг, `bodyweight` — повторення. `WeeklyCategoryChart.tsx` малює div-стовпці, не
