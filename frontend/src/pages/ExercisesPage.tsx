@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
   useArchiveExerciseMutation,
   useCreateExerciseMutation,
@@ -53,6 +54,7 @@ const emptyForm: ExerciseFormValues = {
 
 export default function ExercisesPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.exercises'));
   const exercisesQuery = useExercisesQuery();
   const createMutation = useCreateExerciseMutation();
 

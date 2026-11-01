@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { useAuth } from '../context/AuthContext.js';
 
 // Public (no login needed): Google's OAuth consent screen links here, and so
@@ -11,6 +12,7 @@ const CONTACT_EMAIL = 'burlaka01@gmail.com';
 
 export default function PrivacyPage() {
   const { t } = useTranslation();
+  usePageTitle(t('privacy.title'));
   const { user } = useAuth();
 
   return (

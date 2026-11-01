@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { isAxiosError } from 'axios';
 import { useSettingsQuery, useUpdateSettingsMutation } from '../shared/api/settings/index.js';
 import type { UpdateSettingsInput } from '../shared/api/settings/settings.types.js';
@@ -25,6 +26,7 @@ const DURATIONS = [30, 45, 60, 75, 90, 120];
 
 export default function SchedulePage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.schedule'));
   const { user } = useAuth();
   const settingsQuery = useSettingsQuery();
   const updateMutation = useUpdateSettingsMutation();

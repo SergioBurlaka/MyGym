@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
   useWorkoutsQuery,
   useStartWorkoutMutation,
@@ -27,6 +28,7 @@ const PAGE_SIZE = 20;
 
 export default function DashboardPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.journal'));
   const navigate = useNavigate();
 
   // Page lives in the URL (not local state) so it survives navigating into

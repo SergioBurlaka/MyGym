@@ -1,10 +1,12 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { useImportCsvMutation } from '../shared/api/import-csv/index.js';
 import { translateApiError } from '../utils/apiError.js';
 
 export default function ImportPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.import'));
   const fileRef = useRef<HTMLInputElement>(null);
   const importMutation = useImportCsvMutation();
 
@@ -33,6 +35,7 @@ export default function ImportPage() {
         <input
           ref={fileRef}
           type="file"
+          aria-label={t('import.fileLabel')}
           accept=".csv,text/csv"
           className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:text-sm file:font-semibold file:text-surface hover:file:bg-accent-hover"
         />
