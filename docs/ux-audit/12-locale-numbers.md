@@ -1,0 +1,38 @@
+# 12 · Числа за локаллю: одна `formatKg` на весь застосунок
+
+Гілка: `fix/locale-number-format`. Знахідки раунду 2: N03, N15. Лише фронтенд.
+
+## Що зараз
+
+Українська локаль (CLDR `uk`) пише десяткову частину через кому. Частина екранів робить це
+через `Intl.NumberFormat`, частина — сирим `String(number)` або `toFixed`:
+
+| Де | Як виводиться | Звідки |
+|---|---|---|
+| Журнал, рядок вправи | «40.5 кг · 12 · 12 · 12» | `components/SetsSummary.tsx` — `` `${totalKg} ${t('common.kg')}` `` |
+| Журнал, другий рядок | «по 16.25 кг на сторону» | `t('dashboard.perSide', { weight: perSideKg })` — число як є |
+| Вправи, чип кроку | «крок 0.50 кг», «крок 1.25 кг» | `pages/ExercisesPage.tsx:219` — `toFixed(2)` |
+| Прогрес, «Остання вага» | `${selected.lastTotalWeightKg} кг` | `pages/ProgressPage.tsx` |
+| Прогрес, підсумок для скрінрідера | «велика група 172063 кг» (без розрядів) | там само, sr-only рядок |
+| Прогрес, плитки тижня | «16,1 т» ✓ | `Intl.NumberFormat` |
+| Тренування, картка | «1 728 кг» ✓ | `useKg()` у `components/WorkoutExerciseCard.tsx:74` |
+
+Введення вже приймає кому (`parseKg` у `utils/weight.ts`), тож змінюється лише вивід.
+
+## Що зробити
+
+1. Винести `useKg` з `WorkoutExerciseCard.tsx` у `utils/weight.ts` як plain-функцію
+   `formatKg(n: number): string` (як `formatDate` — через `i18n.language`, `uk-UA`/`en-US`,
+   `maximumFractionDigits: 2`). У картці викликати її.
+2. Замінити вивід у таблиці вище: `SetsSummary`, `dashboard.perSide` (передавати вже
+   відформатований рядок), `ExercisesPage` (крок — `formatKg(step)`, без `toFixed`),
+   `ProgressPage` (остання вага, sr-only підсумок).
+3. Ще раз `grep -rn "toFixed\|\${.*[Kk]g}" frontend/src --include=*.tsx` — не має лишитись
+   виводу кілограмів повз `formatKg`.
+
+## Перевірка
+
+- uk: журнал «40,5 кг · 12 · 12 · 12 / по 16,25 кг на сторону», вправи «крок 0,5 кг».
+- en: «40.5 kg», «16.25 kg per side» — без змін.
+- Підсумок обсягу для скрінрідера: «172 063 кг» / «172,063 kg».
+- `npm run build` без помилок.
