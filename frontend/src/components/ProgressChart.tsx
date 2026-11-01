@@ -67,8 +67,8 @@ export default function ProgressChart({
   const last = points[points.length - 1];
   const summary = t(points.length === 1 ? 'progress.charts.summarySingle' : 'progress.charts.summary', {
     label,
-    first: first.value,
-    last: last.value,
+    first: first.value == null ? first.value : formatKg(first.value),
+    last: last.value == null ? last.value : formatKg(last.value),
     unit,
     from: formatDate(first.date),
     to: formatDate(last.date),

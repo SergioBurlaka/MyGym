@@ -79,7 +79,7 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   const num = (n: number) => formatKg(Math.round(n));
   const kg = (n: number) => `${num(n)} ${t('common.kg')}`;
   const reps = (n: number) => `${num(n)} ${t('common.reps')}`;
-  // "16,1 t" from a tonne up, "850 kg" under it.
+  // "16.1 t" from a tonne up, "850 kg" under it.
   const weight = (v: number) =>
     v >= 1000
       ? t('progress.axisTonnes', { value: formatDecimal(v / 1000, 1) })
