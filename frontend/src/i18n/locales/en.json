@@ -349,7 +349,7 @@
       "small": "Small group",
       "bodyweight": "No weight",
       "largeWithRange": "Large group (6-15, +1.25 kg step)",
-      "smallWithRange": "Small group (6-20, +0.5 kg step)",
+      "smallWithRange": "Small group (6-20, +0.50 kg step)",
       "bodyweightWithRange": "No weight (6-30)"
     },
     "filterLabel": "Filter by equipment",

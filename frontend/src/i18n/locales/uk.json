@@ -363,7 +363,7 @@
       "small": "Мала група",
       "bodyweight": "Без ваги",
       "largeWithRange": "Велика група (6-15, крок 1.25 кг)",
-      "smallWithRange": "Мала група (6-20, крок 0.5 кг)",
+      "smallWithRange": "Мала група (6-20, крок 0.50 кг)",
       "bodyweightWithRange": "Без ваги (6-30)"
     },
     "filterLabel": "Фільтр за обладнанням",

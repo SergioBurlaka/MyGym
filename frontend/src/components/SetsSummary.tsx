@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { WorkoutExercise } from '../types/index.js';
-import { setsSummary } from '../utils/weight.js';
+import { formatKg, setsSummary } from '../utils/weight.js';
 
 // "32.5 kg · 12 · 12 · 10" - the weight once (it's fixed for the whole
 // exercise), then every set's reps, so a drop in reps is visible (user's
@@ -20,7 +20,7 @@ export default function SetsSummary({
   const { t } = useTranslation();
   const { totalKg, perSideKg, reps } = setsSummary(workoutExercise);
   const parts =
-    reps.length === 0 ? [] : [...(totalKg != null ? [`${totalKg} ${t('common.kg')}`] : []), ...reps.map(String)];
+    reps.length === 0 ? [] : [...(totalKg != null ? [`${formatKg(totalKg)} ${t('common.kg')}`] : []), ...reps.map(String)];
 
   return (
     <>
@@ -35,7 +35,7 @@ export default function SetsSummary({
             ))}
       </span>
       {perSideKg != null && reps.length > 0 && (
-        <span className={perSideClassName}>{t('dashboard.perSide', { weight: perSideKg })}</span>
+        <span className={perSideClassName}>{t('dashboard.perSide', { weight: formatKg(perSideKg) })}</span>
       )}
     </>
   );
