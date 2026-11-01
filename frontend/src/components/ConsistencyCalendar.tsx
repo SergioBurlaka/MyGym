@@ -153,10 +153,11 @@ export default function ConsistencyCalendar() {
         <div key={week[0].date} className="flex shrink-0 snap-end flex-col gap-[3px]">
           {/* The current week's label (a month starting this week, ~30 px) sticks
               out to the left: overflow on the right would count as scrollable
-              and bring a scrollbar and the hint to a short history. */}
+              and bring a scrollbar and the hint to a short history. A lone
+              column (a new account) has nothing on its left to stick into. */}
           <span
             className={`flex h-4 w-3.5 whitespace-nowrap text-[11px] leading-4 text-slate-300 ${
-              wi === days.length - 1 ? 'justify-end' : ''
+              wi > 0 && wi === days.length - 1 ? 'justify-end' : ''
             }`}
           >
             <span>{labels[wi]}</span>
@@ -204,7 +205,7 @@ export default function ConsistencyCalendar() {
         <div aria-hidden className="flex shrink-0 flex-col gap-[3px]">
           <span className="h-4" />
           {WEEKDAY_KEYS.map((key) => (
-            <span key={key} className="h-3.5 text-[11px] leading-3.5 text-slate-400">
+            <span key={key} className="h-3.5 text-[11px] leading-[14px] text-slate-400">
               {t(`weekdays.${key}`)}
             </span>
           ))}
