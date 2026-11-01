@@ -5,12 +5,9 @@ paths:
   - "backend/test/auto-finish.test.ts"
   - "backend/test/workout-pause.test.ts"
   - "frontend/src/pages/WorkoutFormPage.tsx"
-  - "frontend/src/pages/DashboardPage.tsx"
   - "frontend/src/components/WorkoutExerciseCard.tsx"
   - "frontend/src/components/WorkoutTimer.tsx"
-  - "frontend/src/components/Pagination.tsx"
   - "frontend/src/components/ConfirmDialog.tsx"
-  - "frontend/src/components/SetsSummary.tsx"
   - "frontend/src/components/DatePicker.tsx"
   - "frontend/src/components/Navbar.tsx"
   - "frontend/src/hooks/**"
@@ -20,7 +17,7 @@ paths:
   - "frontend/src/pages/NotFoundPage.tsx"
 ---
 
-# Тренування: журнал, сторінка тренування, автозбереження, автозавершення, таймер
+# Тренування: сторінка тренування, автозбереження, автозавершення, таймер
 
 **Дані тренування** (`workouts`). `timeStart`/`timeEnd` виставляються **автоматично**, не вручну;
 `autoFinished` — `timeEnd` поставив sweep. `programLabel` — довільний текст (напр. «А»/«Б»), яким
@@ -31,26 +28,7 @@ paths:
 відкритої паузи); тривалість = `timeEnd − timeStart − pausedMs`. `isSample` — див.
 `.claude/rules/demo-template.md`.
 
-Журнал тренувань (Dashboard) використовує класичну пагінацію зі сторінками:
-`GET /api/workouts?page=&pageSize=` повертає `{ data, total, page, pageSize,
-totalPages }` (offset-запит + `count()` в одному запиті), фронтенд —
-`useWorkoutsQuery` + компонент `components/Pagination.tsx` (номери сторінок,
-prev/next). Без неї старі імпортовані тренування непомітні в UI.
-Номер сторінки живе в URL (`?page=N` через `useSearchParams`), не в
-локальному `useState`, — інакше перехід на сторінку тренування і назад
-скидав журнал на першу сторінку (`DashboardPage` розмонтовується при
-переході на `/workouts/:id`).
-
-**Картка тренування в журналі** (`DashboardPage.tsx`: мобільна `MobileWorkoutCard` і десктопна) —
-`div.card relative`, у `<h3>` — `WorkoutCardLink`: `<Link to=/workouts/:id>`, розтягнутий на всю
-картку (`after:absolute after:inset-0`), кільце фокусу — навколо картки. Назва посилання = дата
-(+ день тижня на мобайлі) + мітка програми (`sr-only`; видимий бейдж — `aria-hidden`), а не весь
-текст картки; Ctrl/середній клік відкриває нову вкладку. Усе інше клікабельне в картці лежить над
-посиланням: меню «⋮» — `relative z-10`, відкрите — `z-30` (інакше його Popconfirm «Видалити»
-опиняється під «⋮» наступної картки), підказка «Закрито автоматично» (`title`) — `relative z-10`.
-Компроміс (рішення користувача): текст картки не виділяється мишею. Десктопна дата в h3 —
-`font-sans tracking-normal` (базовий h3 — Bebas); перед десктопним списком — `sr-only` h2
-`dashboard.workoutsHeading` (на мобайлі h2 — місяці).
+Журнал (`/`, `DashboardPage.tsx`) — `.claude/rules/journal.md`.
 
 **Сторінка тренування — вигляд** («Дизайн 5» з канвасу «Таймер
 тренування в хедері»; макети — `docs/tasks/design/`): шапка — дата-кнопка, поле назви
