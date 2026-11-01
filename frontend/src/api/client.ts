@@ -2,9 +2,16 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 export const baseURL = import.meta.env.VITE_API_URL ?? '/api';
 
+// On a gym network a request can hang with no answer (signal, no packets):
+// without a timeout a page would show "Loading…" forever. A timeout is a
+// network error, not a 401 - it never drops the session. A slow-by-nature
+// call (a CSV upload) overrides it.
+export const REQUEST_TIMEOUT_MS = 20_000;
+
 export const api = axios.create({
   baseURL,
   withCredentials: true, // send the httpOnly refresh cookie
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 // Refresh this long before the access token actually expires, so a request
@@ -84,7 +91,8 @@ async function doRefresh(): Promise<string | null> {
     const res = await axios.post<{ accessToken: string }>(
       `${baseURL}/auth/refresh`,
       {},
-      { withCredentials: true },
+      // A hung refresh would hold every request waiting on it (single flight).
+      { withCredentials: true, timeout: REQUEST_TIMEOUT_MS },
     );
     setAccessToken(res.data.accessToken);
     return res.data.accessToken;

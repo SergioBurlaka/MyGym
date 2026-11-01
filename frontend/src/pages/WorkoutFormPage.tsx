@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
@@ -435,6 +435,43 @@ export default function WorkoutFormPage() {
     } catch (err) {
       setSaveAsProgramError(translateApiError(err, t, 'workout.saveAsProgramErrorGeneric'));
     }
+  }
+
+  // A deleted workout or an old link: the API answers 404 - say so instead of
+  // "Loading…" forever. Any other failed load gets its message and a retry.
+  // Only a failed first load (isLoadingError): a background refetch failing
+  // mid-workout (gym network) must not replace the form and its edits.
+  if (
+    workoutQuery.isLoadingError &&
+    (workoutQuery.error as { response?: { status?: number } }).response?.status === 404
+  ) {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-3xl text-slate-100">{t('workout.notFoundTitle')}</h1>
+        <p className="text-slate-300">{t('workout.notFoundText')}</p>
+        <Link to="/" className="btn-primary inline-block">
+          {t('notFound.toJournal')}
+        </Link>
+      </div>
+    );
+  }
+  const failedQueries = [workoutQuery, exercisesQuery, progressionQuery, programsQuery].filter(
+    (q) => q.isLoadingError,
+  );
+  if (failedQueries.length > 0) {
+    return (
+      <div role="alert" className="space-y-3">
+        <h1 className="text-3xl text-slate-100">{t('workout.loadError')}</h1>
+        <p className="text-slate-300">{translateApiError(failedQueries[0].error, t)}</p>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => failedQueries.forEach((q) => void q.refetch())}
+        >
+          {t('workout.retryLoad')}
+        </button>
+      </div>
+    );
   }
 
   if (

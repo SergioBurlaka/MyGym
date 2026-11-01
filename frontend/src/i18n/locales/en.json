@@ -258,7 +258,11 @@
       "unsupported": "This browser can't keep the screen on",
       "paused": "Paused - the screen may turn off",
       "pending": "Keeping the screen on…"
-    }
+    },
+    "notFoundTitle": "Workout not found",
+    "notFoundText": "It may have been deleted, or the link is old.",
+    "loadError": "Couldn’t load the workout",
+    "retryLoad": "Try again"
   },
   "progress": {
     "title": "Exercise progress",
@@ -461,7 +465,8 @@
     "rep_range_invalid": "Max. reps must be at least min. reps.",
     "workout_finished": "This workout is already finished",
     "demo_forbidden": "Not available in the demo account",
-    "demo_disabled": "The demo isn't available right now"
+    "demo_disabled": "The demo isn't available right now",
+    "timeout": "The server took too long to answer — check the network and try again"
   },
   "duration": {
     "hoursMinutes": "{{h}} h {{m}} min",
@@ -719,5 +724,13 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "hasWorkout": "has a workout"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "This address doesn’t lead anywhere in MyGym — maybe the link is old or mistyped.",
+    "toJournal": "To the journal"
+  },
+  "offline": {
+    "banner": "No network — your changes will be saved as soon as it is back"
   }
 }
