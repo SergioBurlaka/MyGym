@@ -15,6 +15,7 @@ import PrivacyPage from './pages/PrivacyPage.js';
 import IntegrationsPage from './pages/IntegrationsPage.js';
 import SchedulePage from './pages/SchedulePage.js';
 import OAuthConsentPage from './pages/OAuthConsentPage.js';
+import NotFoundPage from './pages/NotFoundPage.js';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -121,6 +122,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProgramsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <ProtectedRoute>
+                <NotFoundPage />
               </ProtectedRoute>
             }
           />
