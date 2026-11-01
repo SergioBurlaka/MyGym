@@ -30,8 +30,9 @@ export function JournalIcon({ size = 30 }: IconProps) {
     <Icon size={size} strokeWidth={1.75}>
       <rect x="6" y="3.5" width="12" height="17" rx="2" />
       <path d="M3.5 7.5H6M3.5 11H6M3.5 14.5H6M3.5 18H6" />
-      {/* The pencil hides the page's edge under it: filled with the bar's colour. */}
-      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" fill="#1b2029" />
+      {/* The pencil hides the page's edge under it: filled with whatever is
+          behind the icon - the bar, or the active pill (BottomNav sets the var). */}
+      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" fill="var(--nav-icon-bg, #1b2029)" />
     </Icon>
   );
 }

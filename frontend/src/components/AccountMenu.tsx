@@ -40,12 +40,29 @@ export default function AccountMenu({ email, onLogout }: { email: string; onLogo
     if (!open) return;
     panelRef.current?.querySelector<HTMLElement>('button')?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') {
+        close();
+        return;
+      }
+      // Modal: Tab cycles inside the card - past it is the page under the scrim.
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const buttons = panelRef.current.querySelectorAll<HTMLElement>('button');
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     // The card is placed once, under the avatar: rotating the phone would
-    // leave it floating, so it closes instead.
+    // leave it floating, so it closes instead. Only a width change - mobile
+    // browsers fire resize when the address bar hides on scroll.
+    const openedWidth = window.innerWidth;
     function onResize() {
-      setOpen(false);
+      if (window.innerWidth !== openedWidth) setOpen(false);
     }
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', onResize);
@@ -84,6 +101,7 @@ export default function AccountMenu({ email, onLogout }: { email: string; onLogo
             <div
               ref={panelRef}
               role="dialog"
+              aria-modal="true"
               aria-label={t('nav.account')}
               className="fixed right-3 z-40 flex w-[300px] max-w-[calc(100vw-1.5rem)] origin-top-right animate-menu-pop flex-col rounded-2xl border border-[#2f3542] bg-surface-raised px-4 pb-2.5 pt-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.5)] motion-reduce:animate-none lg:hidden"
               style={{ top }}

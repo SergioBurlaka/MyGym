@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
@@ -24,9 +24,14 @@ import {
 const TAB_CLASS =
   'group flex flex-1 items-center justify-center rounded-2xl transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent';
 
+// The active pill's colour, flattened (accent at 14% over the bar #1b2029)
+// - the journal icon's pencil is filled with it to mask the page under it.
+const ACTIVE_PILL_SOLID = '#3b282b';
+
 function Pill({ active, children }: { active: boolean; children: ReactNode }) {
   return (
     <span
+      style={active ? ({ '--nav-icon-bg': ACTIVE_PILL_SOLID } as CSSProperties) : undefined}
       className={`flex h-[52px] w-16 items-center justify-center rounded-[18px] transition-[background-color,transform] duration-150 group-active:scale-[.92] motion-reduce:transition-none ${
         active ? 'bg-accent/[0.14] text-accent' : 'text-[#9aa2b1]'
       }`}
@@ -74,8 +79,18 @@ export default function BottomNav() {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') closeMore(true);
     }
+    // Widened to lg the sheet is hidden (lg:hidden) - close it, or it would
+    // come back open when the window narrows again.
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    function onDesktop(e: MediaQueryListEvent) {
+      if (e.matches) setMoreOpen(false);
+    }
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    desktop.addEventListener('change', onDesktop);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      desktop.removeEventListener('change', onDesktop);
+    };
   }, [moreOpen]);
 
   if (!user) return null;
