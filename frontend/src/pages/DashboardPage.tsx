@@ -118,6 +118,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="hidden space-y-3 sm:block">
+        {/* The phone list has month headings; this one needs its own above the cards' h3. */}
+        <h2 className="sr-only">{t('dashboard.workoutsHeading')}</h2>
         {workouts.length === 0 && <p className="text-slate-400">{t('dashboard.emptyJournal')}</p>}
         {workouts.map((w) => {
           const duration = formatDuration(w.timeStart, w.timeEnd, w.autoFinished, w.pausedMs);
@@ -132,7 +134,7 @@ export default function DashboardPage() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
+                <h3 className="flex items-center gap-2 font-sans text-base font-semibold tracking-normal text-slate-100">
                   <WorkoutCardLink workout={w}>{formatDate(w.date)}</WorkoutCardLink>
                   {w.programLabel && colors && (
                     <span aria-hidden="true" className={`badge ${colors.badgeBg} ${colors.badgeText}`}>
@@ -144,7 +146,7 @@ export default function DashboardPage() {
                 <span className="text-xs text-slate-400">
                   {duration ?? (w.timeEnd ? '' : t('dashboard.inProgress'))}
                   {w.autoFinished && (
-                    <span title={t('workout.autoFinishedHint')}>
+                    <span className="relative z-10" title={t('workout.autoFinishedHint')}>
                       {duration ? ' · ' : ''}
                       {t('dashboard.autoFinished')}
                     </span>
@@ -301,8 +303,9 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
             </span>
           </div>
         </div>
-        {/* Above the stretched card link: a tap here opens the menu, not the workout. */}
-        <div className="relative z-10 shrink-0" ref={menuRef}>
+        {/* Above the stretched card link: a tap here opens the menu, not the workout.
+            Open, it also rises above the next card's menu button. */}
+        <div className={`relative shrink-0 ${menuOpen ? 'z-30' : 'z-10'}`} ref={menuRef}>
           <button
             type="button"
             aria-label={t('dashboard.workoutMenuLabel', { date: dateLabel })}
@@ -388,7 +391,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
           <span>
             {duration}
             {workout.autoFinished && (
-              <span title={t('workout.autoFinishedHint')}>
+              <span className="relative z-10" title={t('workout.autoFinishedHint')}>
                 {duration ? ' · ' : ''}
                 {t('dashboard.autoFinished')}
               </span>
