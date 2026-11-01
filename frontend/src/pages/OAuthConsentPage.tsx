@@ -1,5 +1,6 @@
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useOAuthDecisionMutation, useOAuthRequestQuery } from '../shared/api/oauth/index.js';
 import { translateApiError } from '../utils/apiError.js';
@@ -9,6 +10,7 @@ import { translateApiError } from '../utils/apiError.js';
 // browser to the client; denying returns it with access_denied.
 export default function OAuthConsentPage() {
   const { t } = useTranslation();
+  usePageTitle(t('oauth.consent.pageTitle'));
   const [searchParams] = useSearchParams();
   const error = searchParams.get('error');
 

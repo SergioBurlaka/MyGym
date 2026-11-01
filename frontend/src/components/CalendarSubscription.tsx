@@ -9,7 +9,7 @@ import { translateApiError } from '../utils/apiError.js';
 
 function formatConnectedAt(iso: string) {
   const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
-  return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // Subscription to the ICS feed of the training schedule. The feed URL holds

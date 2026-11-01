@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { useAuth } from '../context/AuthContext.js';
 import PasswordInput from '../components/PasswordInput.js';
 import GoogleSignInButton from '../components/GoogleSignInButton.js';
@@ -10,6 +11,7 @@ import { useAuthProvidersQuery } from '../shared/api/auth/index.js';
 
 export default function LoginPage() {
   const { t } = useTranslation();
+  usePageTitle(t('auth.login.submit'));
   const { login, loginDemo } = useAuth();
   const providersQuery = useAuthProvidersQuery();
   const navigate = useNavigate();

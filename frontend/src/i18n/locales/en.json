@@ -43,7 +43,8 @@
       "resume": "Resume the workout timer",
       "openPaused": "Open the paused workout, {{time}}",
       "error": "Couldn't change the timer. Check the connection and try again."
-    }
+    },
+    "language": "Interface language"
   },
   "auth": {
     "login": {
@@ -402,7 +403,8 @@
     "setsImported": "Sets imported:",
     "skippedExisting": "Skipped (already exist):",
     "exercisesCreated": "New exercises created:",
-    "rowsSkipped": "Rows skipped (unrecognized):"
+    "rowsSkipped": "Rows skipped (unrecognized):",
+    "fileLabel": "CSV file with workouts"
   },
   "calendar": {
     "legend": {
@@ -679,7 +681,8 @@
         "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app.",
         "invalid_client": "This app is not allowed to connect to MyGym.",
         "invalid_request": "The connection request was invalid (wrong return address). Start connecting again from the app."
-      }
+      },
+      "pageTitle": "Connect an app"
     }
   },
   "progressStatus": {

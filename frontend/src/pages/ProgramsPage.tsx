@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import {
   useCreateProgramMutation,
@@ -56,6 +57,7 @@ function toEditable(program?: Program): EditableExercise[] {
 
 export default function ProgramsPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.programs'));
   const programsQuery = useProgramsQuery();
   const exercisesQuery = useExercisesQuery();
   // Optional - the countdowns just don't show while it loads or if it fails.
