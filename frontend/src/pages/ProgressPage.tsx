@@ -11,7 +11,7 @@ import ProgressionBadge from '../components/ProgressionBadge.js';
 import WeeklyCategoryChart from '../components/WeeklyCategoryChart.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
-import { formatKg } from '../utils/weight.js';
+import { formatDate, formatKg } from '../utils/weight.js';
 import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 
 export default function ProgressPage() {
@@ -49,10 +49,15 @@ export default function ProgressPage() {
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
     [progression, selectedId],
   );
+  const selectedStatus = selected && selected.suggestion === 'ok' ? tryMoreStatus(selected, null) : null;
 
   const weightData = history.map((h) => ({ date: h.date, value: h.totalWeightKg, isPR: h.isWeightPR }));
   const repsData = history.map((h) => ({ date: h.date, value: h.maxReps, isPR: h.isRepsPR }));
   const oneRepMaxData = history.map((h) => ({ date: h.date, value: h.estimatedOneRepMaxKg }));
+  // No weight in any session (push-ups, leg raises) - the weight and 1RM charts
+  // would only say "no data" forever, so they are not shown. No history yet -
+  // all four stay, each with its own empty label.
+  const hasWeight = history.length === 0 || history.some((h) => h.totalWeightKg != null);
   const hasWeightedVolume = history.some((h) => h.volumeKg != null);
   const volumeData = history.map((h) => ({
     date: h.date,
@@ -105,13 +110,30 @@ export default function ProgressPage() {
           <div className="card">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-2xl text-slate-100">{selected.name}</h2>
-              <ProgressionBadge suggestion={selected.suggestion} />
+              {/* "ok" is a countdown, not a calm state - the same scale as its tile
+                  ("4 of 5 workouts"); the other suggestions are actions. */}
+              {selectedStatus?.kind === 'countdown' ? (
+                <TryMoreStatusBadge status={selectedStatus} />
+              ) : (
+                <ProgressionBadge suggestion={selected.suggestion} />
+              )}
             </div>
-            <p className="mt-1 text-sm text-slate-400">{progressionMessage(selected, t)}</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {selectedStatus?.kind === 'countdown'
+                ? t('progression.message.okCountdown', { count: selectedStatus.left })
+                : progressionMessage(selected, t)}
+            </p>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
               <div>
                 <dt className="label">{t('progress.stats.lastWorkout')}</dt>
-                <dd className="text-slate-200">{selected.lastWorkoutDate ?? '—'}</dd>
+                <dd className="text-slate-200">{selected.lastWorkoutDate
+                    ? formatDate(selected.lastWorkoutDate, {
+                        day: 'numeric',
+                        month: 'long',
+                        // A year-old date without the year reads as a recent one.
+                        ...(selected.lastWorkoutDate.slice(0, 4) !== String(new Date().getFullYear()) && { year: 'numeric' }),
+                      })
+                    : '—'}</dd>
               </div>
               <div>
                 <dt className="label">{t('progress.stats.lastWeight')}</dt>
@@ -127,7 +149,7 @@ export default function ProgressPage() {
                 <dt className="label">{t('progress.stats.sessionsWithoutProgress')}</dt>
                 <dd className="text-slate-200">
                   {selected.sessionsSinceProgress != null
-                    ? `${selected.sessionsSinceProgress} / ${selected.tryMoreAfterWorkouts}`
+                    ? `${selected.sessionsSinceProgress} ${t('progressStatus.ofWorkouts', { count: selected.tryMoreAfterWorkouts })}`
                     : '—'}
                 </dd>
               </div>
@@ -138,21 +160,25 @@ export default function ProgressPage() {
             <p className="text-slate-400">{t('common.loadingChart')}</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="card">
-                <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.workingWeightDescription')}</p>
-                <ProgressChart label={t('progress.charts.workingWeightTitle')} data={weightData} color="#ff5a36" unit={t('common.kg')} emptyLabel={t('progress.charts.workingWeightEmpty')} />
-              </div>
+              {hasWeight && (
+                <div className="card">
+                  <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
+                  <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.workingWeightDescription')}</p>
+                  <ProgressChart label={t('progress.charts.workingWeightTitle')} data={weightData} color="#ff5a36" unit={t('common.kg')} emptyLabel={t('progress.charts.workingWeightEmpty')} />
+                </div>
+              )}
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.maxRepsTitle')}</h3>
                 <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.maxRepsDescription')}</p>
                 <ProgressChart label={t('progress.charts.maxRepsTitle')} data={repsData} color="#3ddc97" unit={t('common.reps')} emptyLabel={t('progress.charts.noData')} />
               </div>
-              <div className="card">
-                <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.oneRepMaxTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.oneRepMaxDescription')}</p>
-                <ProgressChart label={t('progress.charts.oneRepMaxTitle')} data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
-              </div>
+              {hasWeight && (
+                <div className="card">
+                  <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.oneRepMaxTitle')}</h3>
+                  <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.oneRepMaxDescription')}</p>
+                  <ProgressChart label={t('progress.charts.oneRepMaxTitle')} data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
+                </div>
+              )}
               <div className="card">
                 <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.volumeTitle')}</h3>
                 <p className="mb-2 mt-1 text-xs text-slate-400">

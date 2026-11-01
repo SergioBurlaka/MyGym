@@ -437,7 +437,9 @@
       "start_adding_weight": "Reached {{repRangeMax}} reps with no weight — time to start adding some.",
       "increase_weight": "Reached the top of the range ({{repRangeMax}} reps) — add +{{weightStep}} kg per side.",
       "try_more": "No progress for {{sessions}} workouts - try one more set, more reps or more weight.",
-      "ok": "On track."
+      "ok": "On track.",
+      "okCountdown_one": "One more workout without progress and we will suggest trying more.",
+      "okCountdown_other": "{{count}} more workouts without progress and we will suggest trying more."
     }
   },
   "errors": {
