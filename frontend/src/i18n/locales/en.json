@@ -14,7 +14,8 @@
     "reps": "reps",
     "confirmDelete": "Yes, delete",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "close": "Close"
   },
   "weekdays": {
     "mon": "Mon",
@@ -44,7 +45,11 @@
       "openPaused": "Open the paused workout, {{time}}",
       "error": "Couldn't change the timer. Check the connection and try again."
     },
-    "language": "Interface language"
+    "language": "Interface language",
+    "more": "More",
+    "mainNav": "Main navigation",
+    "account": "Account",
+    "logoutLong": "Log out of the account"
   },
   "auth": {
     "login": {

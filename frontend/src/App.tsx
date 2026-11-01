@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext.js';
 import Navbar from './components/Navbar.js';
+import BottomNav from './components/BottomNav.js';
 import DemoBanner from './components/DemoBanner.js';
 import OfflineBanner from './components/OfflineBanner.js';
 import LoginPage from './pages/LoginPage.js';
@@ -46,6 +47,7 @@ function NotForDemo({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -53,8 +55,15 @@ export default function App() {
       <OfflineBanner />
       {/* Safe-area insets (viewport-fit=cover): home indicator / gesture bar
           at the bottom, camera cutout on the sides in landscape. The top one
-          is on the Navbar, or on the page itself when there's no Navbar. */}
-      <main className="mx-auto max-w-5xl pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-6">
+          is on the Navbar, or on the page itself when there's no Navbar.
+          Logged in, below lg, the bottom bar (76 px + inset) is under the page. */}
+      <main
+        className={`mx-auto max-w-5xl pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-6 ${
+          user
+            ? 'pb-[calc(76px+1.5rem+env(safe-area-inset-bottom))] lg:pb-[max(1.5rem,env(safe-area-inset-bottom))]'
+            : 'pb-[max(1.5rem,env(safe-area-inset-bottom))]'
+        }`}
+      >
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -137,6 +146,7 @@ export default function App() {
           />
         </Routes>
       </main>
+      <BottomNav />
     </div>
   );
 }
