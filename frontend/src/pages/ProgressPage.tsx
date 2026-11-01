@@ -126,7 +126,14 @@ export default function ProgressPage() {
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
               <div>
                 <dt className="label">{t('progress.stats.lastWorkout')}</dt>
-                <dd className="text-slate-200">{selected.lastWorkoutDate ? formatDate(selected.lastWorkoutDate, { day: 'numeric', month: 'long' }) : '—'}</dd>
+                <dd className="text-slate-200">{selected.lastWorkoutDate
+                    ? formatDate(selected.lastWorkoutDate, {
+                        day: 'numeric',
+                        month: 'long',
+                        // A year-old date without the year reads as a recent one.
+                        ...(selected.lastWorkoutDate.slice(0, 4) !== String(new Date().getFullYear()) && { year: 'numeric' }),
+                      })
+                    : '—'}</dd>
               </div>
               <div>
                 <dt className="label">{t('progress.stats.lastWeight')}</dt>
