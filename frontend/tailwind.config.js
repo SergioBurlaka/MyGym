@@ -44,6 +44,10 @@ export default {
         'dp-from-left': { '0%': { opacity: '0', transform: 'translateX(-18px)' }, '100%': { opacity: '1', transform: 'none' } },
         'dp-panel': { '0%': { opacity: '0', transform: 'scale(0.92)' }, '100%': { opacity: '1', transform: 'none' } },
         'dp-pop': { '0%': { transform: 'scale(0.6)' }, '60%': { transform: 'scale(1.08)' }, '100%': { transform: 'scale(1)' } },
+        // Phone navigation (BottomNav "More" sheet, AccountMenu).
+        'sheet-up': { '0%': { transform: 'translateY(100%)' }, '100%': { transform: 'none' } },
+        'menu-pop': { '0%': { opacity: '0', transform: 'translateY(-6px) scale(0.98)' }, '100%': { opacity: '1', transform: 'none' } },
+        'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
       },
       animation: {
         'pop-in': 'pop-in 0.12s ease-out',
@@ -56,6 +60,9 @@ export default {
         'dp-from-left': 'dp-from-left 0.22s cubic-bezier(0.23, 1, 0.32, 1) both',
         'dp-panel': 'dp-panel 0.2s cubic-bezier(0.08, 0.82, 0.17, 1) both',
         'dp-pop': 'dp-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        'sheet-up': 'sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both',
+        'menu-pop': 'menu-pop 0.16s ease-out both',
+        'fade-in': 'fade-in 0.18s ease-out both',
       },
     },
   },

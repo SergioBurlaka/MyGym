@@ -42,7 +42,7 @@
 - **Backend:** Node.js + TypeScript, Fastify + Zod (валідація), Drizzle ORM + drizzle-kit (міграції), PostgreSQL
 - **Auth:** email + пароль (argon2) **або вхід через Google** (OAuth, `google-auth-library` 10.x — див. "Вхід через Google" у `.claude/rules/auth.md`), JWT access + refresh (refresh — httpOnly cookie, зберігається в БД для відкликання), multi-user. Для програм — PAT і власний OAuth authorization server для MCP-клієнтів (див. "OAuth для MCP-клієнтів" у `.claude/rules/oauth-and-tokens.md`)
 - **Frontend:** React + TypeScript + Vite, Tailwind CSS, Recharts (графіки), TanStack Query для даних із бекенду (структура `frontend/src/shared/api/<ресурс>/` — `*.api.ts` + `*.keys.ts` (`@lukemorales/query-key-factory`) + `hooks/use*Query.ts`/`use*Mutation.ts`, скопійовано з конвенції іншого проєкту користувача)
-- **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач у `Navbar.tsx` (`components/LanguageSwitcher.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
+- **i18n:** `react-i18next` + `i18next-browser-languagedetector` — автовизначення мови з браузера (`localStorage` → `navigator` → fallback `en`), перемикач `components/LanguageSwitcher.tsx` — у хедері (`Navbar.tsx`) на `lg+`, нижче — у меню акаунта (`AccountMenu.tsx`). Словники — `frontend/src/i18n/locales/{en,uk}.json` (дзеркальна структура ключів, звіряється скриптом при кожній зміні)
 - **Інфраструктура:** Docker (окремі контейнери: postgres, backend, frontend, mcp, nginx), docker-compose для dev (hot-reload) і prod, nginx reverse-proxy з HTTPS (DuckDNS-домен + Let's Encrypt/certbot, див. "Прод: HTTPS" у `.claude/rules/infra-prod.md`)
 - **Node 24 LTS** (підтримка до 04.2028) у всіх Dockerfile-ах і CI — з 2026-10-22, замість Node 20 (EOL 04.2026). Версія зафіксована в 7 Dockerfile-ах (`node:24-alpine`) і 3 джобах `deploy.yml` — міняти разом. Після зміни версії в dev — `npm install` у контейнерах (named volumes `*_node_modules` не оновлюються самі, `argon2` — нативний модуль)
 
@@ -67,6 +67,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 | Журнал: пагінація, картка тренування (посилання), рядок вправи | `.claude/rules/journal.md` |
 | Тренування: сторінка тренування, автозбереження, автозавершення, таймер, екран, офлайн-банер, сторінка 404 | `.claude/rules/workouts.md` |
 | Шаблони А/Б і програми | `.claude/rules/programs.md` |
+| Навігація: хедер, нижній таб-бар і «Додатково» нижче `lg`, меню акаунта | `.claude/rules/navigation.md` |
 | Розклад, календар консистентності, календарний фід | `.claude/rules/schedule-calendar.md` |
 | Демо-акаунт і стартові дані | `.claude/rules/demo-template.md` |
 | CSV-імпорт | `.claude/rules/csv-import.md` |

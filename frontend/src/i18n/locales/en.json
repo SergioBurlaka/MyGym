@@ -14,7 +14,8 @@
     "reps": "reps",
     "confirmDelete": "Yes, delete",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "close": "Close"
   },
   "weekdays": {
     "mon": "Mon",
@@ -32,8 +33,6 @@
     "exercises": "Exercises",
     "import": "Import",
     "logout": "Log out",
-    "openMenu": "Open menu",
-    "closeMenu": "Close menu",
     "profileMenu": "Profile menu",
     "integrations": "Integrations",
     "schedule": "Schedule",
@@ -44,7 +43,12 @@
       "openPaused": "Open the paused workout, {{time}}",
       "error": "Couldn't change the timer. Check the connection and try again."
     },
-    "language": "Interface language"
+    "language": "Interface language",
+    "more": "More",
+    "mainNav": "Main navigation",
+    "account": "Account",
+    "logoutLong": "Log out of the account",
+    "languageShort": "Language"
   },
   "auth": {
     "login": {
