@@ -12,6 +12,11 @@ export const useSaveWorkoutExercisesMutation = (
 
   return useMutation({
     mutationKey: workoutsKeys.saveExercises.queryKey,
+    // Not paused offline (the default 'online' mode): the page's own retry
+    // loop owns this - it shows "couldn't save", retries and sends the latest
+    // state on `online`. A paused mutation spun "Saving…" with no failure and
+    // then resumed with a stale body before the fresh one.
+    networkMode: 'always',
     mutationFn: async (body) => {
       const { data } = await WorkoutsApi.saveExercises(id, body);
       return data;
