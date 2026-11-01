@@ -11,6 +11,7 @@ import EquipmentIcon from '../components/EquipmentIcon.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
+import { formatKg, formatStepKg } from '../utils/weight.js';
 
 const EQUIPMENT_FILTERS: Equipment[] = ['barbell', 'dumbbell', 'bodyweight'];
 
@@ -216,7 +217,7 @@ function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => 
         <span className="rounded-lg bg-surface-border px-2.5 py-1 text-slate-400">
           {t('exercises.stepLabel')}{' '}
           <b className="font-semibold text-slate-200">
-            {t('exercises.stepChip', { step: Number(exercise.weightStepKg).toFixed(2) })}
+            {t('exercises.stepChip', { step: formatStepKg(Number(exercise.weightStepKg)) })}
           </b>
         </span>
       </div>
@@ -392,8 +393,8 @@ function ExerciseForm({
                   kg === 0
                     ? t('workout.barNone')
                     : kg === 10
-                      ? t('workout.barEz', { kg })
-                      : t('workout.barKg', { kg }),
+                      ? t('workout.barEz', { kg: formatKg(kg) })
+                      : t('workout.barKg', { kg: formatKg(kg) }),
               }))}
             />
           </div>

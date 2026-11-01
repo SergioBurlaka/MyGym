@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { formatCompactNumber, formatDate } from '../utils/weight.js';
+import { formatCompactNumber, formatDate, formatKg } from '../utils/weight.js';
 
 type Point = { date: string; value: number | null; isPR?: boolean };
 
@@ -34,7 +34,7 @@ function ChartTooltip({ active, payload, unit }: any) {
     >
       <p className="text-slate-400">{formatDate(point.date, { day: '2-digit', month: 'long', year: 'numeric' })}</p>
       <p className="mt-0.5 font-medium text-slate-100">
-        {point.value} {unit}
+        {point.value == null ? '—' : formatKg(point.value)} {unit}
       </p>
       {point.isPR && <p className="mt-0.5 text-accent">{t('progress.charts.prBadge')}</p>}
     </div>

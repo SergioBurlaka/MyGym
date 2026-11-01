@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WeeklyCategoryVolume } from '../types/index.js';
 import { addDays, todayIso } from '../utils/date.js';
-import { formatDate } from '../utils/weight.js';
+import { formatDate, formatDecimal, formatKg } from '../utils/weight.js';
 import { AVERAGE_WEEKS, fillWeeks, niceMax, repsMax, weekAverage } from '../utils/weeklyVolume.js';
 
 type SeriesKey = keyof Omit<WeeklyCategoryVolume, 'weekStart'>;
@@ -30,7 +30,7 @@ const BASELINE = AREA_HEIGHT - 1;
 // Drawn by hand, not with Recharts: the strip is wider than the card and
 // scrolls, and each week is a button (tap -> the tiles above, keyboard focus).
 export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolume[] }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const todayStr = useMemo(() => todayIso(), []);
   const weeks = useMemo(() => fillWeeks(data, todayStr), [data, todayStr]);
   // One scale per unit for the whole history, so bars don't change while scrolling.
@@ -76,13 +76,13 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   const thisYear = todayStr.slice(0, 4);
   const dmy = (iso: string) =>
     iso.slice(0, 4) === thisYear ? dm(iso) : formatDate(iso, { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const num = (n: number) => Math.round(n).toLocaleString(i18n.language);
+  const num = (n: number) => formatKg(Math.round(n));
   const kg = (n: number) => `${num(n)} ${t('common.kg')}`;
   const reps = (n: number) => `${num(n)} ${t('common.reps')}`;
   // "16,1 t" from a tonne up, "850 kg" under it.
   const weight = (v: number) =>
     v >= 1000
-      ? t('progress.axisTonnes', { value: (v / 1000).toLocaleString(i18n.language, { maximumFractionDigits: 1 }) })
+      ? t('progress.axisTonnes', { value: formatDecimal(v / 1000, 1) })
       : kg(v);
   const value = (key: SeriesKey, v: number) => (key === 'bodyweight' ? reps(v) : weight(v));
   const barHeight = (key: SeriesKey, v: number) => {
@@ -114,9 +114,9 @@ export default function WeeklyCategoryChart({ data }: { data: WeeklyCategoryVolu
   const summary = t('progress.weeklyVolumeSummary', {
     from: formatDate(weeks[0].weekStart),
     to: formatDate(weeks[weeks.length - 1].weekStart),
-    large: total('large'),
-    small: total('small'),
-    bodyweight: total('bodyweight'),
+    large: num(total('large')),
+    small: num(total('small')),
+    bodyweight: num(total('bodyweight')),
   });
 
   return (
