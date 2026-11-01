@@ -1,10 +1,12 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import { useImportCsvMutation } from '../shared/api/import-csv/index.js';
 import { translateApiError } from '../utils/apiError.js';
 
 export default function ImportPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.import'));
   const fileRef = useRef<HTMLInputElement>(null);
   const importMutation = useImportCsvMutation();
 

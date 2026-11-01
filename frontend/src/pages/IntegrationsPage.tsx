@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactElement } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import i18n from '../i18n/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import CopyField from '../components/CopyField.js';
@@ -33,6 +34,7 @@ type GuideId = (typeof GUIDES)[number]['id'];
 
 export default function IntegrationsPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.integrations'));
 
   return (
     <div className="space-y-8">

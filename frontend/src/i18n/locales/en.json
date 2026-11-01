@@ -674,7 +674,8 @@
         "oauth_request_expired": "This connection request has expired or was already used. Start connecting again from the app.",
         "invalid_client": "This app is not allowed to connect to MyGym.",
         "invalid_request": "The connection request was invalid (wrong return address). Start connecting again from the app."
-      }
+      },
+      "pageTitle": "Connect an app"
     }
   },
   "progressStatus": {

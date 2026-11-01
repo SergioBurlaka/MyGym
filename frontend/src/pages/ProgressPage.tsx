@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
   useProgressionHistoryQuery,
   useProgressionQuery,
@@ -14,6 +15,7 @@ import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
 
 export default function ProgressPage() {
   const { t } = useTranslation();
+  usePageTitle(t('nav.progress'));
   const progressionQuery = useProgressionQuery();
   const volumeByCategoryQuery = useVolumeByCategoryQuery('all');
 

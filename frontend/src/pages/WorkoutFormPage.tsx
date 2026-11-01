@@ -12,9 +12,10 @@ import {
   useWorkoutQuery,
 } from '../shared/api/workouts/index.js';
 import { useCreateProgramMutation, useProgramsQuery } from '../shared/api/programs/index.js';
-import { formatDuration, parseKg } from '../utils/weight.js';
+import { formatDate, formatDuration, parseKg } from '../utils/weight.js';
 import { translateApiError } from '../utils/apiError.js';
 import { useWakeLock } from '../hooks/useWakeLock.js';
+import { usePageTitle } from '../hooks/usePageTitle.js';
 import ConfirmDialog from '../components/ConfirmDialog.js';
 import DatePicker from '../components/DatePicker.js';
 import Select from '../components/Select.js';
@@ -102,6 +103,10 @@ export default function WorkoutFormPage() {
   const workoutRunning = workoutQuery.data != null && workoutQuery.data.timeEnd == null;
   const workoutPaused = workoutRunning && workoutQuery.data?.pausedAt != null;
   const wakeLock = useWakeLock(workoutRunning && !workoutPaused);
+
+  // The tab names the workout: "30 October · B · MyGym" (date, then its label).
+  const titleDate = workoutQuery.data ? formatDate(workoutQuery.data.date, { day: 'numeric', month: 'long' }) : null;
+  usePageTitle(titleDate && [titleDate, workoutQuery.data?.programLabel].filter(Boolean).join(' · '));
 
   const [blocks, setBlocks] = useState<EditableExercise[]>([]);
   // null until the form is seeded from the server - nothing may be saved
