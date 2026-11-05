@@ -11,7 +11,7 @@ import {
 } from '../shared/api/workouts/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { useProgramsQuery } from '../shared/api/programs/index.js';
-import { formatDate, formatDuration } from '../utils/weight.js';
+import { formatDate, formatDuration, formatKg, setsSummary } from '../utils/weight.js';
 import SetsSummary from '../components/SetsSummary.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
@@ -22,7 +22,7 @@ import Popconfirm from '../components/Popconfirm.js';
 import { labelColor } from '../utils/labelColor.js';
 import { journalTryMoreStatus } from '../utils/tryMoreCountdown.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
-import type { ExerciseProgression, Workout } from '../types/index.js';
+import type { ExerciseProgression, Workout, WorkoutExercise } from '../types/index.js';
 
 const PAGE_SIZE = 20;
 
@@ -247,9 +247,9 @@ function MobileRemindersCard({ items }: { items: ExerciseProgression[] }) {
   );
 }
 
-// Phone-sized workout card: date + weekday, program-label pill, a kebab
-// menu (edit/delete) instead of the desktop row's plain click target, and
-// each exercise as its own row with a two-line weight/reps summary.
+// Phone-sized workout card (design D): one surface - a two-line header (date +
+// weekday and the kebab menu; label, exercise count, duration), then the
+// exercises as plain rows split by lines, no nested cards.
 function MobileWorkoutCard({ workout }: { workout: Workout }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -277,29 +277,43 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
   const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished, workout.pausedMs);
   const dateLabel = formatDate(workout.date, { day: 'numeric', month: 'long' });
   const weekday = formatDate(workout.date, { weekday: 'short' });
+  // Not just "no timeEnd": a CSV-imported workout has neither time and is done.
+  const inProgress = Boolean(workout.timeStart) && !workout.timeEnd;
 
   function goToWorkout() {
     navigate(`/workouts/${workout.id}`);
   }
 
   return (
-    <div className="card relative space-y-3">
+    <div className="card relative px-4 pb-0.5 pt-3.5">
       <div className="flex items-start justify-between gap-2">
-        <div className="space-y-1.5">
-          <h3 className="text-lg font-semibold text-slate-100">
+        <div className="min-w-0 space-y-1.5 pb-3">
+          <h3 className="font-sans text-[19px] font-bold leading-tight tracking-normal text-slate-100">
             <WorkoutCardLink workout={workout}>
-              {dateLabel} <span className="font-normal text-slate-400">· {weekday}</span>
+              {dateLabel} <span className="text-[15px] font-normal text-slate-400">· {weekday}</span>
             </WorkoutCardLink>
           </h3>
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Wraps, unlike the mockup: "auto-finished" doesn't fit one line at 360px. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             {workout.programLabel && colors && (
-              <span aria-hidden="true" className={`badge ${colors.badgeBg} ${colors.badgeText}`}>
+              <span
+                aria-hidden="true"
+                className={`badge h-6 min-w-[24px] justify-center px-2 py-0 ${colors.badgeBg} ${colors.badgeText}`}
+              >
                 {workout.programLabel}
               </span>
             )}
             {workout.isSample && <SampleBadge />}
-            <span className="text-xs text-slate-400">
+            <span className="text-[13px] text-slate-400">
               {t('programs.exerciseCount', { count: workout.workoutExercises.length })}
+              {duration && ` · ${duration}`}
+              {inProgress && ` · ${t('dashboard.inProgress')}`}
+              {workout.autoFinished && (
+                <span className="relative z-10" title={t('workout.autoFinishedHint')}>
+                  {' · '}
+                  {t('dashboard.autoFinished')}
+                </span>
+              )}
             </span>
           </div>
         </div>
@@ -356,49 +370,37 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
       </div>
 
       {workout.workoutExercises.length === 0 ? (
-        <p className="text-sm text-slate-400">{t('dashboard.emptyWorkout')}</p>
+        <p className="border-t border-surface-border py-3 text-sm text-slate-400">{t('dashboard.emptyWorkout')}</p>
       ) : (
-        <div className="space-y-1.5">
-          {workout.workoutExercises.map((we) => {
-            return (
-              <div key={we.id} className="flex flex-col gap-2 rounded-lg bg-surface-border px-3 py-2.5 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="min-w-0 flex-1 text-slate-200">{we.exercise.name}</span>
-                  {/* Capped, not shrink-0: a long set list wraps between sets
-                      instead of squeezing the name or overflowing at 375px. */}
-                  <span className="flex max-w-[60%] flex-col items-end text-right leading-tight">
-                    <SetsSummary
-                      workoutExercise={we}
-                      className="font-semibold text-slate-100"
-                      perSideClassName="mt-0.5 text-xs text-slate-400"
-                    />
-                  </span>
-                </div>
-                {/* Full width under the row - the segments need it (design 5). */}
-                <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} className="w-full" />
-              </div>
-            );
-          })}
-        </div>
+        workout.workoutExercises.map((we) => <JournalExerciseRow key={we.id} workoutExercise={we} />)
       )}
+    </div>
+  );
+}
 
-      {(duration || workout.autoFinished) && (
-        <div className="flex items-center gap-2 border-t border-surface-border pt-2.5 text-xs text-slate-400">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" />
-          </svg>
-          <span>
-            {duration}
-            {workout.autoFinished && (
-              <span className="relative z-10" title={t('workout.autoFinishedHint')}>
-                {duration ? ' · ' : ''}
-                {t('dashboard.autoFinished')}
-              </span>
-            )}
-          </span>
-        </div>
-      )}
+// One exercise of the phone card: name over reps on the left, weight over the
+// per-side hint on the right - the two lower cells share a line, so the row's
+// height doesn't jump. Reads setsSummary() directly because SetsSummary's single
+// line can't be split across a grid; its rules stay: no sets is "—" and no
+// weight, bodyweight leaves the right column empty.
+function JournalExerciseRow({ workoutExercise: we }: { workoutExercise: WorkoutExercise }) {
+  const { t } = useTranslation();
+  const { totalKg, perSideKg, reps } = setsSummary(we);
+  const done = reps.length > 0;
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 border-t border-surface-border py-3">
+      <span className="text-base font-semibold leading-snug text-slate-100">{we.exercise.name}</span>
+      <span className="whitespace-nowrap text-right text-[17px] font-bold tabular-nums text-slate-100">
+        {done && totalKg != null && `${formatKg(totalKg)} ${t('common.kg')}`}
+      </span>
+      <span className="text-sm tabular-nums text-slate-300">{done ? reps.join(' · ') : '—'}</span>
+      <span className="whitespace-nowrap text-right text-xs text-hint">
+        {done && perSideKg != null && t('dashboard.perSide', { weight: formatKg(perSideKg) })}
+      </span>
+      <span className="col-span-2 mt-1.5 empty:hidden">
+        <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} variant="row" />
+      </span>
     </div>
   );
 }
