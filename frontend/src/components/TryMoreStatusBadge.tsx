@@ -6,25 +6,31 @@ const MAX_SEGMENTS = 12;
 
 // An exercise's place on the "try more" scale - shared by the Programs
 // cards, the journal, the Progress chips and the workout page. The counter
-// is the same everywhere (user's decision 2026-10-29, design 5): "To 'Try
+// is the same on all but the phone journal (user's decision 2026-10-29,
+// design 5; that row is `variant="row"` below): "To 'Try
 // more'" on the left, "1 of 6 workouts" on the right, and below it one
 // segment per workout. Spelling out both the label and "of N workouts"
 // keeps the fraction from reading as "to progress" (UX audit 2026-10-25,
 // finding 04). `className` sets the width - full on the workout page.
-// Empty segments are slate-600: visible (>= 1.5:1) on a card and on the
-// journal's surface-border rows alike, where a surface-border track vanished.
+// Empty segments are slate-600: visible (>= 1.5:1) on a card, where a
+// surface-border track vanished.
 // `compact` (the Progress page tiles): no "To 'Try more'" label - the section
 // title says it once - so a narrow tile doesn't wrap it onto three lines.
+// `variant="row"` (the phone journal, design D): one 16px line - see RowStatus.
 export default function TryMoreStatusBadge({
   status,
   className = 'w-full sm:w-56',
   compact = false,
+  variant = 'default',
 }: {
   status: TryMoreStatus;
   className?: string;
   compact?: boolean;
+  variant?: 'default' | 'row';
 }) {
   const { t } = useTranslation();
+
+  if (variant === 'row') return <RowStatus status={status} />;
 
   switch (status.kind) {
     case 'unknown':
@@ -77,6 +83,66 @@ export default function TryMoreStatusBadge({
           <span className={`block h-full rounded-full ${filled}`} style={{ width: `${(done / status.total) * 100}%` }} />
         </span>
       )}
+    </span>
+  );
+}
+
+// One line under a journal exercise. The bar is always 112px, whatever the
+// threshold, so the rows line up; segments split it evenly. "Due" has no bar:
+// the text takes its place, in `warn` like every other "try more" nudge. The
+// visible "to increase" is the user's wording for this row only - the
+// aria-label keeps the feature's name (DESIGN_PRINCIPLES §12).
+function RowStatus({ status }: { status: TryMoreStatus }) {
+  const { t } = useTranslation();
+  const line = 'flex h-4 items-center text-xs';
+
+  switch (status.kind) {
+    case 'unknown':
+      return null;
+    case 'no_data':
+      return <span className={`${line} text-slate-400`}>{t('progressStatus.noData')}</span>;
+    case 'first':
+      return <span className={`${line} text-slate-400`}>{t('progressStatus.first')}</span>;
+    case 'after_break':
+      return <span className={`${line} text-slate-400`}>{t('progressStatus.afterBreak')}</span>;
+    case 'progress':
+      return <span className={`${line} text-good`}>{t('progressStatus.progress')}</span>;
+    case 'add_weight':
+      return <span className={`${line} font-semibold text-good`}>{t('progressStatus.addWeight')}</span>;
+    case 'due':
+      return (
+        <span
+          role="img"
+          aria-label={t('progressStatus.dueAria', { done: Math.min(status.done, status.total), count: status.total })}
+          className={`${line} font-semibold text-warn`}
+        >
+          {t('progressStatus.due')}
+        </span>
+      );
+  }
+
+  const { done, total } = status;
+  return (
+    <span
+      role="img"
+      aria-label={t('progressStatus.countAria', { done, count: total })}
+      className={`${line} gap-2.5 text-slate-400`}
+    >
+      {total <= MAX_SEGMENTS ? (
+        <span className="flex w-28 shrink-0 gap-[3px]" aria-hidden="true">
+          {Array.from({ length: total }, (_, i) => (
+            <span key={i} className={`h-1 flex-1 rounded-full ${i < done ? 'bg-accent' : 'bg-slate-600'}`} />
+          ))}
+        </span>
+      ) : (
+        <span className="h-1 w-28 shrink-0 overflow-hidden rounded-full bg-slate-600" aria-hidden="true">
+          <span className="block h-full rounded-full bg-accent" style={{ width: `${(done / total) * 100}%` }} />
+        </span>
+      )}
+      <span className="whitespace-nowrap" aria-hidden="true">
+        <b className="font-bold tabular-nums text-slate-100">{done}</b>
+        <span className="tabular-nums">/{total}</span> {t('progressStatus.toIncrease')}
+      </span>
     </span>
   );
 }
