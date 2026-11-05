@@ -719,6 +719,7 @@
     "afterBreak": "Після перерви — відлік з нуля",
     "progress": "✓ Прогрес",
     "toTryMore": "До «Спробуй більше»",
+    "toIncrease": "до збільшення",
     "ofWorkouts_one": "з {{count}} тренування",
     "ofWorkouts_few": "з {{count}} тренувань",
     "ofWorkouts_many": "з {{count}} тренувань",

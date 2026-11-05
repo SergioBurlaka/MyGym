@@ -701,6 +701,7 @@
     "afterBreak": "After a break - count restarts",
     "progress": "✓ Progress",
     "toTryMore": "To \"Try more\"",
+    "toIncrease": "to increase",
     "ofWorkouts_one": "of {{count}} workout",
     "ofWorkouts_other": "of {{count}} workouts",
     "countAria_one": "To \"Try more\": {{done}} of {{count}} workout",
