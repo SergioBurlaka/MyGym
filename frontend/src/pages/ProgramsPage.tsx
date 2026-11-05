@@ -492,10 +492,12 @@ function ProgramForm({
         </section>
       </div>
 
-      {/* Pinned to the bottom of the screen while the form scrolls - below lg
-          on top of the bottom bar (BottomNav, --bottom-nav-h + the home-indicator
-          inset), which already keeps clear of the inset. */}
-      <div className="sticky bottom-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom))] z-10 -mx-4 mt-4 border-t border-surface-border bg-surface px-4 pb-4 pt-3 lg:bottom-0 lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
+      {/* Pinned to the bottom of the screen while the form scrolls. Below lg it
+          runs under the floating dock (BottomNav, --bottom-nav-h + inset), so no
+          page shows through round the dock: the padding lifts the buttons above
+          it, and the negative margin takes back <main>'s bottom padding (App.tsx),
+          or the bar would climb that far at the end of the scroll. */}
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-[calc(var(--bottom-nav-h)+1.5rem+env(safe-area-inset-bottom))] mt-4 border-t border-surface-border bg-surface px-4 pb-[calc(var(--bottom-nav-h)+1rem+env(safe-area-inset-bottom))] pt-3 lg:mb-0 lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
         {error && (
           <p role="alert" className="mb-2 text-sm text-red-400">
             {error}

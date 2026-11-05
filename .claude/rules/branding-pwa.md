@@ -38,8 +38,8 @@ https://claude.ai/artifact/8JHoTP8Ny7DEfEKNrnjnvZ (артборди іконки
   `vite-plugin-pwa`). `viewport-fit=cover` → safe-area відступи: зверху на
   `<header>` у `Navbar`, а на login/register/екрані завантаження (там Navbar
   нема) — на самій сторінці; боки — на `<main>` через `max(…, env(…))`; низ — на `<main>`,
-  а нижче `lg` у залогіненого — на нижньому таб-барі, під який `<main>` має відступ
-  (`.claude/rules/navigation.md` → «Висота бару»).
+  а нижче `lg` у залогіненого — на нижньому доку, під який `<main>` має відступ
+  (`.claude/rules/navigation.md` → «Висота дока»).
   Встановлення як WebAPK працює лише з HTTPS-домену. `nginx.frontend.conf`:
   маніфест з `application/manifest+json` + `no-cache`; `/icons/` без SPA-fallback
   (неіснуюча іконка = 404, а не index.html).

@@ -56,7 +56,7 @@ export default function App() {
       {/* Safe-area insets (viewport-fit=cover): home indicator / gesture bar
           at the bottom, camera cutout on the sides in landscape. The top one
           is on the Navbar, or on the page itself when there's no Navbar.
-          Logged in, below lg, the bottom bar (--bottom-nav-h + inset) is under the page. */}
+          Logged in, below lg, the floating dock (--bottom-nav-h + inset) is over the page's end. */}
       <main
         className={`mx-auto max-w-5xl pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-6 ${
           user
