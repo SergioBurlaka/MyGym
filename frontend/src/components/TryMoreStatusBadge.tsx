@@ -6,13 +6,14 @@ const MAX_SEGMENTS = 12;
 
 // An exercise's place on the "try more" scale - shared by the Programs
 // cards, the journal, the Progress chips and the workout page. The counter
-// is the same everywhere (user's decision 2026-10-29, design 5): "To 'Try
+// is the same on all but the phone journal (user's decision 2026-10-29,
+// design 5; that row is `variant="row"` below): "To 'Try
 // more'" on the left, "1 of 6 workouts" on the right, and below it one
 // segment per workout. Spelling out both the label and "of N workouts"
 // keeps the fraction from reading as "to progress" (UX audit 2026-10-25,
 // finding 04). `className` sets the width - full on the workout page.
-// Empty segments are slate-600: visible (>= 1.5:1) on a card and on the
-// journal's surface-border rows alike, where a surface-border track vanished.
+// Empty segments are slate-600: visible (>= 1.5:1) on a card, where a
+// surface-border track vanished.
 // `compact` (the Progress page tiles): no "To 'Try more'" label - the section
 // title says it once - so a narrow tile doesn't wrap it onto three lines.
 // `variant="row"` (the phone journal, design D): one 16px line - see RowStatus.
@@ -112,7 +113,7 @@ function RowStatus({ status }: { status: TryMoreStatus }) {
       return (
         <span
           role="img"
-          aria-label={t('progressStatus.dueAria', { done: status.done, count: status.total })}
+          aria-label={t('progressStatus.dueAria', { done: Math.min(status.done, status.total), count: status.total })}
           className={`${line} font-semibold text-warn`}
         >
           {t('progressStatus.due')}

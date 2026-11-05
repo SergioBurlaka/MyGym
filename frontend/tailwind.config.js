@@ -18,7 +18,7 @@ export default {
         good: '#3ddc97',
         warn: '#eda100',
         // Workout page placeholders: last time's value / today's +1 target
-        // (both >= 4.5:1 on `surface`).
+        // (both >= 4.5:1 on `surface`). `hint` is also the journal's per-side line.
         hint: '#828a99',
         target: '#d08561',
       },

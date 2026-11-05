@@ -293,26 +293,28 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
               {dateLabel} <span className="text-[15px] font-normal text-slate-400">· {weekday}</span>
             </WorkoutCardLink>
           </h3>
-          {/* Wraps, unlike the mockup: "auto-finished" doesn't fit one line at 360px. */}
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {/* The text wraps beside the badge: "auto-finished" doesn't fit one line at 360px. */}
+          <div className="flex items-center gap-2">
             {workout.programLabel && colors && (
               <span
                 aria-hidden="true"
-                className={`badge h-6 min-w-[24px] justify-center px-2 py-0 ${colors.badgeBg} ${colors.badgeText}`}
+                className={`badge h-6 min-w-[24px] shrink-0 justify-center px-2 py-0 ${colors.badgeBg} ${colors.badgeText}`}
               >
                 {workout.programLabel}
               </span>
             )}
             {workout.isSample && <SampleBadge />}
-            <span className="text-[13px] text-slate-400">
+            <span className="min-w-0 text-[13px] text-slate-400">
               {t('programs.exerciseCount', { count: workout.workoutExercises.length })}
               {duration && ` · ${duration}`}
               {inProgress && ` · ${t('dashboard.inProgress')}`}
               {workout.autoFinished && (
-                <span className="relative z-10" title={t('workout.autoFinishedHint')}>
+                <>
                   {' · '}
-                  {t('dashboard.autoFinished')}
-                </span>
+                  <span className="relative z-10 whitespace-nowrap" title={t('workout.autoFinishedHint')}>
+                    {t('dashboard.autoFinished')}
+                  </span>
+                </>
               )}
             </span>
           </div>
@@ -390,7 +392,7 @@ function JournalExerciseRow({ workoutExercise: we }: { workoutExercise: WorkoutE
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 border-t border-surface-border py-3">
-      <span className="text-base font-semibold leading-snug text-slate-100">{we.exercise.name}</span>
+      <span className="break-words text-base font-semibold leading-snug text-slate-100">{we.exercise.name}</span>
       <span className="whitespace-nowrap text-right text-[17px] font-bold tabular-nums text-slate-100">
         {done && totalKg != null && `${formatKg(totalKg)} ${t('common.kg')}`}
       </span>
