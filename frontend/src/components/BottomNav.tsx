@@ -30,11 +30,12 @@ const TAB_CLASS =
 
 // Inactive slate-400 is over 6:1 on the dock; the pill's dark text 5.8:1 on
 // accent. --icon-bg is what JournalIcon's pencil is filled with. Padding, not
-// width: a width can't animate to auto.
+// width: a width can't animate to auto. Under 379px the pill's padding tightens:
+// the widest label ("Програми", 71px) would be cut otherwise.
 function tabClass(active: boolean) {
   return `${TAB_CLASS} ${
     active
-      ? 'bg-accent pl-3.5 pr-[18px] text-surface [--icon-bg:theme(colors.accent.DEFAULT)] focus-visible:outline-slate-100'
+      ? 'bg-accent pl-3.5 pr-[18px] text-surface max-[378px]:pl-3 max-[378px]:pr-3.5 [--icon-bg:theme(colors.accent.DEFAULT)] focus-visible:outline-slate-100'
       : 'shrink-0 px-[13px] text-slate-400 [--icon-bg:theme(colors.surface.raised)] focus-visible:outline-accent'
   }`;
 }
@@ -183,7 +184,7 @@ export default function BottomNav() {
 
       <nav
         aria-label={t('nav.mainNav')}
-        // Under 375px the widest pill and four 48px tabs need the narrower
+        // Under 375px the widest pill and four 48px tabs also need the narrower
         // margins - tabs stay 48px rather than shrink.
         className={`fixed left-[max(16px,env(safe-area-inset-left))] right-[max(16px,env(safe-area-inset-right))] flex h-[68px] items-center justify-between rounded-[34px] border border-surface-border bg-surface-raised/[.94] px-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.55)] backdrop-blur-[16px] max-[374px]:left-[max(12px,env(safe-area-inset-left))] max-[374px]:right-[max(12px,env(safe-area-inset-right))] max-[374px]:px-1.5 lg:hidden ${
           moreOpen ? 'z-50' : 'z-30'

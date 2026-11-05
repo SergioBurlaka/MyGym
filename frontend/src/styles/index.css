@@ -4,9 +4,10 @@
 
 @layer base {
   :root {
-    /* Height of the phone bottom bar (BottomNav, below lg) without the
-       home-indicator inset - <main>, the More sheet and the program form's
-       sticky bar all keep clear of it through this one value. */
+    /* The phone's floating dock (BottomNav, below lg): its height plus the gap
+       under it, without the home-indicator inset. <main> and the More sheet
+       keep clear of it through this one value; the program form's sticky bar
+       runs under the dock and lifts its buttons by as much. */
     --bottom-nav-h: 84px;
   }
   html {

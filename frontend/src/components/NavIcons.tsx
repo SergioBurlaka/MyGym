@@ -32,7 +32,11 @@ export function JournalIcon({ size = 22 }: IconProps) {
       <path d="M3.5 7.5H6M3.5 11H6M3.5 14.5H6M3.5 18H6" />
       {/* The pencil hides the page's edge under it: filled with what's behind
           the icon - the dock or the active pill, set by the tab as --icon-bg. */}
-      <path d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z" style={{ fill: 'var(--icon-bg)' }} />
+      <path
+        d="M12 15.5l6.6-6.6a1.5 1.5 0 0 0-2.1-2.1L9.9 13.4v2.1z"
+        className="transition-[fill] duration-[220ms] ease-in-out motion-reduce:transition-none"
+        style={{ fill: 'var(--icon-bg)' }}
+      />
     </Icon>
   );
 }
