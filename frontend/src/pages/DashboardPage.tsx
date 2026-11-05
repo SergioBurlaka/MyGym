@@ -311,7 +311,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
               {workout.autoFinished && (
                 <>
                   {' · '}
-                  <span className="relative z-10 whitespace-nowrap" title={t('workout.autoFinishedHint')}>
+                  <span className="relative z-10" title={t('workout.autoFinishedHint')}>
                     {t('dashboard.autoFinished')}
                   </span>
                 </>
