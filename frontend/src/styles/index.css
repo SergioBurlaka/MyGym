@@ -38,7 +38,7 @@
     @apply btn text-slate-300 hover:text-white hover:bg-surface-raised;
   }
   .input {
-    @apply w-full rounded-lg bg-surface border border-surface-border px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-accent;
+    @apply w-full rounded-lg bg-surface border border-surface-border px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-accent;
   }
   .label {
     @apply block text-xs uppercase tracking-wider text-slate-400 mb-1;

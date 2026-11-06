@@ -246,7 +246,7 @@ export default function ConsistencyCalendar() {
           <span className="h-3 w-3 rounded-sm bg-surface-border" /> {t('calendar.legend.rest')}
         </span>
         {/* "Missed" comes from the training schedule - say where it's set. */}
-        <Link to="/schedule" className="font-semibold text-accent hover:underline">
+        <Link to="/schedule" className="-my-3.5 inline-flex min-h-11 items-center font-semibold text-accent hover:underline">
           {t('calendar.legend.changeSchedule')}
         </Link>
       </div>
