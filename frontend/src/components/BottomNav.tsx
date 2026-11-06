@@ -30,6 +30,8 @@ const TAB_CLASS =
 
 // Inactive slate-300 is 8.8:1 on the dock; the pill's dark text 5.8:1 on accent.
 // Focus rings sit outside the tab, on the dock: accent 4.2:1, slate-100 11.9:1.
+// Next to the pill the gap can be under 2px: that side of an inactive tab's ring
+// lands on the pill and merges with it, the other sides still show.
 // --icon-bg is what JournalIcon's pencil is filled with. Padding, not width: a
 // width can't animate to auto. Under 379px the pill's padding tightens: the
 // widest label ("Програми", 71px) would be cut otherwise.
