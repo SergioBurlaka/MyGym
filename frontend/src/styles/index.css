@@ -26,10 +26,15 @@
     @apply bg-surface-raised border border-surface-border rounded-xl p-4;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-semibold text-sm transition-[color,background-color,border-color,transform] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[.98] disabled:active:scale-100 motion-reduce:active:scale-100;
   }
   .btn-primary {
     @apply btn bg-accent text-surface hover:bg-accent-hover;
+  }
+  /* Neutral, not a dim accent: a faded orange still reads as the main action.
+     Its own rule, after .btn, so it beats .btn's disabled opacity. 5.2:1. */
+  .btn-primary:disabled {
+    @apply bg-surface-border text-slate-400 opacity-100;
   }
   .btn-secondary {
     @apply btn bg-surface-raised border border-surface-border text-slate-100 hover:border-accent;
