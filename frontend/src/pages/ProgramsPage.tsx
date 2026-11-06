@@ -378,7 +378,7 @@ function ProgramForm({
         <label className="flex flex-col gap-1.5">
           <span className="text-[13px] text-slate-400">{t('programs.form.nameLabel')}</span>
           <input
-            className="h-[52px] rounded-xl border border-surface-border bg-surface-raised px-3.5 text-xl font-bold text-white placeholder:text-base placeholder:font-normal placeholder:text-slate-500 focus:border-accent focus:outline-none"
+            className="h-[52px] rounded-xl border border-surface-border bg-surface-raised px-3.5 text-xl font-bold text-white placeholder:text-base placeholder:font-normal placeholder:text-slate-400 focus:border-accent focus:outline-none"
             placeholder={t('programs.form.namePlaceholder')}
             maxLength={50}
             value={name}
