@@ -119,6 +119,11 @@ export default function WorkoutFormPage() {
   // The last autosave failed (network, server) - retried by itself; a bad
   // weight in the form is `error` without this, nothing to retry.
   const [saveFailed, setSaveFailed] = useState(false);
+  // Covers the whole of handleFinish, its save included: an autosave alone
+  // must not disable the button (it would flash, and swallow a click whose
+  // blur started that save).
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [dateDraft, setDateDraft] = useState('');
   // The date picker's dots: workout days in the 6 weeks it shows (it reports
@@ -303,7 +308,7 @@ export default function WorkoutFormPage() {
   blocksRef.current = blocks;
   const savedJsonRef = useRef(savedJson);
   savedJsonRef.current = savedJson;
-  const saveLoopRef = useRef<Promise<void> | null>(null);
+  const saveLoopRef = useRef<Promise<boolean> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const retryAttemptRef = useRef(0);
   const deletedRef = useRef(false);
@@ -332,14 +337,17 @@ export default function WorkoutFormPage() {
     [],
   );
 
-  function flushSave(): Promise<void> {
+  // Resolves to whether the latest state reached the server.
+  function flushSave(): Promise<boolean> {
     pendingSaveRef.current = true;
     if (!saveLoopRef.current) {
       saveLoopRef.current = (async () => {
+        let saved = true;
         while (pendingSaveRef.current) {
           pendingSaveRef.current = false;
-          await saveOnce();
+          saved = await saveOnce();
         }
+        return saved;
       })().finally(() => {
         saveLoopRef.current = null;
       });
@@ -347,19 +355,20 @@ export default function WorkoutFormPage() {
     return saveLoopRef.current;
   }
 
-  async function saveOnce() {
+  async function saveOnce(): Promise<boolean> {
     // Not seeded yet (e.g. StrictMode's mount-unmount in dev runs the
     // leave-the-page save before the first data arrives).
-    if (savedJsonRef.current === null) return;
+    if (savedJsonRef.current === null) return true;
     if (hasInvalidWeight(blocksRef.current)) {
       setError(t('workout.invalidWeightError'));
-      return;
+      return false;
     }
     const payload = buildPayload(blocksRef.current);
     const json = JSON.stringify(payload);
     if (json === savedJsonRef.current) {
       setError(null);
-      return;
+      setFinishError(null);
+      return true;
     }
     clearTimeout(retryTimerRef.current);
     try {
@@ -368,7 +377,9 @@ export default function WorkoutFormPage() {
       setSavedJson(json);
       setError(null);
       setSaveFailed(false);
+      setFinishError(null);
       retryAttemptRef.current = 0;
+      return true;
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
       setSaveFailed(true);
@@ -379,6 +390,7 @@ export default function WorkoutFormPage() {
         retryAttemptRef.current += 1;
         retryTimerRef.current = setTimeout(() => void flushSave(), delay);
       }
+      return false;
     }
   }
 
@@ -399,9 +411,23 @@ export default function WorkoutFormPage() {
 
   useEffect(() => () => clearTimeout(retryTimerRef.current), []);
 
+  // Finishing with a failed save would close the workout without its last
+  // edit, so it stops here. It doesn't finish by itself once a retry gets
+  // through: the workout shouldn't close with the phone already in a pocket.
   async function handleFinish() {
-    await flushSave();
-    await finishMutation.mutateAsync();
+    setFinishing(true);
+    setFinishError(null);
+    try {
+      if (await flushSave()) {
+        await finishMutation.mutateAsync();
+      } else {
+        setFinishError(t('workout.finishNotSaved'));
+      }
+    } catch (err) {
+      setFinishError(translateApiError(err, t, 'workout.finishError'));
+    } finally {
+      setFinishing(false);
+    }
   }
 
   async function handleDelete() {
@@ -491,7 +517,6 @@ export default function WorkoutFormPage() {
   }
 
   const workout = workoutQuery.data;
-  const saving = saveMutation.isPending || finishMutation.isPending;
   const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished, workout.pausedMs);
   const hasPrevious = workout.workoutExercises.some((we) => we.previous);
 
@@ -658,9 +683,14 @@ export default function WorkoutFormPage() {
         ) : null}
 
         {!workout.timeEnd && (
-          <button className="btn-primary h-12 w-full" onClick={handleFinish} disabled={saving}>
-            {t('workout.finish')}
+          <button className="btn-primary h-12 w-full" onClick={handleFinish} disabled={finishing}>
+            {t(finishing ? 'workout.finishing' : 'workout.finish')}
           </button>
+        )}
+        {finishError && !workout.timeEnd && (
+          <p role="alert" className="text-sm text-red-400">
+            {finishError}
+          </p>
         )}
 
         {hasPrevious && (
