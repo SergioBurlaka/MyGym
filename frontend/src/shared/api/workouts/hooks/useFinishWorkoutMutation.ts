@@ -9,6 +9,9 @@ export const useFinishWorkoutMutation = (id: string): UseMutationResult<Workout,
 
   return useMutation({
     mutationKey: workoutsKeys.finish.queryKey,
+    // Offline the default 'online' mode would pause it: "Finishing…" for as
+    // long as the phone has no signal, instead of an error and a retry.
+    networkMode: 'always',
     mutationFn: async () => {
       const { data } = await WorkoutsApi.finish(id);
       return data;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { getAccessToken } from '../api/client.js';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import {
@@ -116,9 +117,15 @@ export default function WorkoutFormPage() {
   const [addExerciseId, setAddExerciseId] = useState('');
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The last autosave failed (network, server) - retried by itself; a bad
-  // weight in the form is `error` without this, nothing to retry.
+  // The last autosave failed (network, server) - retried by itself. A bad
+  // weight or a value the server refuses is `error` without this: a retry
+  // wouldn't change the answer.
   const [saveFailed, setSaveFailed] = useState(false);
+  // Covers the whole of handleFinish, its save included: an autosave alone
+  // must not disable the button (it would flash, and swallow a click whose
+  // blur started that save).
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [dateDraft, setDateDraft] = useState('');
   // The date picker's dots: workout days in the 6 weeks it shows (it reports
@@ -303,9 +310,13 @@ export default function WorkoutFormPage() {
   blocksRef.current = blocks;
   const savedJsonRef = useRef(savedJson);
   savedJsonRef.current = savedJson;
-  const saveLoopRef = useRef<Promise<void> | null>(null);
+  const saveLoopRef = useRef<Promise<boolean> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const retryAttemptRef = useRef(0);
+  // A PUT got no clear answer, so it may have landed anyway (a lost response, a
+  // timeout). Only a successful PUT clears this - not a later refusal or an
+  // invalid weight: until then the last confirmed state proves nothing.
+  const serverUnconfirmedRef = useRef(false);
   const deletedRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const [saveTick, setSaveTick] = useState(0);
@@ -332,14 +343,17 @@ export default function WorkoutFormPage() {
     [],
   );
 
-  function flushSave(): Promise<void> {
+  // Resolves to whether the latest state reached the server.
+  function flushSave(): Promise<boolean> {
     pendingSaveRef.current = true;
     if (!saveLoopRef.current) {
       saveLoopRef.current = (async () => {
+        let saved = true;
         while (pendingSaveRef.current) {
           pendingSaveRef.current = false;
-          await saveOnce();
+          saved = await saveOnce();
         }
+        return saved;
       })().finally(() => {
         saveLoopRef.current = null;
       });
@@ -347,19 +361,24 @@ export default function WorkoutFormPage() {
     return saveLoopRef.current;
   }
 
-  async function saveOnce() {
+  async function saveOnce(): Promise<boolean> {
     // Not seeded yet (e.g. StrictMode's mount-unmount in dev runs the
     // leave-the-page save before the first data arrives).
-    if (savedJsonRef.current === null) return;
+    if (savedJsonRef.current === null) return true;
     if (hasInvalidWeight(blocksRef.current)) {
+      // A retry can't fix this - stop them, or the status keeps promising one
+      // and hides the banner that says what's wrong.
+      clearTimeout(retryTimerRef.current);
+      setSaveFailed(false);
       setError(t('workout.invalidWeightError'));
-      return;
+      return false;
     }
     const payload = buildPayload(blocksRef.current);
     const json = JSON.stringify(payload);
-    if (json === savedJsonRef.current) {
+    if (json === savedJsonRef.current && !serverUnconfirmedRef.current) {
       setError(null);
-      return;
+      setFinishError(null);
+      return true;
     }
     clearTimeout(retryTimerRef.current);
     try {
@@ -367,18 +386,33 @@ export default function WorkoutFormPage() {
       savedJsonRef.current = json;
       setSavedJson(json);
       setError(null);
+      serverUnconfirmedRef.current = false;
       setSaveFailed(false);
+      setFinishError(null);
       retryAttemptRef.current = 0;
+      return true;
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
-      setSaveFailed(true);
+      // The server said no (a value out of range, an exercise gone): the same
+      // answer every time, so the banner says why instead of retrying forever.
+      // Not 401: it reaches here when the token expired and the refresh failed
+      // on the same bad network. A lost session (the refresh itself got a 401)
+      // has no token left - nothing to retry with, and this can run after the
+      // page is gone, where no cleanup would ever cancel the timer.
+      const status = (err as { response?: { status?: number } }).response?.status;
+      const refused =
+        status !== undefined && status >= 400 && status < 500 && ![401, 408, 429].includes(status);
+      setSaveFailed(!refused);
+      if (!refused) serverUnconfirmedRef.current = true;
       // Bad network in the gym: try again by itself a few times, and once
       // more when the phone is back online (below). "Retry" is still there.
-      if (!deletedRef.current) {
+      const sessionLost = status === 401 && !getAccessToken();
+      if (!refused && !sessionLost && !deletedRef.current) {
         const delay = RETRY_DELAYS_MS[Math.min(retryAttemptRef.current, RETRY_DELAYS_MS.length - 1)];
         retryAttemptRef.current += 1;
         retryTimerRef.current = setTimeout(() => void flushSave(), delay);
       }
+      return false;
     }
   }
 
@@ -399,9 +433,23 @@ export default function WorkoutFormPage() {
 
   useEffect(() => () => clearTimeout(retryTimerRef.current), []);
 
+  // Finishing with a failed save would close the workout without its last
+  // edit, so it stops here. It doesn't finish by itself once a retry gets
+  // through: the workout shouldn't close with the phone already in a pocket.
   async function handleFinish() {
-    await flushSave();
-    await finishMutation.mutateAsync();
+    setFinishing(true);
+    setFinishError(null);
+    try {
+      if (await flushSave()) {
+        await finishMutation.mutateAsync();
+      } else {
+        setFinishError(t('workout.finishNotSaved'));
+      }
+    } catch (err) {
+      setFinishError(translateApiError(err, t, 'workout.finishError'));
+    } finally {
+      setFinishing(false);
+    }
   }
 
   async function handleDelete() {
@@ -491,7 +539,6 @@ export default function WorkoutFormPage() {
   }
 
   const workout = workoutQuery.data;
-  const saving = saveMutation.isPending || finishMutation.isPending;
   const duration = formatDuration(workout.timeStart, workout.timeEnd, workout.autoFinished, workout.pausedMs);
   const hasPrevious = workout.workoutExercises.some((we) => we.previous);
 
@@ -618,7 +665,11 @@ export default function WorkoutFormPage() {
         </div>
 
         {/* No Save button: everything saves by itself (user's decision
-            2026-10-29) - a status line says so, with "Retry" on a failure. */}
+            2026-10-29) - a status line says so, with "Retry" on a failure.
+            Its height never changes (-my-3 on "Retry"; relative keeps its 44px
+            zone above the line below): a save starts on the blur of pressing
+            "Finish", and a line that grows or shrinks moves the button from
+            under the mouse, so the click never lands. */}
         <p className="flex min-h-5 items-center gap-1.5 text-xs" aria-live="polite">
           {saveMutation.isPending ? (
             <span className="flex items-center gap-1.5 text-slate-400">
@@ -632,7 +683,7 @@ export default function WorkoutFormPage() {
             <>
               <span className="text-red-400">{t('workout.saveStatus.failed')}</span>
               <span className="text-slate-400" aria-hidden="true">·</span>
-              <button type="button" className="min-h-11 px-1 font-semibold text-accent hover:text-accent-hover" onClick={retrySave}>
+              <button type="button" className="relative -my-3 min-h-11 px-1 font-semibold text-accent hover:text-accent-hover" onClick={retrySave}>
                 {t('workout.saveStatus.retry')}
               </button>
             </>
@@ -658,9 +709,14 @@ export default function WorkoutFormPage() {
         ) : null}
 
         {!workout.timeEnd && (
-          <button className="btn-primary h-12 w-full" onClick={handleFinish} disabled={saving}>
-            {t('workout.finish')}
+          <button className="btn-primary h-12 w-full" onClick={handleFinish} disabled={finishing}>
+            {t(finishing ? 'workout.finishing' : 'workout.finish')}
           </button>
+        )}
+        {finishError && !workout.timeEnd && (
+          <p role="alert" className="text-sm text-red-400">
+            {finishError}
+          </p>
         )}
 
         {hasPrevious && (
