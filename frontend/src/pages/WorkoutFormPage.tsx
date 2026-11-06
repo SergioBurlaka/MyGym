@@ -311,9 +311,15 @@ export default function WorkoutFormPage() {
   const saveLoopRef = useRef<Promise<boolean> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const retryAttemptRef = useRef(0);
+  const saveFailedRef = useRef(false);
   const deletedRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const [saveTick, setSaveTick] = useState(0);
+
+  function markSaveFailed(failed: boolean) {
+    saveFailedRef.current = failed;
+    setSaveFailed(failed);
+  }
 
   function requestSave() {
     setSaveTick((n) => n + 1);
@@ -360,12 +366,18 @@ export default function WorkoutFormPage() {
     // leave-the-page save before the first data arrives).
     if (savedJsonRef.current === null) return true;
     if (hasInvalidWeight(blocksRef.current)) {
+      // A retry can't fix this - stop them, or the status keeps promising one
+      // and hides the banner that says what's wrong.
+      clearTimeout(retryTimerRef.current);
+      markSaveFailed(false);
       setError(t('workout.invalidWeightError'));
       return false;
     }
     const payload = buildPayload(blocksRef.current);
     const json = JSON.stringify(payload);
-    if (json === savedJsonRef.current) {
+    // After a failed save the server may hold something else (a timed-out PUT
+    // can still land), so matching the last confirmed state proves nothing.
+    if (json === savedJsonRef.current && !saveFailedRef.current) {
       setError(null);
       setFinishError(null);
       return true;
@@ -376,16 +388,20 @@ export default function WorkoutFormPage() {
       savedJsonRef.current = json;
       setSavedJson(json);
       setError(null);
-      setSaveFailed(false);
+      markSaveFailed(false);
       setFinishError(null);
       retryAttemptRef.current = 0;
       return true;
     } catch (err) {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
-      setSaveFailed(true);
+      // The server said no (a value out of range, an exercise gone): the same
+      // answer every time, so the banner says why instead of retrying forever.
+      const status = (err as { response?: { status?: number } }).response?.status;
+      const refused = status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+      markSaveFailed(!refused);
       // Bad network in the gym: try again by itself a few times, and once
       // more when the phone is back online (below). "Retry" is still there.
-      if (!deletedRef.current) {
+      if (!refused && !deletedRef.current) {
         const delay = RETRY_DELAYS_MS[Math.min(retryAttemptRef.current, RETRY_DELAYS_MS.length - 1)];
         retryAttemptRef.current += 1;
         retryTimerRef.current = setTimeout(() => void flushSave(), delay);
@@ -643,7 +659,10 @@ export default function WorkoutFormPage() {
         </div>
 
         {/* No Save button: everything saves by itself (user's decision
-            2026-10-29) - a status line says so, with "Retry" on a failure. */}
+            2026-10-29) - a status line says so, with "Retry" on a failure.
+            Its height never changes (-my-3 on "Retry"): a save starts on the
+            blur of pressing "Finish", and a line that grows or shrinks moves
+            the button from under the mouse, so the click never lands. */}
         <p className="flex min-h-5 items-center gap-1.5 text-xs" aria-live="polite">
           {saveMutation.isPending ? (
             <span className="flex items-center gap-1.5 text-slate-400">
@@ -657,7 +676,7 @@ export default function WorkoutFormPage() {
             <>
               <span className="text-red-400">{t('workout.saveStatus.failed')}</span>
               <span className="text-slate-400" aria-hidden="true">·</span>
-              <button type="button" className="min-h-11 px-1 font-semibold text-accent hover:text-accent-hover" onClick={retrySave}>
+              <button type="button" className="-my-3 min-h-11 px-1 font-semibold text-accent hover:text-accent-hover" onClick={retrySave}>
                 {t('workout.saveStatus.retry')}
               </button>
             </>
