@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { getAccessToken } from '../api/client.js';
 import { useExercisesQuery } from '../shared/api/exercises/index.js';
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import {
@@ -395,7 +396,9 @@ export default function WorkoutFormPage() {
       // The server said no (a value out of range, an exercise gone): the same
       // answer every time, so the banner says why instead of retrying forever.
       // Not 401: it reaches here when the token expired and the refresh failed
-      // on the same bad network, and a lost session leaves the page anyway.
+      // on the same bad network. A lost session (the refresh itself got a 401)
+      // has no token left - nothing to retry with, and this can run after the
+      // page is gone, where no cleanup would ever cancel the timer.
       const status = (err as { response?: { status?: number } }).response?.status;
       const refused =
         status !== undefined && status >= 400 && status < 500 && ![401, 408, 429].includes(status);
@@ -403,7 +406,8 @@ export default function WorkoutFormPage() {
       if (!refused) serverUnconfirmedRef.current = true;
       // Bad network in the gym: try again by itself a few times, and once
       // more when the phone is back online (below). "Retry" is still there.
-      if (!refused && !deletedRef.current) {
+      const sessionLost = status === 401 && !getAccessToken();
+      if (!refused && !sessionLost && !deletedRef.current) {
         const delay = RETRY_DELAYS_MS[Math.min(retryAttemptRef.current, RETRY_DELAYS_MS.length - 1)];
         retryAttemptRef.current += 1;
         retryTimerRef.current = setTimeout(() => void flushSave(), delay);
