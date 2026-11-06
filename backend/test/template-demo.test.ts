@@ -195,7 +195,7 @@ describe('starter data for a new account', () => {
       where: eq(trainingScheduleHistory.userId, user.id),
     });
     const [row] = await db.select().from(users).where(eq(users.id, user.id));
-    expect(history.effectiveFrom).toBe(row.createdAt.toISOString().slice(0, 10));
+    expect(history.effectiveFrom).toBe(localDate(row.createdAt, row.timezone));
   });
 
   it('skips an empty template workout - a sample has to show something', async () => {
@@ -241,7 +241,7 @@ describe('starter data for a new account', () => {
       where: eq(trainingScheduleHistory.userId, user.id),
     });
     const [row] = await db.select().from(users).where(eq(users.id, user.id));
-    expect(history.effectiveFrom).toBe(row.createdAt.toISOString().slice(0, 10));
+    expect(history.effectiveFrom).toBe(localDate(row.createdAt, row.timezone));
   });
 });
 

@@ -1,11 +1,8 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { trainingScheduleHistory, users } from '../../db/schema.js';
+import { localDate } from '../progression/progression.service.js';
 import type { UpdateSettingsInput } from './settings.schema.js';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 const settingsColumns = {
   trainingDays: users.trainingDays,
@@ -75,7 +72,7 @@ export async function updateSettings(userId: string, input: UpdateSettingsInput)
     if (input.trainingDays) {
       await tx
         .insert(trainingScheduleHistory)
-        .values({ userId, trainingDays: input.trainingDays, effectiveFrom: todayIso() })
+        .values({ userId, trainingDays: input.trainingDays, effectiveFrom: localDate(new Date(), row.timezone) })
         .onConflictDoUpdate({
           target: [trainingScheduleHistory.userId, trainingScheduleHistory.effectiveFrom],
           set: { trainingDays: input.trainingDays },
