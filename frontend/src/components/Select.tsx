@@ -54,7 +54,7 @@ export default function Select({
         disabled={disabled}
         className="input flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className={`truncate whitespace-nowrap ${selected ? 'text-slate-100' : 'text-slate-500'}`}>
+        <span className={`truncate whitespace-nowrap ${selected ? 'text-slate-100' : 'text-slate-400'}`}>
           {selected ? selected.label : effectivePlaceholder}
         </span>
         <svg

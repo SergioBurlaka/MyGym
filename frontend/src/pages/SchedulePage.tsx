@@ -117,7 +117,7 @@ export default function SchedulePage() {
                 disabled={updateMutation.isPending}
                 className={`h-11 rounded-lg border text-sm transition-colors ${
                   active
-                    ? 'border-accent bg-accent/15 font-bold text-accent'
+                    ? 'border-accent bg-accent/15 font-bold text-accent-hover'
                     : 'border-surface-border bg-surface-border font-semibold text-slate-400 hover:border-slate-600'
                 }`}
               >
