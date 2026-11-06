@@ -9,6 +9,9 @@ export default {
           DEFAULT: '#14171c',
           raised: '#1c2028',
           border: '#2a2f3a',
+          // The bottom dock: one step lighter than the cards it floats over.
+          dock: '#2b313d',
+          'dock-border': '#434b5b',
         },
         accent: {
           DEFAULT: '#ff5a36',
@@ -21,6 +24,11 @@ export default {
         // (both >= 4.5:1 on `surface`). `hint` is also the journal's per-side line.
         hint: '#828a99',
         target: '#d08561',
+      },
+      boxShadow: {
+        // Lit top edge, then a tight and a deep shadow: black alone barely shows
+        // on the dark page.
+        dock: 'inset 0 1px 0 rgba(255,255,255,0.09), 0 2px 6px rgba(0,0,0,0.5), 0 18px 44px rgba(0,0,0,0.7)',
       },
       fontFamily: {
         display: ['"Bebas Neue"', 'system-ui', 'sans-serif'],
