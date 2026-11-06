@@ -2,13 +2,9 @@ import { and, eq, desc, count, isNotNull, isNull, gte, lte, asc, inArray, exists
 import { db } from '../../db/client.js';
 import { workouts, workoutExercises, sets, exercises, programs } from '../../db/schema.js';
 import type { SaveWorkoutExercisesInput } from './workouts.schema.js';
-import { attachProgressAt } from '../progression/progression.service.js';
+import { attachProgressAt, getUserToday } from '../progression/progression.service.js';
 import { restoreScheduleStartIfNoSamples } from '../template/template.service.js';
 import { DEFAULT_BAR_KG } from '../../db/defaultExercises.js';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 type SourceExercise = {
   exerciseId: string;
@@ -98,7 +94,8 @@ export async function startWorkout(
       .insert(workouts)
       .values({
         userId,
-        date: opts.date ?? todayIso(),
+        // The user's day, not UTC's: after midnight in Kyiv UTC is still yesterday.
+        date: opts.date ?? (await getUserToday(userId, tx)),
         timeStart: new Date(),
         programLabel,
         programId,
