@@ -40,6 +40,18 @@ server {
 
     client_max_body_size 10m;
 
+    # Ні backend, ні контейнер frontend самі не стискають, тож це єдине місце.
+    # gzip_proxied стосується запитів із заголовком Via (проксі оператора), а не
+    # відповідей upstream - ті стискаються й без нього. text/html - за замовчуванням.
+    # text/javascript - стандартний тип .js, на випадок зміни mime.types в образі.
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/javascript application/javascript application/json
+               application/manifest+json image/svg+xml text/calendar;
+
     # Внутрішній DNS Docker. Усі upstream-и задані через змінну, тож адреса
     # шукається під час запиту, а не раз при старті nginx. Інакше деплой,
     # що перестворює контейнер (нова IP), лишав nginx зі старою адресою -

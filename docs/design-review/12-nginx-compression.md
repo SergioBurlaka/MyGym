@@ -27,10 +27,10 @@
    ```nginx
    gzip on;
    gzip_vary on;
-   gzip_proxied any;          # відповіді з upstream (backend, frontend, mcp) теж
+   gzip_proxied any;          # запити з заголовком Via (проксі оператора); відповіді upstream стискаються й без цього
    gzip_comp_level 5;
    gzip_min_length 1024;
-   gzip_types text/plain text/css application/javascript application/json
+   gzip_types text/plain text/css text/javascript application/javascript application/json
               application/manifest+json image/svg+xml text/calendar;
    ```
    `text/html` стискається за замовчуванням. `text/calendar` — ICS-фід.
@@ -46,10 +46,11 @@
 - Після деплою:
   ```bash
   curl -sI -H 'Accept-Encoding: gzip' https://my-gym-com.duckdns.org/assets/<бандл>.js | grep -i -E 'content-encoding|vary'
-  curl -sI -H 'Accept-Encoding: gzip' https://my-gym-com.duckdns.org/api/health | grep -i content-encoding   # або будь-який JSON ≥ 1 KB
+  curl -s -D - -o /dev/null -H 'Accept-Encoding: gzip' -H "Authorization: Bearer $TOKEN" 'https://my-gym-com.duckdns.org/api/workouts?page=1&pageSize=20' | grep -i -E 'content-encoding|vary'
   ```
-  Очікувано `content-encoding: gzip` і `vary: Accept-Encoding`.
+  Очікувано `content-encoding: gzip` і `vary: Accept-Encoding`. Для API потрібен токен: 401 і відповіді менші за 1 KB не стискаються.
 - DevTools → Network на журналі (жорстке перезавантаження): у колонці Size бандл ≈ 250–300 KB
   замість 874 KB; `/api/workouts` у кілька разів менший.
 - ICS-фід календаря відкривається в Google/Apple як раніше.
+- Один виклик інструмента через MCP-клієнт (Claude) проходить як раніше.
 - Повторити прод-рев'ю мережі (`PROD-REVIEW-2026-10-26.md`, «Метод») і записати нові цифри в P01.
