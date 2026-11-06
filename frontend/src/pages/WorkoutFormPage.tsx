@@ -116,8 +116,9 @@ export default function WorkoutFormPage() {
   const [addExerciseId, setAddExerciseId] = useState('');
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The last autosave failed (network, server) - retried by itself; a bad
-  // weight in the form is `error` without this, nothing to retry.
+  // The last autosave failed (network, server) - retried by itself. A bad
+  // weight or a value the server refuses is `error` without this: a retry
+  // wouldn't change the answer.
   const [saveFailed, setSaveFailed] = useState(false);
   // Covers the whole of handleFinish, its save included: an autosave alone
   // must not disable the button (it would flash, and swallow a click whose
@@ -393,8 +394,11 @@ export default function WorkoutFormPage() {
       setError(translateApiError(err, t, 'workout.genericSaveError'));
       // The server said no (a value out of range, an exercise gone): the same
       // answer every time, so the banner says why instead of retrying forever.
+      // Not 401: it reaches here when the token expired and the refresh failed
+      // on the same bad network, and a lost session leaves the page anyway.
       const status = (err as { response?: { status?: number } }).response?.status;
-      const refused = status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+      const refused =
+        status !== undefined && status >= 400 && status < 500 && ![401, 408, 429].includes(status);
       setSaveFailed(!refused);
       if (!refused) serverUnconfirmedRef.current = true;
       // Bad network in the gym: try again by itself a few times, and once
