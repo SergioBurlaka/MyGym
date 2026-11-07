@@ -4,7 +4,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDecimal, formatKg, formatStepKg } from './weight.js';
+import { formatCompactNumber, formatDecimal, formatKg, formatStepKg, stepWeight } from './weight.js';
+
+describe('stepWeight', () => {
+  it('moves by the step in both directions', () => {
+    expect(stepWeight(30, 1.25, 1)).toBe(31.25);
+    expect(stepWeight(8, 0.5, 1)).toBe(8.5);
+    expect(stepWeight(30, 1.25, -1)).toBe(28.75);
+  });
+
+  it('keeps whole hundredths', () => {
+    expect(stepWeight(0.1, 0.2, 1)).toBe(0.3);
+    expect(stepWeight(1.1, 0.1, 1)).toBe(1.2);
+  });
+
+  it('stays within 0 and the limit of 500', () => {
+    expect(stepWeight(0.5, 1.25, -1)).toBe(0);
+    expect(stepWeight(499.5, 1.25, 1)).toBe(500);
+  });
+});
 
 describe.each(['uk', 'en'])('number format (%s): decimal point, no thousands separator', (language) => {
   afterEach(() => {

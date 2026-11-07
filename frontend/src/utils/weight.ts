@@ -27,6 +27,16 @@ export function parseKg(value: string): number {
   return text === '' ? NaN : Number(text);
 }
 
+// The API's limit for a logged weight.
+export const MAX_WEIGHT_KG = 500;
+
+// The weight after one tap of a stepper: within the API's limits, whole
+// hundredths (0.1 + 0.2 would otherwise land in the field as 0.30000000000000004).
+export function stepWeight(weightKg: number, stepKg: number, direction: 1 | -1): number {
+  const next = Math.round((weightKg + direction * stepKg) * 100) / 100;
+  return Math.min(MAX_WEIGHT_KG, Math.max(0, next));
+}
+
 // Weight moved in one rep; null when no weight was logged.
 export function loadPerRep(equipment: Equipment, load: LoggedLoad): number | null {
   if (load.weightPerUnitKg == null) return null;

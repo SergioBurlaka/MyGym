@@ -1,7 +1,17 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Exercise, ExerciseProgression, PreviousSession, WorkoutExercise } from '../types/index.js';
-import { formatDate, formatKg, lastRepsForSet, loadPerRep, parseKg, sidesOf } from '../utils/weight.js';
+import {
+  formatDate,
+  formatKg,
+  formatStepKg,
+  lastRepsForSet,
+  loadPerRep,
+  MAX_WEIGHT_KG,
+  parseKg,
+  sidesOf,
+  stepWeight,
+} from '../utils/weight.js';
 import { journalTryMoreStatus, type TryMoreStatus } from '../utils/tryMoreCountdown.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
@@ -11,6 +21,7 @@ import LockIcon from './LockIcon.js';
 import Popconfirm from './Popconfirm.js';
 import ConfirmDialog from './ConfirmDialog.js';
 import Select from './Select.js';
+import StepperButton from './StepperButton.js';
 
 // `key`: a client-only id, stable while sets around it come and go - an
 // index key would shift cells under the person's finger when one is removed.
@@ -175,6 +186,7 @@ export default function WorkoutExerciseCard({
   }
   const kg = formatKg;
   const hintId = useId();
+  const weightId = useId();
   const [removingSet, setRemovingSet] = useState<number | null>(null);
 
   const previous: PreviousSession | null = saved?.previous ?? null;
@@ -218,14 +230,25 @@ export default function WorkoutExerciseCard({
   // with the bar / dumbbells of that session.
   const previousWeight = previous?.weightPerUnitKg ?? null;
   const weightPlaceholder = previousWeight != null ? kg(previousWeight) : isBarbell || isDumbbell ? '0' : t('workout.weightPlaceholderNoWeight');
+  // The bar / dumbbells of the last session, for a weight that starts from it.
+  const previousSetup: Partial<EditableExercise> = {
+    ...(previous?.weightUnits === 1 || previous?.weightUnits === 2 ? { weightUnits: previous.weightUnits } : {}),
+    ...(previous?.barKg != null ? { barKg: String(Number(previous.barKg)) } : {}),
+  };
   function fillWeightFromPrevious(input: HTMLInputElement) {
     if (hasWeight || previousWeight == null) return;
-    onChange({
-      weightPerUnitKg: String(previousWeight),
-      ...(previous?.weightUnits === 1 || previous?.weightUnits === 2 ? { weightUnits: previous.weightUnits } : {}),
-      ...(previous?.barKg != null ? { barKg: String(Number(previous.barKg)) } : {}),
-    });
+    onChange({ weightPerUnitKg: String(previousWeight), ...previousSetup });
     setTimeout(() => input.select(), 0);
+  }
+
+  // A step of 0 is "no added weight": no stepper. An empty field steps from last
+  // time's weight, what its placeholder shows. Saved at once, like a select.
+  const stepKg = Number(exercise.weightStepKg);
+  const stepBase = hasWeight ? weight : Number(previousWeight ?? 0);
+  function stepWeightBy(direction: 1 | -1) {
+    const weightPerUnitKg = String(stepWeight(stepBase, stepKg, direction));
+    onChange(hasWeight ? { weightPerUnitKg } : { weightPerUnitKg, ...previousSetup });
+    onCommit();
   }
 
   function placeholderFor(i: number): { value: number | null; up: boolean } {
@@ -312,21 +335,42 @@ export default function WorkoutExerciseCard({
       {counter && <TryMoreStatusBadge status={counter} className="w-full" />}
 
       <div className="flex flex-col gap-2">
-        <label className="flex items-center gap-3">
-          <span className="flex-1 text-sm text-slate-400">
+        <div className="flex items-center gap-3">
+          <label htmlFor={weightId} className="min-w-0 flex-1 text-sm text-slate-400">
             {isBarbell ? t('workout.platesPerSideLabel') : isDumbbell ? t('workout.dumbbellWeightLabel') : t('workout.extraWeightLabel')}
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            className="h-11 w-32 rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none"
-            placeholder={weightPlaceholder}
-            value={block.weightPerUnitKg}
-            onClick={(e) => fillWeightFromPrevious(e.currentTarget)}
-            onChange={(e) => onChange({ weightPerUnitKg: e.target.value })}
-            onBlur={onCommit}
-          />
-        </label>
+          </label>
+          <div className="flex shrink-0 items-center gap-2">
+            {stepKg > 0 && (
+              <StepperButton
+                direction="decrease"
+                label={t('workout.card.decreaseWeightAria', { step: formatStepKg(stepKg) })}
+                disabled={!Number.isFinite(stepBase) || stepBase <= 0}
+                onClick={() => stepWeightBy(-1)}
+              />
+            )}
+            <input
+              id={weightId}
+              type="text"
+              inputMode="decimal"
+              className={`h-11 ${
+                stepKg > 0 ? 'w-20' : 'w-32'
+              } rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none`}
+              placeholder={weightPlaceholder}
+              value={block.weightPerUnitKg}
+              onClick={(e) => fillWeightFromPrevious(e.currentTarget)}
+              onChange={(e) => onChange({ weightPerUnitKg: e.target.value })}
+              onBlur={onCommit}
+            />
+            {stepKg > 0 && (
+              <StepperButton
+                direction="increase"
+                label={t('workout.card.increaseWeightAria', { step: formatStepKg(stepKg) })}
+                disabled={!Number.isFinite(stepBase) || stepBase >= MAX_WEIGHT_KG}
+                onClick={() => stepWeightBy(1)}
+              />
+            )}
+          </div>
+        </div>
         {/* Without a weight nothing is saved, the bar and dumbbells included - so no selects. */}
         {isBarbell && hasWeight && (
           <div className="flex items-center gap-3">

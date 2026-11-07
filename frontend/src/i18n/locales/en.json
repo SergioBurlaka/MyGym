@@ -250,6 +250,8 @@
       "setsLockedAria": "The number of sets is fixed by the program",
       "setsLockedTip": "Sets can't be added or removed here. This is set on the Programs page, separately for each program.",
       "addSetAria": "Add set",
+      "decreaseWeightAria": "Decrease the weight by {{step}} kg",
+      "increaseWeightAria": "Increase the weight by {{step}} kg",
       "removeSetTitle": "Delete set {{set}}?",
       "removeSetDescription": "This set's reps will be removed from the workout.",
       "removeSetConfirm": "Delete"
