@@ -345,6 +345,13 @@ describe('suggestProgression', () => {
     expect(suggest(history, { tryMoreAfterWorkouts: 4 }).suggestion).toBe('ok');
   });
 
+  it('counts days from the local today, so a date ahead of UTC is not negative', () => {
+    const history = buildHistoryPoints([...session('2026-11-06', 20, [10]), ...session('2026-11-07', 20, [11])]);
+    const result = suggest(history, { now: new Date('2026-11-06T23:45:00Z'), today: '2026-11-07' });
+    expect(result.daysSinceLastWorkout).toBe(0);
+    expect(result.daysSinceProgress).toBe(0);
+  });
+
   it('ok when progress was recent', () => {
     const history = buildHistoryPoints([...session('2026-10-01', 20, [10]), ...session('2026-10-15', 20, [11])]);
     const result = suggest(history);
