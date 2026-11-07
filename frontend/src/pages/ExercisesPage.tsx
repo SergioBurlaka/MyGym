@@ -216,12 +216,14 @@ function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => 
         <span className="rounded-lg bg-surface-border px-2.5 py-1">
           {t('exercises.repsChip', { min: exercise.repRangeMin, max: exercise.repRangeMax })}
         </span>
-        <span className="rounded-lg bg-surface-border px-2.5 py-1 text-slate-400">
-          {t('exercises.stepLabel')}{' '}
-          <b className="font-semibold text-slate-200">
-            {t('exercises.stepChip', { step: formatStepKg(Number(exercise.weightStepKg)) })}
-          </b>
-        </span>
+        {Number(exercise.weightStepKg) > 0 && (
+          <span className="rounded-lg bg-surface-border px-2.5 py-1 text-slate-400">
+            {t('exercises.stepLabel')}{' '}
+            <b className="font-semibold text-slate-200">
+              {t('exercises.stepChip', { step: formatStepKg(Number(exercise.weightStepKg)) })}
+            </b>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -365,6 +367,9 @@ function ExerciseForm({
             value={form.weightStepKg}
             onChange={(e) => setForm((f) => ({ ...f, weightStepKg: Number(e.target.value) }))}
           />
+          {form.equipment === 'bodyweight' && (
+            <p className="mt-1 text-xs text-slate-400">{t('exercises.form.weightStepHint')}</p>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
