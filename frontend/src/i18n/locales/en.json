@@ -335,6 +335,7 @@
       "repRangeMin": "Min. reps",
       "repRangeMax": "Max. reps",
       "weightStep": "Weight step, kg",
+      "weightStepHint": "0 — no added weight",
       "limbs": "Limbs",
       "defaultBar": "Default bar",
       "submit": "Save exercise",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
@@ -216,12 +216,14 @@ function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => 
         <span className="rounded-lg bg-surface-border px-2.5 py-1">
           {t('exercises.repsChip', { min: exercise.repRangeMin, max: exercise.repRangeMax })}
         </span>
-        <span className="rounded-lg bg-surface-border px-2.5 py-1 text-slate-400">
-          {t('exercises.stepLabel')}{' '}
-          <b className="font-semibold text-slate-200">
-            {t('exercises.stepChip', { step: formatStepKg(Number(exercise.weightStepKg)) })}
-          </b>
-        </span>
+        {Number(exercise.weightStepKg) > 0 && (
+          <span className="rounded-lg bg-surface-border px-2.5 py-1 text-slate-400">
+            {t('exercises.stepLabel')}{' '}
+            <b className="font-semibold text-slate-200">
+              {t('exercises.stepChip', { step: formatStepKg(Number(exercise.weightStepKg)) })}
+            </b>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -271,6 +273,7 @@ function ExerciseForm({
   className?: string;
 }) {
   const { t } = useTranslation();
+  const stepHintId = useId();
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -363,8 +366,14 @@ function ExerciseForm({
             inputMode="decimal"
             className="input"
             value={form.weightStepKg}
+            aria-describedby={form.equipment === 'bodyweight' ? stepHintId : undefined}
             onChange={(e) => setForm((f) => ({ ...f, weightStepKg: Number(e.target.value) }))}
           />
+          {form.equipment === 'bodyweight' && (
+            <p id={stepHintId} className="mt-1 text-xs text-slate-400">
+              {t('exercises.form.weightStepHint')}
+            </p>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

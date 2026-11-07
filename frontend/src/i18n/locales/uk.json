@@ -349,6 +349,7 @@
       "repRangeMin": "Мін. повторень",
       "repRangeMax": "Макс. повторень",
       "weightStep": "Крок ваги, кг",
+      "weightStepHint": "0 — без обтяження",
       "limbs": "Кінцівки",
       "defaultBar": "Гриф за замовчуванням",
       "submit": "Зберегти вправу",
