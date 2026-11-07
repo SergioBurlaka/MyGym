@@ -21,3 +21,7 @@ paths:
   (`arm`/`leg`, лише при `unilateral`, CHECK) — для підписів «на руку / на ногу»; `defaultBarKg`
   (0–50, лише `barbell`, CHECK; сід і нові штанги — 20, `DEFAULT_BAR_KG`) — гриф за замовчуванням
   (міграція 0026, див. "Модель навантаження" у `.claude/rules/progression.md`).
+- `weightStepKg` (0–50, Zod + CHECK): 0 = «вагу не додаю». Картка вправи (`ExerciseCard`,
+  `ExercisesPage.tsx`) показує чип кроку лише при кроці > 0, для будь-якого обладнання. У формі
+  (`ExerciseForm`) при `equipment = bodyweight` під полем кроку — підказка
+  `exercises.form.weightStepHint`, прив'язана до поля через `aria-describedby`.
