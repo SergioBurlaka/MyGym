@@ -23,7 +23,7 @@ function Icon({ size, strokeWidth, children }: { size: number; strokeWidth: numb
 
 type IconProps = { size?: number };
 
-// Stroke 1.7. Sheet rows use the default 22 px, the bottom panel's tabs pass 24.
+// Stroke 1.7. Sheet rows use the default 22 px, the bottom panel's tabs pass 26.
 
 export function JournalIcon({ size = 22 }: IconProps) {
   return (
