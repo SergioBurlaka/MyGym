@@ -40,6 +40,10 @@ export type EditableExercise = {
 // Bars offered in the "Bar" select; another stored value is shown as its own option.
 const BAR_OPTIONS = ['20', '15', '10', '0'] as const;
 
+// The reps stepper's limits: the API's maximum, and 1 - a set of 0 isn't a set.
+const MIN_STEPPED_REPS = 1;
+const MAX_REPS = 200;
+
 // A long press, not a "−" button, removes a set (user's decision 2026-10-29):
 // the 4-wide grid has no room for a 44px target per cell, and a mis-tap in
 // the gym shouldn't delete anything.
@@ -272,6 +276,20 @@ export default function WorkoutExerciseCard({
     }
   }
 
+  // The reps stepper corrects the set just logged: the last one with a number.
+  // Not the focused cell - focusing an input opens the phone's keyboard.
+  let lastSetIndex = -1;
+  block.sets.forEach((s, i) => {
+    if (s.reps.trim() !== '' && Number.isInteger(Number(s.reps))) lastSetIndex = i;
+  });
+  const lastSetReps = lastSetIndex >= 0 ? Number(block.sets[lastSetIndex].reps) : null;
+  function stepReps(direction: 1 | -1) {
+    if (lastSetReps == null) return;
+    const reps = String(lastSetReps + direction);
+    onChange({ sets: block.sets.map((s, i) => (i === lastSetIndex ? { ...s, reps } : s)) });
+    onCommit();
+  }
+
   const repsSuffix = limb ? t(`workout.card.perLimb.${limb}`) : '';
   const lastLine = previous
     ? t('workout.card.lastTime', {
@@ -485,6 +503,23 @@ export default function WorkoutExerciseCard({
               </svg>
             </button>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="flex-1 text-sm tabular-nums text-slate-400">
+            {t('workout.card.repsStepLabel', { set: lastSetIndex >= 0 ? lastSetIndex + 1 : '—' })}
+          </span>
+          <StepperButton
+            direction="decrease"
+            label={t('workout.card.decreaseRepsAria', { set: lastSetIndex + 1 })}
+            disabled={lastSetReps == null || lastSetReps <= MIN_STEPPED_REPS}
+            onClick={() => stepReps(-1)}
+          />
+          <StepperButton
+            direction="increase"
+            label={t('workout.card.increaseRepsAria', { set: lastSetIndex + 1 })}
+            disabled={lastSetReps == null || lastSetReps >= MAX_REPS}
+            onClick={() => stepReps(1)}
+          />
         </div>
         {lastLine && <span className="text-xs text-hint">{lastLine}</span>}
         <div className="flex justify-between gap-2 border-t border-surface-border pt-3 text-sm">
