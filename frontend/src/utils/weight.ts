@@ -37,6 +37,17 @@ export function stepWeight(weightKg: number, stepKg: number, direction: 1 | -1):
   return Math.min(MAX_WEIGHT_KG, Math.max(0, next));
 }
 
+// The set the reps stepper corrects: the last one that would be saved as typed
+// (a whole number, 0 or more). -1 when there is none.
+export function lastFilledSet(reps: string[]): number {
+  let last = -1;
+  reps.forEach((value, i) => {
+    const n = Number(value);
+    if (value.trim() !== '' && Number.isInteger(n) && n >= 0) last = i;
+  });
+  return last;
+}
+
 // Weight moved in one rep; null when no weight was logged.
 export function loadPerRep(equipment: Equipment, load: LoggedLoad): number | null {
   if (load.weightPerUnitKg == null) return null;

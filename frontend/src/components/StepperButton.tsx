@@ -14,7 +14,7 @@ export default function StepperButton({
     <button
       type="button"
       aria-label={label}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface-border text-slate-100 hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg bg-surface-border text-slate-100 hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       disabled={disabled}
       onClick={onClick}
     >

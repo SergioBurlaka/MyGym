@@ -647,7 +647,7 @@ export default function WorkoutFormPage() {
           </div>
           <input
             aria-label={t('workout.nameAria')}
-            className="w-full border-0 border-b border-dashed border-slate-600 bg-transparent pb-1.5 pt-1 text-2xl font-bold text-slate-100 placeholder:text-hint focus:border-accent focus:outline-none"
+            className="min-h-11 w-full border-0 border-b border-dashed border-slate-600 bg-transparent pb-1.5 pt-1 text-2xl font-bold text-slate-100 placeholder:text-hint focus:border-accent focus:outline-none"
             placeholder={t('workout.namePlaceholder')}
             maxLength={20}
             value={labelDraft}
@@ -751,6 +751,7 @@ export default function WorkoutFormPage() {
               setsLocked={lockedSetsIds.has(block.exerciseId)}
               onChange={(patch) => updateBlock(block.exerciseId, patch)}
               onCommit={requestSave}
+              finished={workout.timeEnd != null}
               onAddSet={() => addSet(block.exerciseId)}
               onRemoveSet={(setKey) => removeSet(block.exerciseId, setKey)}
               onRemove={() => removeExercise(block.exerciseId)}

@@ -4,7 +4,27 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDecimal, formatKg, formatStepKg, stepWeight } from './weight.js';
+import { formatCompactNumber, formatDecimal, formatKg, formatStepKg, lastFilledSet, stepWeight } from './weight.js';
+
+describe('lastFilledSet', () => {
+  it('finds the last set with a whole number', () => {
+    expect(lastFilledSet(['10', '9', ''])).toBe(1);
+    expect(lastFilledSet(['10', '', '8'])).toBe(2);
+    expect(lastFilledSet([' 5 ', '  '])).toBe(0);
+    expect(lastFilledSet(['0'])).toBe(0);
+  });
+
+  it('skips what would not be saved', () => {
+    expect(lastFilledSet(['10', '5.5'])).toBe(0);
+    expect(lastFilledSet(['10', '-3'])).toBe(0);
+    expect(lastFilledSet(['10', 'abc'])).toBe(0);
+  });
+
+  it('is -1 without a filled set', () => {
+    expect(lastFilledSet(['', ' '])).toBe(-1);
+    expect(lastFilledSet([])).toBe(-1);
+  });
+});
 
 describe('stepWeight', () => {
   it('moves by the step in both directions', () => {

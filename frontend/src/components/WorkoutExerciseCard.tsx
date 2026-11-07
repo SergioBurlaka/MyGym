@@ -5,6 +5,7 @@ import {
   formatDate,
   formatKg,
   formatStepKg,
+  lastFilledSet,
   lastRepsForSet,
   loadPerRep,
   MAX_WEIGHT_KG,
@@ -152,6 +153,7 @@ export default function WorkoutExerciseCard({
   saved,
   onChange,
   onCommit,
+  finished = false,
   setsLocked = false,
   onAddSet,
   onRemoveSet,
@@ -163,6 +165,9 @@ export default function WorkoutExerciseCard({
   progression: ExerciseProgression | undefined;
   // This exercise as last saved: the counter after this workout, last time and the +1 target.
   saved: WorkoutExercise | undefined;
+  // No steppers on a finished workout: a stray tap would rewrite the history at
+  // once. The fields stay, for a deliberate correction.
+  finished?: boolean;
   // The program fixes the set count: no "+" cell, no long-press removal.
   setsLocked?: boolean;
   onChange: (patch: Partial<EditableExercise>) => void;
@@ -248,6 +253,7 @@ export default function WorkoutExerciseCard({
   // A step of 0 is "no added weight": no stepper. An empty field steps from last
   // time's weight, what its placeholder shows. Saved at once, like a select.
   const stepKg = Number(exercise.weightStepKg);
+  const showWeightStepper = !finished && stepKg > 0;
   const stepBase = hasWeight ? weight : Number(previousWeight ?? 0);
   function stepWeightBy(direction: 1 | -1) {
     const weightPerUnitKg = String(stepWeight(stepBase, stepKg, direction));
@@ -278,14 +284,12 @@ export default function WorkoutExerciseCard({
 
   // The reps stepper corrects the set just logged: the last one with a number.
   // Not the focused cell - focusing an input opens the phone's keyboard.
-  let lastSetIndex = -1;
-  block.sets.forEach((s, i) => {
-    if (s.reps.trim() !== '' && Number.isInteger(Number(s.reps))) lastSetIndex = i;
-  });
+  const lastSetIndex = lastFilledSet(block.sets.map((s) => s.reps));
   const lastSetReps = lastSetIndex >= 0 ? Number(block.sets[lastSetIndex].reps) : null;
+  const lastSetLabel = lastSetIndex >= 0 ? lastSetIndex + 1 : '—';
   function stepReps(direction: 1 | -1) {
     if (lastSetReps == null) return;
-    const reps = String(lastSetReps + direction);
+    const reps = String(Math.min(MAX_REPS, Math.max(MIN_STEPPED_REPS, lastSetReps + direction)));
     onChange({ sets: block.sets.map((s, i) => (i === lastSetIndex ? { ...s, reps } : s)) });
     onCommit();
   }
@@ -358,7 +362,7 @@ export default function WorkoutExerciseCard({
             {isBarbell ? t('workout.platesPerSideLabel') : isDumbbell ? t('workout.dumbbellWeightLabel') : t('workout.extraWeightLabel')}
           </label>
           <div className="flex shrink-0 items-center gap-2">
-            {stepKg > 0 && (
+            {showWeightStepper && (
               <StepperButton
                 direction="decrease"
                 label={t('workout.card.decreaseWeightAria', { step: formatStepKg(stepKg) })}
@@ -371,7 +375,7 @@ export default function WorkoutExerciseCard({
               type="text"
               inputMode="decimal"
               className={`h-11 ${
-                stepKg > 0 ? 'w-20' : 'w-32'
+                showWeightStepper ? 'w-20' : 'w-32'
               } rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none`}
               placeholder={weightPlaceholder}
               value={block.weightPerUnitKg}
@@ -379,7 +383,7 @@ export default function WorkoutExerciseCard({
               onChange={(e) => onChange({ weightPerUnitKg: e.target.value })}
               onBlur={onCommit}
             />
-            {stepKg > 0 && (
+            {showWeightStepper && (
               <StepperButton
                 direction="increase"
                 label={t('workout.card.increaseWeightAria', { step: formatStepKg(stepKg) })}
@@ -504,23 +508,25 @@ export default function WorkoutExerciseCard({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="flex-1 text-sm tabular-nums text-slate-400">
-            {t('workout.card.repsStepLabel', { set: lastSetIndex >= 0 ? lastSetIndex + 1 : '—' })}
-          </span>
-          <StepperButton
-            direction="decrease"
-            label={t('workout.card.decreaseRepsAria', { set: lastSetIndex + 1 })}
-            disabled={lastSetReps == null || lastSetReps <= MIN_STEPPED_REPS}
-            onClick={() => stepReps(-1)}
-          />
-          <StepperButton
-            direction="increase"
-            label={t('workout.card.increaseRepsAria', { set: lastSetIndex + 1 })}
-            disabled={lastSetReps == null || lastSetReps >= MAX_REPS}
-            onClick={() => stepReps(1)}
-          />
-        </div>
+        {!finished && (
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-sm tabular-nums text-slate-400">
+              {t('workout.card.repsStepLabel', { set: lastSetLabel })}
+            </span>
+            <StepperButton
+              direction="decrease"
+              label={t('workout.card.decreaseRepsAria', { set: lastSetLabel })}
+              disabled={lastSetReps == null || lastSetReps <= MIN_STEPPED_REPS}
+              onClick={() => stepReps(-1)}
+            />
+            <StepperButton
+              direction="increase"
+              label={t('workout.card.increaseRepsAria', { set: lastSetLabel })}
+              disabled={lastSetReps == null || lastSetReps >= MAX_REPS}
+              onClick={() => stepReps(1)}
+            />
+          </div>
+        )}
         {lastLine && <span className="text-xs text-hint">{lastLine}</span>}
         <div className="flex justify-between gap-2 border-t border-surface-border pt-3 text-sm">
           <span className="shrink-0 text-slate-400">{t('workout.card.volumeTitle')}</span>
