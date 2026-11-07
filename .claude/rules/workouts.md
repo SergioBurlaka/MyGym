@@ -3,8 +3,10 @@ paths:
   - "backend/src/modules/workouts/**"
   - "backend/test/api.test.ts"
   - "backend/test/auto-finish.test.ts"
+  - "backend/test/local-date.test.ts"
   - "backend/test/workout-pause.test.ts"
   - "frontend/src/pages/WorkoutFormPage.tsx"
+  - "frontend/src/pages/DashboardPage.tsx"
   - "frontend/src/components/WorkoutExerciseCard.tsx"
   - "frontend/src/components/WorkoutTimer.tsx"
   - "frontend/src/components/ConfirmDialog.tsx"
@@ -27,6 +29,11 @@ paths:
 `workouts_paused_ms_check` ≥ 0 і `workouts_paused_open_check` — у завершеного тренування нема
 відкритої паузи); тривалість = `timeEnd − timeStart − pausedMs`. `isSample` — див.
 `.claude/rules/demo-template.md`.
+
+**Дата нового тренування** (`POST /api/workouts`, `startWorkout`): `date` з тіла, а без нього —
+`getUserToday` (день у `users.timezone`; так стартує MCP `start_workout` без дати). Вебзастосунок
+завжди шле `date: todayIso()` — день пристрою (`DashboardPage.tsx`): `users.timezone` оновлюється
+лише зі сторінки «Розклад» і може відставати від пристрою. Тести — `test/local-date.test.ts`.
 
 Журнал (`/`, `DashboardPage.tsx`) — `.claude/rules/journal.md`.
 
