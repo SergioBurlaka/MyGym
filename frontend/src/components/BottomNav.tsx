@@ -16,12 +16,12 @@ import {
 } from './NavIcons.js';
 
 // The phone's main navigation (below lg; the header links take over from
-// lg up): four sections plus "More", a sheet with the rest. A flat panel on the
-// bottom edge: --bottom-nav-h (styles/index.css) is its height, the
+// lg up): four sections plus "More", a sheet with the rest. A panel with rounded
+// top corners on the bottom edge: --bottom-nav-h (styles/index.css) is its height, the
 // home-indicator inset comes on top - App.tsx pads <main> by the same amount
 // and the program form's sticky bar leaves that much room (ProgramsPage.tsx).
 // Design: docs/tasks/design/NavMobileA.dc.html (sheet, behaviour) and
-// NavFlatSquare.dc.html (the panel and its tabs).
+// NavRoundedPanel.dc.html (the panel and its tabs).
 
 // The whole fifth of the panel is the tap target; the square inside shows state.
 // Not outline-none: its transparent outline turns solid in forced colors, and it
@@ -32,14 +32,15 @@ const SQUARE_CLASS =
   'flex h-11 w-11 items-center justify-center rounded-xl transition-[background-color,color,transform] duration-[180ms] ease-in-out group-active:scale-[.92] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:outline-offset-2 motion-reduce:transition-none';
 
 // The logo's shape: 44px / radius 12 is its 36px / radius 9. Inactive #7c8597 is
-// 4.8:1 on `surface`, the dark icon 5.8:1 on accent. Focus rings land on the
+// 4.8:1 on `surface`. The active icon is pure white, 3.1:1 on accent: slate-100
+// is 2.8:1, under the 3:1 an icon needs. Focus rings land on the
 // panel: accent 5.8:1, slate-100 16:1. --icon-bg is what JournalIcon's pencil is
 // filled with: whatever is behind the icon. Forced colors drop the background and
 // there is no visible label, so the active square gets the system's own pair.
 function squareClass(active: boolean) {
   return `${SQUARE_CLASS} ${
     active
-      ? 'bg-accent text-surface shadow-nav-active [--icon-bg:theme(colors.accent.DEFAULT)] group-focus-visible:outline-slate-100 forced-colors:bg-[color:Highlight] forced-colors:text-[color:HighlightText] forced-colors:[--icon-bg:Highlight] forced-colors:forced-color-adjust-none forced-colors:group-focus-visible:outline-[color:Highlight]'
+      ? 'bg-accent text-white shadow-nav-active [--icon-bg:theme(colors.accent.DEFAULT)] group-focus-visible:outline-slate-100 forced-colors:bg-[color:Highlight] forced-colors:text-[color:HighlightText] forced-colors:[--icon-bg:Highlight] forced-colors:forced-color-adjust-none forced-colors:group-focus-visible:outline-[color:Highlight]'
       : 'text-[#7c8597] [--icon-bg:theme(colors.surface.DEFAULT)] group-focus-visible:outline-accent forced-colors:[--icon-bg:Canvas]'
   }`;
 }
@@ -63,10 +64,10 @@ export default function BottomNav() {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
-    { to: '/', end: true, label: t('nav.journal'), icon: <JournalIcon size={24} /> },
-    { to: '/programs', end: false, label: t('nav.programs'), icon: <ProgramsIcon size={24} /> },
-    { to: '/progress', end: false, label: t('nav.progress'), icon: <ProgressIcon size={24} /> },
-    { to: '/exercises', end: false, label: t('nav.exercises'), icon: <ExercisesIcon size={24} /> },
+    { to: '/', end: true, label: t('nav.journal'), icon: <JournalIcon size={26} /> },
+    { to: '/programs', end: false, label: t('nav.programs'), icon: <ProgramsIcon size={26} /> },
+    { to: '/progress', end: false, label: t('nav.progress'), icon: <ProgressIcon size={26} /> },
+    { to: '/exercises', end: false, label: t('nav.exercises'), icon: <ExercisesIcon size={26} /> },
   ];
   const moreItems = [
     { to: '/schedule', label: t('nav.schedule'), icon: <ScheduleIcon /> },
@@ -166,8 +167,8 @@ export default function BottomNav() {
       <nav
         aria-label={t('nav.mainNav')}
         // Above the sheet while it's open: the sheet slides up from under the panel.
-        className={`fixed inset-x-0 bottom-0 grid grid-cols-5 items-center border-t border-surface-border bg-surface pl-[max(8px,env(safe-area-inset-left))] pr-[max(8px,env(safe-area-inset-right))] lg:hidden ${
-          moreOpen ? 'z-50' : 'z-30'
+        className={`fixed inset-x-0 bottom-0 grid grid-cols-5 items-center rounded-t-[24px] border border-b-0 border-surface-border bg-surface pl-[max(8px,env(safe-area-inset-left))] pr-[max(8px,env(safe-area-inset-right))] pt-1 lg:hidden ${
+          moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'
         }`}
         style={{
           height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))',
@@ -194,7 +195,7 @@ export default function BottomNav() {
           className={TAB_CLASS}
           onClick={() => setMoreOpen((v) => !v)}
         >
-          <TabContent active={moreActive} icon={<MoreIcon size={24} />} label={t('nav.more')} />
+          <TabContent active={moreActive} icon={<MoreIcon size={26} />} label={t('nav.more')} />
         </button>
       </nav>
     </>

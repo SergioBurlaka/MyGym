@@ -8,7 +8,7 @@
        env(safe-area-inset-bottom) - that comes on top. App.tsx pads <main> by
        this much, the program form's sticky bar (ProgramsPage.tsx) runs under
        the panel and lifts its buttons by as much. */
-    --bottom-nav-h: 72px;
+    --bottom-nav-h: 70px;
   }
   html {
     color-scheme: dark;
