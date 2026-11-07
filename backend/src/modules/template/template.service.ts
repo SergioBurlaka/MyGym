@@ -317,8 +317,9 @@ async function restoreScheduleStart(tx: Tx, userId: string) {
     .orderBy(asc(trainingScheduleHistory.effectiveFrom));
   const first = history[0];
   if (first && first.effectiveFrom < startFrom) {
-    // A later row already on that day (schedule changed on it) takes over.
-    if (history.some((h) => h.effectiveFrom === startFrom)) {
+    // A later row by that day (schedule changed) takes over: moving the first
+    // row past it would bring the old schedule back.
+    if (history[1] && history[1].effectiveFrom <= startFrom) {
       await tx.delete(trainingScheduleHistory).where(eq(trainingScheduleHistory.id, first.id));
     } else {
       await tx
