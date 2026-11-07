@@ -14,8 +14,8 @@ const dateSchema = z
   }, 'invalid_date');
 
 export const startWorkoutSchema = z.object({
-  // Defaults to today (server time) when omitted - lets the CSV importer
-  // and "log a past workout" flow set an explicit date.
+  // The web app sends the device's day. Without it (MCP) the day comes from
+  // users.timezone. Also lets the CSV importer and "log a past workout" set a date.
   date: dateSchema.optional(),
   // Free-text template label ("А"/"Б"/...) to tag this workout with, chosen
   // when starting "from" a previous workout with the same label.

@@ -12,6 +12,7 @@ import {
 import { useProgressionQuery } from '../shared/api/progression/index.js';
 import { useProgramsQuery } from '../shared/api/programs/index.js';
 import { formatDate, formatDuration, formatKg, setsSummary } from '../utils/weight.js';
+import { todayIso } from '../utils/date.js';
 import SetsSummary from '../components/SetsSummary.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
@@ -54,7 +55,8 @@ export default function DashboardPage() {
   const programs = programsQuery.data ?? [];
 
   async function startWorkout(opts: { programLabel?: string; copyFromWorkoutId?: string; programId?: string }) {
-    const workout = await startWorkoutMutation.mutateAsync(opts);
+    // The device's day: the account's time zone is only updated from the Schedule page.
+    const workout = await startWorkoutMutation.mutateAsync({ ...opts, date: todayIso() });
     navigate(`/workouts/${workout.id}`);
   }
 
