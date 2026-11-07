@@ -810,9 +810,11 @@ export function suggestProgression(input: SuggestProgressionInput) {
   const today = input.today ?? now.toISOString().slice(0, 10);
   const last = history[history.length - 1];
   // From the local today, not `now`: a workout's local date can be ahead of UTC.
-  const daysSinceLastWorkout = dayDiff(last.date, today);
+  // Never below 0: the web app dates a workout by the device, and users.timezone
+  // can lag behind it.
+  const daysSinceLastWorkout = Math.max(0, dayDiff(last.date, today));
   const lastProgress = findLastProgress(history, workoutDates, today);
-  const daysSinceProgress = lastProgress ? dayDiff(lastProgress.date, today) : null;
+  const daysSinceProgress = lastProgress ? Math.max(0, dayDiff(lastProgress.date, today)) : null;
   const sessionsSinceProgress = lastProgress ? applyCounterShift(lastProgress, counterShift) : null;
 
   const atTopOfRange = last.maxReps >= repRangeMax;

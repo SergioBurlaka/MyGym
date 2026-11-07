@@ -352,6 +352,13 @@ describe('suggestProgression', () => {
     expect(result.daysSinceProgress).toBe(0);
   });
 
+  it('a workout dated ahead of the stored time zone counts as 0 days, not -1', () => {
+    const history = buildHistoryPoints([...session('2026-11-06', 20, [10]), ...session('2026-11-07', 20, [11])]);
+    const result = suggest(history, { today: '2026-11-06' });
+    expect(result.daysSinceLastWorkout).toBe(0);
+    expect(result.daysSinceProgress).toBe(0);
+  });
+
   it('ok when progress was recent', () => {
     const history = buildHistoryPoints([...session('2026-10-01', 20, [10]), ...session('2026-10-15', 20, [11])]);
     const result = suggest(history);
