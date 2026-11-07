@@ -4,11 +4,11 @@
 
 @layer base {
   :root {
-    /* The phone's bottom panel (BottomNav, below lg): its height, without
-       env(safe-area-inset-bottom) - that comes on top. App.tsx pads <main> by
+    /* The phone's bottom panel (BottomNav, below lg): 66px of panel and the 6px
+       gap under it, without env(safe-area-inset-bottom) - that comes on top. App.tsx pads <main> by
        this much, the program form's sticky bar (ProgramsPage.tsx) runs under
        the panel and lifts its buttons by as much. */
-    --bottom-nav-h: 70px;
+    --bottom-nav-h: 72px;
   }
   html {
     color-scheme: dark;

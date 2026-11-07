@@ -16,12 +16,15 @@ import {
 } from './NavIcons.js';
 
 // The phone's main navigation (below lg; the header links take over from
-// lg up): four sections plus "More", a sheet with the rest. A panel with rounded
-// top corners on the bottom edge: --bottom-nav-h (styles/index.css) is its height, the
-// home-indicator inset comes on top - App.tsx pads <main> by the same amount
-// and the program form's sticky bar leaves that much room (ProgramsPage.tsx).
+// lg up): four sections plus "More", a sheet with the rest. A capsule floating
+// PANEL_GAP above the bottom edge: --bottom-nav-h (styles/index.css) is its height
+// plus that gap, the home-indicator inset comes on top - App.tsx pads <main> by the
+// same amount and the program form's sticky bar leaves that much room (ProgramsPage.tsx).
 // Design: docs/tasks/design/NavMobileA.dc.html (sheet, behaviour) and
-// NavRoundedPanel.dc.html (the panel and its tabs).
+// NavFloatingRounded.dc.html (the panel), NavRoundedPanel.dc.html (its tabs).
+
+// Below the panel, part of --bottom-nav-h. The same 6px on the sides is in its classes.
+const PANEL_GAP = '6px';
 
 // The whole fifth of the panel is the tap target; the square inside shows state.
 // Not outline-none: its transparent outline turns solid in forced colors, and it
@@ -113,8 +116,8 @@ export default function BottomNav() {
     <>
       {moreOpen && (
         <>
-          {/* Dims the page to the screen's bottom, so the corners under the panel's
-              rounding go dark too; the panel is above it, its tabs stay lit and usable. */}
+          {/* Dims the whole screen, so the gaps around the panel go dark too; the panel
+              is above it, its tabs stay lit and usable. */}
           <div
             className="fixed inset-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
             aria-hidden
@@ -167,12 +170,12 @@ export default function BottomNav() {
       <nav
         aria-label={t('nav.mainNav')}
         // Above the sheet while it's open: the sheet slides up from under the panel.
-        className={`fixed inset-x-0 bottom-0 grid grid-cols-5 items-center rounded-t-[24px] border border-b-0 border-surface-border bg-surface pl-[max(8px,env(safe-area-inset-left))] pr-[max(8px,env(safe-area-inset-right))] pt-1 lg:hidden ${
+        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border border-surface-border bg-surface px-1.5 py-1 lg:hidden ${
           moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'
         }`}
         style={{
-          height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))',
-          paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
+          bottom: `calc(${PANEL_GAP} + env(safe-area-inset-bottom))`,
+          height: `calc(var(--bottom-nav-h) - ${PANEL_GAP})`,
         }}
       >
         {tabs.map((tab) => (

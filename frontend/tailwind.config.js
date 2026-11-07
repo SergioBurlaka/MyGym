@@ -25,11 +25,12 @@ export default {
       boxShadow: {
         // The active tab's square in the bottom panel: a soft accent glow.
         'nav-active': '0 4px 14px rgba(255,90,54,0.35)',
-        // The bottom panel: a shadow over the content above it and a highlight on
+        // The bottom panel: a light shadow that only separates its edge from the
+        // content (a heavy one ate the card above it on a phone) and a highlight on
         // its top edge. With the "More" sheet open only the highlight stays: the
         // panel is above the sheet then, and the shadow would darken its last row.
         'nav-panel':
-          '0 -14px 36px rgba(0,0,0,0.9), 0 -3px 10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
+          '0 -6px 16px rgba(0,0,0,0.35), 0 -1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.07)',
         'nav-panel-open': 'inset 0 1px 0 rgba(255,255,255,0.07)',
       },
       fontFamily: {
