@@ -4,11 +4,11 @@
 
 @layer base {
   :root {
-    /* The phone's floating dock (BottomNav, below lg): its height plus the gap
-       under it, without the home-indicator inset. <main> and the More sheet
-       keep clear of it through this one value; the program form's sticky bar
-       runs under the dock and lifts its buttons by as much. */
-    --bottom-nav-h: 84px;
+    /* The phone's bottom panel (BottomNav, below lg): its height, without
+       env(safe-area-inset-bottom) - that comes on top. App.tsx pads <main> by
+       this much, the program form's sticky bar (ProgramsPage.tsx) runs under
+       the panel and lifts its buttons by as much. */
+    --bottom-nav-h: 72px;
   }
   html {
     color-scheme: dark;

@@ -16,62 +16,37 @@ import {
 } from './NavIcons.js';
 
 // The phone's main navigation (below lg; the header links take over from
-// lg up): four sections plus "More", a sheet with the rest. A floating dock:
-// --bottom-nav-h (styles/index.css) is its height plus the gap under it, the
+// lg up): four sections plus "More", a sheet with the rest. A flat panel on the
+// bottom edge: --bottom-nav-h (styles/index.css) is its height, the
 // home-indicator inset comes on top - App.tsx pads <main> by the same amount
 // and the program form's sticky bar leaves that much room (ProgramsPage.tsx).
 // Design: docs/tasks/design/NavMobileA.dc.html (sheet, behaviour) and
-// NavDock.dc.html (the dock's shape), NavDockContrast.dc.html (its colours).
+// NavFlatSquare.dc.html (the panel and its tabs).
 
-// Each tab is 48px tall and at least 48px wide; justify-between on the dock
-// takes up what the active pill's width leaves.
-const TAB_CLASS =
-  'group flex h-12 min-w-12 items-center justify-center rounded-3xl transition-[background-color,color,padding] duration-[220ms] ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none';
+// The whole fifth of the panel is the tap target; the square inside shows state.
+const TAB_CLASS = 'group flex h-14 items-center justify-center outline-none';
 
-// Inactive slate-300 is 8.8:1 on the dock; the pill's dark text 5.8:1 on accent.
-// Focus rings sit outside the tab, on the dock: accent 4.2:1, slate-100 11.9:1.
-// Next to the pill the gap can be under 2px: that side of an inactive tab's ring
-// lands on the pill and merges with it, the other sides still show.
-// --icon-bg is what JournalIcon's pencil is filled with. Padding, not width: a
-// width can't animate to auto. Under 379px the pill's padding tightens: the
-// widest label ("Програми", 71px) would be cut otherwise.
-function tabClass(active: boolean) {
-  return `${TAB_CLASS} ${
+const SQUARE_CLASS =
+  'flex h-11 w-11 items-center justify-center rounded-xl transition-[background-color,color,transform] duration-[180ms] ease-in-out group-active:scale-[.92] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:outline-offset-2 motion-reduce:transition-none';
+
+// The logo's shape: 44px / radius 12 is its 36px / radius 9. Inactive #7c8597 is
+// 4.8:1 on `surface`, the dark icon 5.8:1 on accent. Focus rings land on the
+// panel: accent 5.8:1, slate-100 16:1. --icon-bg is what JournalIcon's pencil is
+// filled with: whatever is behind the icon.
+function squareClass(active: boolean) {
+  return `${SQUARE_CLASS} ${
     active
-      ? 'bg-accent pl-3.5 pr-[18px] text-surface max-[378px]:pl-3 max-[378px]:pr-3.5 [--icon-bg:theme(colors.accent.DEFAULT)] focus-visible:outline-slate-100'
-      : 'shrink-0 px-[13px] text-slate-300 [--icon-bg:theme(colors.surface.dock)] focus-visible:outline-accent'
+      ? 'bg-accent text-surface shadow-nav-active [--icon-bg:theme(colors.accent.DEFAULT)] group-focus-visible:outline-slate-100'
+      : 'text-[#7c8597] [--icon-bg:theme(colors.surface.DEFAULT)] group-focus-visible:outline-accent'
   }`;
 }
 
-// The label is always there and is the tab's accessible name (no aria-label):
-// an inactive tab only squeezes it to nothing, which also lets it animate open.
-// `shortLabel` replaces it on screen, not for screen readers - "More" stays
-// named like its sheet.
-function TabContent({
-  active,
-  icon,
-  label,
-  shortLabel,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  shortLabel?: string;
-}) {
+// The hidden label is the tab's accessible name (no aria-label).
+function TabContent({ active, icon, label }: { active: boolean; icon: ReactNode; label: string }) {
   return (
     <>
-      <span className="flex shrink-0 transition-transform duration-[220ms] group-active:scale-[.92] motion-reduce:transition-none">
-        {icon}
-      </span>
-      <span
-        aria-hidden={shortLabel ? true : undefined}
-        className={`min-w-0 truncate text-sm font-semibold transition-[max-width,margin,opacity] duration-[220ms] ease-in-out motion-reduce:transition-none ${
-          active ? 'ml-2 max-w-[7rem] opacity-100' : 'ml-0 max-w-0 opacity-0'
-        }`}
-      >
-        {shortLabel ?? label}
-      </span>
-      {shortLabel && <span className="sr-only">{label}</span>}
+      <span className={squareClass(active)}>{icon}</span>
+      <span className="sr-only">{label}</span>
     </>
   );
 }
@@ -85,10 +60,10 @@ export default function BottomNav() {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
-    { to: '/', end: true, label: t('nav.journal'), icon: <JournalIcon /> },
-    { to: '/programs', end: false, label: t('nav.programs'), icon: <ProgramsIcon /> },
-    { to: '/progress', end: false, label: t('nav.progress'), icon: <ProgressIcon /> },
-    { to: '/exercises', end: false, label: t('nav.exercises'), icon: <ExercisesIcon /> },
+    { to: '/', end: true, label: t('nav.journal'), icon: <JournalIcon size={24} /> },
+    { to: '/programs', end: false, label: t('nav.programs'), icon: <ProgramsIcon size={24} /> },
+    { to: '/progress', end: false, label: t('nav.progress'), icon: <ProgressIcon size={24} /> },
+    { to: '/exercises', end: false, label: t('nav.exercises'), icon: <ExercisesIcon size={24} /> },
   ];
   const moreItems = [
     { to: '/schedule', label: t('nav.schedule'), icon: <ScheduleIcon /> },
@@ -134,10 +109,10 @@ export default function BottomNav() {
     <>
       {moreOpen && (
         <>
-          {/* Dims the whole page, round the dock too; the dock rises above it
-              while the sheet is open, so the tabs stay usable. */}
+          {/* Dims the page down to the panel: the tabs stay lit and usable. */}
           <div
-            className="fixed inset-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
+            className="fixed inset-x-0 top-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
+            style={{ bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))' }}
             aria-hidden
             onClick={() => closeMore(false)}
           />
@@ -187,12 +162,14 @@ export default function BottomNav() {
 
       <nav
         aria-label={t('nav.mainNav')}
-        // Under 375px the widest pill and four 48px tabs also need the narrower
-        // margins - tabs stay 48px rather than shrink.
-        className={`fixed left-[max(16px,env(safe-area-inset-left))] right-[max(16px,env(safe-area-inset-right))] flex h-[68px] items-center justify-between rounded-[34px] border border-surface-dock-border bg-surface-dock px-2.5 shadow-dock max-[374px]:left-[max(12px,env(safe-area-inset-left))] max-[374px]:right-[max(12px,env(safe-area-inset-right))] max-[374px]:px-1.5 lg:hidden ${
+        // Above the sheet while it's open: the sheet slides up from under the panel.
+        className={`fixed inset-x-0 bottom-0 grid grid-cols-5 items-center border-t border-surface-border bg-surface pl-[max(8px,env(safe-area-inset-left))] pr-[max(8px,env(safe-area-inset-right))] lg:hidden ${
           moreOpen ? 'z-50' : 'z-30'
         }`}
-        style={{ bottom: 'calc(16px + env(safe-area-inset-bottom))' }}
+        style={{
+          height: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))',
+          paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
+        }}
       >
         {tabs.map((tab) => (
           <NavLink
@@ -200,7 +177,7 @@ export default function BottomNav() {
             to={tab.to}
             end={tab.end}
             // While the sheet is open "More" is the highlighted one.
-            className={({ isActive }) => tabClass(isActive && !moreOpen)}
+            className={TAB_CLASS}
             onClick={() => setMoreOpen(false)}
           >
             {({ isActive }) => <TabContent active={isActive && !moreOpen} icon={tab.icon} label={tab.label} />}
@@ -211,10 +188,10 @@ export default function BottomNav() {
           type="button"
           aria-haspopup="dialog"
           aria-expanded={moreOpen}
-          className={tabClass(moreActive)}
+          className={TAB_CLASS}
           onClick={() => setMoreOpen((v) => !v)}
         >
-          <TabContent active={moreActive} icon={<MoreIcon />} label={t('nav.more')} shortLabel={t('nav.moreShort')} />
+          <TabContent active={moreActive} icon={<MoreIcon size={24} />} label={t('nav.more')} />
         </button>
       </nav>
     </>
