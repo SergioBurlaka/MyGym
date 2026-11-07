@@ -4,7 +4,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDecimal, formatKg, formatStepKg } from './weight.js';
+import { formatCompactNumber, formatDecimal, formatKg, formatStepKg, parseKg } from './weight.js';
+
+describe('parseKg', () => {
+  it('reads a point and a comma alike', () => {
+    expect(parseKg('0.75')).toBe(0.75);
+    expect(parseKg('1,5')).toBe(1.5);
+    expect(parseKg('0')).toBe(0);
+  });
+
+  it('is NaN for what is not a number', () => {
+    expect(parseKg('')).toBeNaN();
+    expect(parseKg('  ')).toBeNaN();
+    expect(parseKg('abc')).toBeNaN();
+    expect(parseKg('1,5,5')).toBeNaN();
+  });
+});
 
 describe.each(['uk', 'en'])('number format (%s): decimal point, no thousands separator', (language) => {
   afterEach(() => {
