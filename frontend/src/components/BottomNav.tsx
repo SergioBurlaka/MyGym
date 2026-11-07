@@ -24,7 +24,9 @@ import {
 // NavFlatSquare.dc.html (the panel and its tabs).
 
 // The whole fifth of the panel is the tap target; the square inside shows state.
-const TAB_CLASS = 'group flex h-14 items-center justify-center outline-none';
+// Not outline-none: its transparent outline turns solid in forced colors, and it
+// would frame every tab all the time.
+const TAB_CLASS = 'group flex h-14 items-center justify-center focus:[outline:none]';
 
 const SQUARE_CLASS =
   'flex h-11 w-11 items-center justify-center rounded-xl transition-[background-color,color,transform] duration-[180ms] ease-in-out group-active:scale-[.92] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:outline-offset-2 motion-reduce:transition-none';
@@ -32,12 +34,13 @@ const SQUARE_CLASS =
 // The logo's shape: 44px / radius 12 is its 36px / radius 9. Inactive #7c8597 is
 // 4.8:1 on `surface`, the dark icon 5.8:1 on accent. Focus rings land on the
 // panel: accent 5.8:1, slate-100 16:1. --icon-bg is what JournalIcon's pencil is
-// filled with: whatever is behind the icon.
+// filled with: whatever is behind the icon. Forced colors drop the background and
+// there is no visible label, so the active square gets the system's own pair.
 function squareClass(active: boolean) {
   return `${SQUARE_CLASS} ${
     active
-      ? 'bg-accent text-surface shadow-nav-active [--icon-bg:theme(colors.accent.DEFAULT)] group-focus-visible:outline-slate-100'
-      : 'text-[#7c8597] [--icon-bg:theme(colors.surface.DEFAULT)] group-focus-visible:outline-accent'
+      ? 'bg-accent text-surface shadow-nav-active [--icon-bg:theme(colors.accent.DEFAULT)] group-focus-visible:outline-slate-100 forced-colors:bg-[color:Highlight] forced-colors:text-[color:HighlightText] forced-colors:[--icon-bg:Highlight] forced-colors:forced-color-adjust-none forced-colors:group-focus-visible:outline-[color:Highlight]'
+      : 'text-[#7c8597] [--icon-bg:theme(colors.surface.DEFAULT)] group-focus-visible:outline-accent forced-colors:[--icon-bg:Canvas]'
   }`;
 }
 
