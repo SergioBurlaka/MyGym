@@ -113,10 +113,10 @@ export default function BottomNav() {
     <>
       {moreOpen && (
         <>
-          {/* Dims the page down to the panel: the tabs stay lit and usable. */}
+          {/* Dims the page to the screen's bottom, so the corners under the panel's
+              rounding go dark too; the panel is above it, its tabs stay lit and usable. */}
           <div
-            className="fixed inset-x-0 top-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
-            style={{ bottom: 'calc(var(--bottom-nav-h) + env(safe-area-inset-bottom))' }}
+            className="fixed inset-0 z-40 animate-fade-in bg-black/45 motion-reduce:animate-none lg:hidden"
             aria-hidden
             onClick={() => closeMore(false)}
           />
