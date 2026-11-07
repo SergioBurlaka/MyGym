@@ -15,6 +15,7 @@ import { translateApiError } from '../utils/apiError.js';
 import { DEFAULT_TRY_MORE_AFTER_WORKOUTS, tryMoreStatus } from '../utils/tryMoreCountdown.js';
 import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import LockIcon from '../components/LockIcon.js';
+import StepperButton from '../components/StepperButton.js';
 
 // Backend limits (programs.schema.ts).
 const SETS_MAX = 20;
@@ -731,33 +732,23 @@ function Stepper({
   onChange: (value: number) => void;
 }) {
   const { t } = useTranslation();
-  const button =
-    'flex h-11 w-11 items-center justify-center rounded-lg bg-surface-border text-slate-100 hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
   return (
     <div role="group" aria-label={label} className="flex shrink-0 items-center gap-1">
-      <button
-        type="button"
-        aria-label={t('programs.form.decrease')}
-        className={button}
+      <StepperButton
+        direction="decrease"
+        label={t('programs.form.decrease')}
         disabled={value <= min}
         onClick={() => onChange(Math.max(min, value - 1))}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M5 12h14" />
-        </svg>
-      </button>
+      />
       <span aria-live="polite" className="min-w-10 text-center text-[17px] font-bold tabular-nums text-slate-100">
         {value}
       </span>
-      <button
-        type="button"
-        aria-label={t('programs.form.increase')}
-        className={button}
+      <StepperButton
+        direction="increase"
+        label={t('programs.form.increase')}
         disabled={value >= max}
         onClick={() => onChange(Math.min(max, value + 1))}
-      >
-        <PlusIcon />
-      </button>
+      />
     </div>
   );
 }
