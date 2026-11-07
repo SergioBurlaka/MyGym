@@ -1,11 +1,8 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { trainingScheduleHistory, users } from '../../db/schema.js';
+import { localDate } from '../progression/progression.service.js';
 import type { UpdateSettingsInput } from './settings.schema.js';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 const settingsColumns = {
   trainingDays: users.trainingDays,
@@ -73,9 +70,20 @@ export async function updateSettings(userId: string, input: UpdateSettingsInput)
     // add a row. One row per calendar day the schedule changed - a second
     // edit on the same day overwrites that day's row instead of stacking.
     if (input.trainingDays) {
+      // The latest row can be ahead of the local day: registration dates its row
+      // in the default zone, and a user west of it is still on the day before. An
+      // earlier row would lose to that one for good, so the change takes it over.
+      const [latest] = await tx
+        .select({ effectiveFrom: trainingScheduleHistory.effectiveFrom })
+        .from(trainingScheduleHistory)
+        .where(eq(trainingScheduleHistory.userId, userId))
+        .orderBy(desc(trainingScheduleHistory.effectiveFrom))
+        .limit(1);
+      const today = localDate(new Date(), row.timezone);
+      const effectiveFrom = latest && latest.effectiveFrom > today ? latest.effectiveFrom : today;
       await tx
         .insert(trainingScheduleHistory)
-        .values({ userId, trainingDays: input.trainingDays, effectiveFrom: todayIso() })
+        .values({ userId, trainingDays: input.trainingDays, effectiveFrom })
         .onConflictDoUpdate({
           target: [trainingScheduleHistory.userId, trainingScheduleHistory.effectiveFrom],
           set: { trainingDays: input.trainingDays },

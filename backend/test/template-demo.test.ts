@@ -195,7 +195,25 @@ describe('starter data for a new account', () => {
       where: eq(trainingScheduleHistory.userId, user.id),
     });
     const [row] = await db.select().from(users).where(eq(users.id, user.id));
-    expect(history.effectiveFrom).toBe(row.createdAt.toISOString().slice(0, 10));
+    expect(history.effectiveFrom).toBe(localDate(row.createdAt, row.timezone));
+  });
+
+  it('moving the schedule start back keeps a change made before that day', async () => {
+    await setUpTemplate();
+    const { auth, user } = await registerUser(app);
+    const [row] = await db.select().from(users).where(eq(users.id, user.id));
+    const dayBefore = localDate(new Date(row.createdAt.getTime() - DAY_MS), row.timezone);
+    await db.insert(trainingScheduleHistory).values({ userId: user.id, trainingDays: [2, 4], effectiveFrom: dayBefore });
+
+    for (const w of (await journal(auth)).data) {
+      await app.inject({ method: 'DELETE', url: `/api/workouts/${w.id}`, headers: auth });
+    }
+
+    const history = await db.query.trainingScheduleHistory.findMany({
+      where: eq(trainingScheduleHistory.userId, user.id),
+      columns: { effectiveFrom: true, trainingDays: true },
+    });
+    expect(history).toEqual([{ effectiveFrom: dayBefore, trainingDays: [2, 4] }]);
   });
 
   it('skips an empty template workout - a sample has to show something', async () => {
@@ -241,7 +259,7 @@ describe('starter data for a new account', () => {
       where: eq(trainingScheduleHistory.userId, user.id),
     });
     const [row] = await db.select().from(users).where(eq(users.id, user.id));
-    expect(history.effectiveFrom).toBe(row.createdAt.toISOString().slice(0, 10));
+    expect(history.effectiveFrom).toBe(localDate(row.createdAt, row.timezone));
   });
 });
 

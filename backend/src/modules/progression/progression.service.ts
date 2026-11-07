@@ -809,12 +809,12 @@ export function suggestProgression(input: SuggestProgressionInput) {
   const { history, category, repRangeMax, tryMoreAfterWorkouts, counterShift, workoutDates = [], now } = input;
   const today = input.today ?? now.toISOString().slice(0, 10);
   const last = history[history.length - 1];
-  const lastDate = new Date(`${last.date}T00:00:00Z`);
-  const daysSinceLastWorkout = daysBetween(lastDate, now);
+  // From the local today, not `now`: a workout's local date can be ahead of UTC.
+  // Never below 0: the web app dates a workout by the device, and users.timezone
+  // can lag behind it.
+  const daysSinceLastWorkout = Math.max(0, dayDiff(last.date, today));
   const lastProgress = findLastProgress(history, workoutDates, today);
-  const daysSinceProgress = lastProgress
-    ? daysBetween(new Date(`${lastProgress.date}T00:00:00Z`), now)
-    : null;
+  const daysSinceProgress = lastProgress ? Math.max(0, dayDiff(lastProgress.date, today)) : null;
   const sessionsSinceProgress = lastProgress ? applyCounterShift(lastProgress, counterShift) : null;
 
   const atTopOfRange = last.maxReps >= repRangeMax;
@@ -861,9 +861,7 @@ function isoWeekStart(dateStr: string): string {
 export async function getVolumeByCategory(userId: string, weeks: number | null): Promise<WeeklyCategoryVolume[]> {
   let cutoffStr: string | null = null;
   if (weeks != null) {
-    const cutoff = new Date();
-    cutoff.setUTCDate(cutoff.getUTCDate() - weeks * 7);
-    cutoffStr = cutoff.toISOString().slice(0, 10);
+    cutoffStr = addDays(await getUserToday(userId), -weeks * 7);
   }
 
   const rows = await db

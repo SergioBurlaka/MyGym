@@ -12,7 +12,7 @@ import {
   workouts,
 } from '../../db/schema.js';
 import { env } from '../../config/env.js';
-import { getUserToday } from '../progression/progression.service.js';
+import { getUserToday, localDate } from '../progression/progression.service.js';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -299,12 +299,15 @@ export async function restoreScheduleStartIfNoSamples(tx: Tx, userId: string) {
 }
 
 async function restoreScheduleStart(tx: Tx, userId: string) {
-  const [user] = await tx.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userId));
+  const [user] = await tx
+    .select({ createdAt: users.createdAt, timezone: users.timezone })
+    .from(users)
+    .where(eq(users.id, userId));
   const [{ firstWorkout }] = await tx
     .select({ firstWorkout: sql<string | null>`min(${workouts.date})::text` })
     .from(workouts)
     .where(eq(workouts.userId, userId));
-  const registered = user.createdAt.toISOString().slice(0, 10);
+  const registered = localDate(user.createdAt, user.timezone);
   const startFrom = firstWorkout && firstWorkout < registered ? firstWorkout : registered;
 
   const history = await tx
@@ -314,8 +317,9 @@ async function restoreScheduleStart(tx: Tx, userId: string) {
     .orderBy(asc(trainingScheduleHistory.effectiveFrom));
   const first = history[0];
   if (first && first.effectiveFrom < startFrom) {
-    // A later row already on that day (schedule changed on it) takes over.
-    if (history.some((h) => h.effectiveFrom === startFrom)) {
+    // A later row by that day (schedule changed) takes over: moving the first
+    // row past it would bring the old schedule back.
+    if (history[1] && history[1].effectiveFrom <= startFrom) {
       await tx.delete(trainingScheduleHistory).where(eq(trainingScheduleHistory.id, first.id));
     } else {
       await tx

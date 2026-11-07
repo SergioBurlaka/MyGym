@@ -4,6 +4,7 @@ import { users, refreshTokens, exercises, trainingScheduleHistory } from '../../
 import { DEFAULT_EXERCISES, DEFAULT_BAR_KG } from '../../db/defaultExercises.js';
 import { DEMO_EMAIL } from '../template/demo.service.js';
 import { seedStarterData } from '../template/template.service.js';
+import { localDate } from '../progression/progression.service.js';
 import { hashPassword, verifyPassword } from '../../utils/password.js';
 import { isUniqueViolation } from '../../utils/pgErrors.js';
 import type { GoogleProfile } from './google.client.js';
@@ -36,7 +37,7 @@ async function createUserWithDefaults(values: typeof users.$inferInsert) {
     await tx.insert(trainingScheduleHistory).values({
       userId: user.id,
       trainingDays: user.trainingDays,
-      effectiveFrom: user.createdAt.toISOString().slice(0, 10),
+      effectiveFrom: localDate(user.createdAt, user.timezone),
     });
 
     // Seed the default exercise list for the new user so they have something

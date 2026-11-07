@@ -3,6 +3,7 @@ paths:
   - "backend/src/modules/calendar/**"
   - "backend/src/modules/settings/**"
   - "backend/test/calendar.test.ts"
+  - "backend/test/local-date.test.ts"
   - "backend/test/settings.test.ts"
   - "frontend/src/components/ConsistencyCalendar.tsx"
   - "frontend/src/utils/consistencyCalendar*.ts"
@@ -84,10 +85,14 @@ default `[1,3,5]`), плановий розклад користувача: ке
 **`PATCH /api/settings`** — часткове оновлення (`trainingDays`, `trainingTime`,
 `trainingDurationMin`, `timezone`; хоча б одне поле, інакше 400). Якщо в тілі є
 `trainingDays`, додатково апсертить рядок
-`training_schedule_history` на сьогоднішню дату (одна зміна на день —
-повторний виклик того ж дня оновлює той самий рядок). Реєстрація нового
-користувача засіює перший рядок історії одразу (`auth.service.ts`), інакше
-календар не мав би чим оцінити дати до першої ручної зміни розкладу.
+`training_schedule_history` (одна зміна на день — повторний виклик того ж дня
+оновлює той самий рядок). `effectiveFrom` — пізніший із локального дня (`localDate`
+у поясі, що вже враховує `timezone` з цього ж запиту) й останнього рядка історії: рядок
+із датою, ранішою за наявний, програвав би йому назавжди, тож зміна перезаписує рядок,
+що стоїть попереду. Реєстрація нового користувача засіює перший рядок історії одразу
+(`auth.service.ts`, `localDate(createdAt, timezone)`), інакше календар не мав би чим
+оцінити дати до першої ручної зміни розкладу. Пояс на цей момент — default `Europe/Kyiv`,
+тож для користувача на захід від нього рядок реєстрації може бути на день попереду.
 
 **Gotcha (бекфіл при міграції):** `users.createdAt` як `effectiveFrom` першого
 рядка історії не годиться для акаунтів з CSV-імпортованою історією тренувань, що
