@@ -60,8 +60,10 @@ describe('dates around midnight follow the user time zone', () => {
     expect((await startWorkout(auth, { date: '2026-11-01' })).date).toBe('2026-11-01');
   });
 
+  // A past date on purpose: the registration row comes from the database's real
+  // clock, and matching it would pass these without the change's own row.
   it('a schedule change gets the local day', async () => {
-    setClock('2026-11-06T23:45:00Z');
+    setClock('2026-03-14T23:45:00Z'); // 01:45 on the 15th in Kyiv
     const { auth, user } = await registerUser(app);
     const res = await app.inject({
       method: 'PATCH',
@@ -70,11 +72,11 @@ describe('dates around midnight follow the user time zone', () => {
       payload: { trainingDays: [2, 4] },
     });
     expect(res.statusCode).toBe(200);
-    expect(await scheduleDates(user.id)).toContain('2026-11-07');
+    expect(await scheduleDates(user.id)).toContain('2026-03-15');
   });
 
   it('a schedule change uses the time zone sent with it', async () => {
-    setClock('2026-11-07T02:00:00Z');
+    setClock('2026-03-15T02:00:00Z'); // 22:00 on the 14th in New York
     const { auth, user } = await registerUser(app);
     const res = await app.inject({
       method: 'PATCH',
@@ -83,6 +85,6 @@ describe('dates around midnight follow the user time zone', () => {
       payload: { trainingDays: [2, 4], timezone: 'America/New_York' },
     });
     expect(res.statusCode).toBe(200);
-    expect(await scheduleDates(user.id)).toContain('2026-11-06');
+    expect(await scheduleDates(user.id)).toContain('2026-03-14');
   });
 });
