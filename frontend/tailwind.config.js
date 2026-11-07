@@ -9,9 +9,6 @@ export default {
           DEFAULT: '#14171c',
           raised: '#1c2028',
           border: '#2a2f3a',
-          // The bottom dock: one step lighter than the cards it floats over.
-          dock: '#2b313d',
-          'dock-border': '#434b5b',
         },
         accent: {
           DEFAULT: '#ff5a36',
