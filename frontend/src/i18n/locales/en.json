@@ -341,6 +341,7 @@
       "repRangeMax": "Max. reps",
       "weightStep": "Weight step, kg",
       "weightStepHint": "0 — no added weight",
+      "weightStepInvalid": "The weight step must be a number from 0 to 50",
       "limbs": "Limbs",
       "defaultBar": "Default bar",
       "submit": "Save exercise",
