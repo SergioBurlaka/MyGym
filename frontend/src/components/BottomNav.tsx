@@ -169,7 +169,7 @@ export default function BottomNav() {
 
       <nav
         aria-label={t('nav.mainNav')}
-        // Above the sheet while it's open: the sheet slides up from under the panel.
+        // Above the dimming while the sheet is open: the tabs stay lit and usable.
         className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border border-surface-border bg-surface px-1.5 py-1 lg:hidden ${
           moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'
         }`}

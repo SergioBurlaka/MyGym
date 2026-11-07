@@ -56,7 +56,9 @@ export default {
         'dp-panel': { '0%': { opacity: '0', transform: 'scale(0.92)' }, '100%': { opacity: '1', transform: 'none' } },
         'dp-pop': { '0%': { transform: 'scale(0.6)' }, '60%': { transform: 'scale(1.08)' }, '100%': { transform: 'scale(1)' } },
         // Phone navigation (BottomNav "More" sheet, AccountMenu).
-        'sheet-up': { '0%': { transform: 'translateY(100%)' }, '100%': { transform: 'none' } },
+        // 8px is the sheet's gap above the bottom panel: it fades in without going
+        // behind the panel, whose gaps and rounded corners wouldn't hide it.
+        'sheet-up': { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'none' } },
         'menu-pop': { '0%': { opacity: '0', transform: 'translateY(-6px) scale(0.98)' }, '100%': { opacity: '1', transform: 'none' } },
         'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
       },
