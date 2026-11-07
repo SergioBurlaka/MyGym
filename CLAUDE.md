@@ -67,7 +67,7 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 | Журнал: пагінація, картка тренування (посилання), рядок вправи | `.claude/rules/journal.md` |
 | Тренування: сторінка тренування, автозбереження, автозавершення, таймер, екран, офлайн-банер, сторінка 404 | `.claude/rules/workouts.md` |
 | Шаблони А/Б і програми | `.claude/rules/programs.md` |
-| Навігація: хедер, нижній док і «Додатково» нижче `lg`, меню акаунта | `.claude/rules/navigation.md` |
+| Навігація: хедер, нижня панель і «Додатково» нижче `lg`, меню акаунта | `.claude/rules/navigation.md` |
 | Розклад, календар консистентності, календарний фід | `.claude/rules/schedule-calendar.md` |
 | Демо-акаунт і стартові дані | `.claude/rules/demo-template.md` |
 | CSV-імпорт | `.claude/rules/csv-import.md` |
