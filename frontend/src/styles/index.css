@@ -51,4 +51,35 @@
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
   }
+  /* The bottom panel's wave (BottomNav.tsx): a line on the panel's top edge and a
+     soft glow under it, over the highlighted tab. BottomNav sets --wave-x/--glow-x
+     (utils/navWave.ts, which also holds these widths) and --wave-o (0 while no tab
+     is highlighted); the transitions are its classes, on only after the first
+     placement. The lighter accent tones exist only here. Brightness as in the
+     design (NavNeonWave.dc.html) - the user had it toned down, don't raise it. */
+  .nav-wave-line {
+    position: absolute;
+    top: -2px;
+    left: 0;
+    width: 110px;
+    height: 3px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, rgba(255, 90, 54, 0), #ff6a45, #ffb199, #ff6a45, rgba(255, 90, 54, 0));
+    box-shadow: 0 0 8px rgba(255, 90, 54, 0.55), 0 0 18px rgba(255, 90, 54, 0.25);
+    transform: translateX(var(--wave-x, 0px));
+    opacity: var(--wave-o, 0);
+    pointer-events: none;
+  }
+  .nav-wave-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 180px;
+    height: 52px;
+    border-radius: 24px;
+    background: radial-gradient(ellipse 50% 100% at 50% 0%, rgba(255, 90, 54, 0.22), rgba(255, 90, 54, 0) 70%);
+    transform: translateX(var(--glow-x, 0px));
+    opacity: var(--wave-o, 0);
+    pointer-events: none;
+  }
 }
