@@ -126,26 +126,35 @@ export default function BottomNav() {
   // follows whatever squareClass highlights, "More" included. With nothing
   // highlighted (a workout, 404) it fades out where it was. Set as variables on
   // the panel, before paint; the first placement doesn't animate - the
-  // transitions come on a frame after it.
+  // transitions come on a frame after it. Neither does a resize: it jumps.
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
+    let frame = 0;
     function place(nav: HTMLElement) {
+      // Hidden on lg+ (display: none) - nothing to measure; placed when it shows.
+      if (!nav.clientWidth) return;
       const cell = nav.querySelector('[data-nav-active]')?.parentElement;
       if (!cell) {
         nav.style.setProperty('--wave-o', '0');
-        return false;
+        return;
       }
       const { waveX, glowX } = navWavePositions(cell.offsetLeft + cell.offsetWidth / 2, nav.clientWidth);
       nav.style.setProperty('--wave-x', `${waveX}px`);
       nav.style.setProperty('--glow-x', `${glowX}px`);
       nav.style.setProperty('--wave-o', '1');
-      return true;
+      if (!waveMoves && !frame) frame = requestAnimationFrame(() => setWaveMoves(true));
     }
-    let frame = 0;
-    if (place(nav) && !waveMoves) frame = requestAnimationFrame(() => setWaveMoves(true));
-    // Rotation, a safe-area change, a new width.
-    const observer = new ResizeObserver(() => place(nav));
+    place(nav);
+    // Rotation, a safe-area change, a new width, coming back below lg: in place
+    // at once, not sliding there.
+    const observer = new ResizeObserver(() => {
+      const layers = nav.querySelectorAll<HTMLElement>('.nav-wave-line, .nav-wave-glow');
+      layers.forEach((layer) => (layer.style.transition = 'none'));
+      place(nav);
+      void nav.offsetWidth; // commit the jump before the transition comes back
+      layers.forEach((layer) => (layer.style.transition = ''));
+    });
     observer.observe(nav);
     return () => {
       cancelAnimationFrame(frame);
@@ -214,7 +223,7 @@ export default function BottomNav() {
         ref={navRef}
         aria-label={t('nav.mainNav')}
         // Above the dimming while the sheet is open: the tabs stay lit and usable.
-        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border-[1.5px] border-accent/70 bg-surface px-1.5 py-1 lg:hidden ${
+        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border-[1.5px] border-accent/70 bg-surface px-1.5 py-[3.5px] lg:hidden ${
           moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'
         }`}
         style={{
