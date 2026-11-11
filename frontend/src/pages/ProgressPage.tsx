@@ -49,12 +49,17 @@ export default function ProgressPage() {
   const historyQuery = useProgressionHistoryQuery(selectedId);
   // Deferred: a new history (loaded, or another tile tapped) re-renders the
   // charts in the background - the tile lights up at once (see ProgressChart).
-  // While the charts still show the old value: a skeleton when they have
-  // nothing yet (four "no data" would flash), else the old charts dimmed.
-  const freshHistory = historyQuery.data ?? EMPTY_HISTORY;
-  const history = useDeferredValue(freshHistory);
-  const chartsStale = history !== freshHistory;
-  const chartsLoading = historyQuery.isPending || (chartsStale && history === EMPTY_HISTORY);
+  // Tagged with its exercise: while the charts still hold another exercise's
+  // history (or none - four "no data" would flash) they are skeletons, not the
+  // old lines under the new name; a refetch of the same one only dims them.
+  const fresh = useMemo(
+    () => ({ id: selectedId, data: historyQuery.data ?? EMPTY_HISTORY }),
+    [selectedId, historyQuery.data],
+  );
+  const shown = useDeferredValue(fresh);
+  const history = shown.data;
+  const chartsLoading = historyQuery.isPending || shown.id !== selectedId || (shown !== fresh && history === EMPTY_HISTORY);
+  const chartsStale = !chartsLoading && shown !== fresh;
 
   const selected = useMemo(
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
@@ -68,8 +73,13 @@ export default function ProgressPage() {
   // No weight in any session (push-ups, leg raises) - the weight and 1RM charts
   // would only say "no data" forever, so they are not shown. No history yet -
   // all four stay, each with its own empty label.
-  const hasWeight = history.length === 0 || history.some((h) => h.totalWeightKg != null);
-  const hasWeightedVolume = history.some((h) => h.volumeKg != null);
+  // While loading, guessed from the overview's last workout, so the skeleton
+  // cards are the ones that come (2 for push-ups, 4 with weight).
+  const weightHint = selected?.lastWorkoutDate == null || selected.lastTotalWeightKg != null;
+  const hasWeight = chartsLoading ? weightHint : history.length === 0 || history.some((h) => h.totalWeightKg != null);
+  const hasWeightedVolume = chartsLoading
+    ? selected?.lastTotalWeightKg != null && Number(selected.lastTotalWeightKg) > 0
+    : history.some((h) => h.volumeKg != null);
   const volumeData = history.map((h) => ({
     date: h.date,
     value: hasWeightedVolume ? h.volumeKg : h.totalReps,
@@ -170,63 +180,64 @@ export default function ProgressPage() {
             </dl>
           </div>
 
-          {chartsLoading ? (
-            // The four chart cards' shape: heading (20px line), description (16px),
-            // chart - the same heights as the real cards.
-            // grid-cols-1, not an implicit column: that one doesn't shrink below a
-            // chart's pixel width when the screen narrows.
-            <div role="status" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <span className="sr-only">{t('common.loadingChart')}</span>
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} aria-hidden className="card">
-                  <div className="animate-pulse motion-reduce:animate-none">
-                    <div className="flex h-5 items-center">
-                      <span className="h-3.5 w-36 rounded bg-surface-border" />
-                    </div>
-                    <div className="mb-2 mt-1 flex h-4 items-center">
-                      <span className="h-3 w-full rounded bg-surface-border" />
-                    </div>
-                  </div>
+          {/* The real cards, headings and all, so nothing moves when the charts come;
+              while loading each chart is its skeleton. grid-cols-1, not an implicit
+              column: that one doesn't shrink below a chart's pixel width. */}
+          <div
+            className={`grid grid-cols-1 gap-4 transition-opacity motion-reduce:transition-none sm:grid-cols-2 ${
+              chartsStale ? 'opacity-50' : ''
+            }`}
+          >
+            {chartsLoading && (
+              <span role="status" className="sr-only">
+                {t('common.loadingChart')}
+              </span>
+            )}
+            {hasWeight && (
+              <div className="card">
+                <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
+                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.workingWeightDescription')}</p>
+                {chartsLoading ? (
                   <ChartSkeleton />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div
-              className={`grid grid-cols-1 gap-4 transition-opacity motion-reduce:transition-none sm:grid-cols-2 ${
-                chartsStale ? 'opacity-50' : ''
-              }`}
-            >
-              {hasWeight && (
-                <div className="card">
-                  <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
-                  <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.workingWeightDescription')}</p>
+                ) : (
                   <ProgressChart label={t('progress.charts.workingWeightTitle')} data={weightData} color="#ff5a36" unit={t('common.kg')} emptyLabel={t('progress.charts.workingWeightEmpty')} />
-                </div>
-              )}
-              <div className="card">
-                <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.maxRepsTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.maxRepsDescription')}</p>
+                )}
+              </div>
+            )}
+            <div className="card">
+              <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.maxRepsTitle')}</h3>
+              <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.maxRepsDescription')}</p>
+              {chartsLoading ? (
+                <ChartSkeleton />
+              ) : (
                 <ProgressChart label={t('progress.charts.maxRepsTitle')} data={repsData} color="#3ddc97" unit={t('common.reps')} emptyLabel={t('progress.charts.noData')} />
-              </div>
-              {hasWeight && (
-                <div className="card">
-                  <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.oneRepMaxTitle')}</h3>
-                  <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.oneRepMaxDescription')}</p>
-                  <ProgressChart label={t('progress.charts.oneRepMaxTitle')} data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
-                </div>
               )}
-              <div className="card">
-                <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.volumeTitle')}</h3>
-                <p className="mb-2 mt-1 text-xs text-slate-400">
-                  {hasWeightedVolume
-                    ? t('progress.charts.volumeDescriptionWeighted')
-                    : t('progress.charts.volumeDescriptionBodyweight')}
-                </p>
-                <ProgressChart label={t('progress.charts.volumeTitle')} data={volumeData} color="#7dd3fc" unit={volumeUnit} emptyLabel={t('progress.charts.noData')} />
-              </div>
             </div>
-          )}
+            {hasWeight && (
+              <div className="card">
+                <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.oneRepMaxTitle')}</h3>
+                <p className="mb-2 mt-1 text-xs text-slate-400">{t('progress.charts.oneRepMaxDescription')}</p>
+                {chartsLoading ? (
+                  <ChartSkeleton />
+                ) : (
+                  <ProgressChart label={t('progress.charts.oneRepMaxTitle')} data={oneRepMaxData} color="#eda100" unit={t('common.kg')} emptyLabel={t('progress.charts.oneRepMaxEmpty')} />
+                )}
+              </div>
+            )}
+            <div className="card">
+              <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.volumeTitle')}</h3>
+              <p className="mb-2 mt-1 text-xs text-slate-400">
+                {hasWeightedVolume
+                  ? t('progress.charts.volumeDescriptionWeighted')
+                  : t('progress.charts.volumeDescriptionBodyweight')}
+              </p>
+              {chartsLoading ? (
+                <ChartSkeleton />
+              ) : (
+                <ProgressChart label={t('progress.charts.volumeTitle')} data={volumeData} color="#7dd3fc" unit={volumeUnit} emptyLabel={t('progress.charts.noData')} />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

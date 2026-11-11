@@ -28,11 +28,12 @@ export default function ChartSkeleton({ className = 'h-[220px]' }: { className?:
 }
 
 // The weekly volume chart's place (WeeklyCategoryChart): the week title, its
-// three tiles, the bars strip and the legend - 421px on a phone, as the chart.
+// three tiles, the bars strip and the legend - as tall as the chart: 421px on a
+// phone, 342px from sm (the tiles' text fits on fewer lines).
 const BAR_HEIGHTS = [40, 65, 30, 80, 55, 70, 25, 60, 45];
 export function WeeklyChartSkeleton() {
   return (
-    <div aria-hidden className="flex h-[421px] animate-pulse flex-col gap-3 motion-reduce:animate-none">
+    <div aria-hidden className="flex h-[421px] animate-pulse sm:h-[342px] flex-col gap-3 motion-reduce:animate-none">
       <span className="h-5 w-44 rounded bg-surface-border" />
       <div className="grid grid-cols-3 gap-1.5">
         {[0, 1, 2].map((i) => (
