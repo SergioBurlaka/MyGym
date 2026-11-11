@@ -147,8 +147,14 @@ export default function BottomNav() {
     }
     place(nav);
     // Rotation, a safe-area change, a new width, coming back below lg: in place
-    // at once, not sliding there.
+    // at once, not sliding there. Not its first call: observe() fires one right
+    // away, after place() above - it would cut the tab switch's slide short.
+    let initial = true;
     const observer = new ResizeObserver(() => {
+      if (initial) {
+        initial = false;
+        return;
+      }
       const layers = nav.querySelectorAll<HTMLElement>('.nav-wave-line, .nav-wave-glow');
       layers.forEach((layer) => (layer.style.transition = 'none'));
       place(nav);
@@ -223,7 +229,7 @@ export default function BottomNav() {
         ref={navRef}
         aria-label={t('nav.mainNav')}
         // Above the dimming while the sheet is open: the tabs stay lit and usable.
-        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border-[1.5px] border-accent/70 bg-surface px-1.5 py-[3.5px] lg:hidden ${
+        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border border-accent/80 bg-surface px-1.5 py-1 lg:hidden ${
           moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'
         }`}
         style={{

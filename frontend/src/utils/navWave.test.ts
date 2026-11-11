@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { navWavePositions } from './navWave.js';
 
 // Widths as in the task (docs/tasks/nav-neon-wave.md): the screen minus 6px on
-// each side. In the browser the function gets clientWidth, 3px less (the 1.5px
+// each side. In the browser the function gets clientWidth, 2px less (the 1px
 // border) - the geometry is the same. 6px of padding inside, then five equal cells.
 function center(navWidth: number, index: number) {
   const cell = (navWidth - 12) / 5;
