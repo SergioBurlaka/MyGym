@@ -24,6 +24,6 @@ paths:
 - `weightStepKg` (0–50, Zod + CHECK): 0 = «вагу не додаю». Картка вправи (`ExerciseCard`,
   `ExercisesPage.tsx`) показує чип кроку лише при кроці > 0, для будь-якого обладнання. У формі
   (`ExerciseForm`) при `equipment = bodyweight` під полем кроку — підказка
-  `exercises.form.weightStepHint`, прив'язана до поля через `aria-describedby`. Поле кроку
-  тримає рядок як введено (число губило б «0.» і кому), у payload — `parseKg`; поза 0–50 (чи не
-  число) форма не відправляється — `exercises.form.weightStepInvalid`.
+  `exercises.form.weightStepHint`, прив'язана до поля через `aria-describedby`.
+  Поле кроку зберігає введений рядок (число загубило б «0.» і кому), у число — `parseKg` (кома =
+  крапка) у `toPayload`; не число або поза 0–50 → `exercises.form.weightStepInvalid`, запит не йде.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.js';
@@ -14,6 +14,7 @@ import {
   ProgressIcon,
   ScheduleIcon,
 } from './NavIcons.js';
+import { navWavePositions } from '../utils/navWave.js';
 
 // The phone's main navigation (below lg; the header links take over from
 // lg up): four sections plus "More", a sheet with the rest. A capsule floating
@@ -21,15 +22,21 @@ import {
 // plus that gap, the home-indicator inset comes on top - App.tsx pads <main> by the
 // same amount and the program form's sticky bar leaves that much room (ProgramsPage.tsx).
 // Design: docs/tasks/design/NavMobileA.dc.html (sheet, behaviour) and
-// NavFloatingRounded.dc.html (the panel), NavRoundedPanel.dc.html (its tabs).
+// NavFloatingRounded.dc.html (the panel), NavRoundedPanel.dc.html (its tabs),
+// NavNeonWave.dc.html (the accent border, glow and wave).
 
 // Below the panel, part of --bottom-nav-h. The same 6px on the sides is in its classes.
 const PANEL_GAP = '6px';
 
 // The whole fifth of the panel is the tap target; the square inside shows state.
 // Not outline-none: its transparent outline turns solid in forced colors, and it
-// would frame every tab all the time.
-const TAB_CLASS = 'group flex h-14 items-center justify-center focus:[outline:none]';
+// would frame every tab all the time. Positioned so it paints over the wave.
+const TAB_CLASS = 'group relative flex h-14 items-center justify-center focus:[outline:none]';
+
+// The wave slides after the first placement only; the glow 30ms longer, a slight trail.
+const WAVE_EASE = 'ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none';
+const WAVE_LINE_MOTION = `transition-[transform,opacity] duration-[420ms] ${WAVE_EASE}`;
+const WAVE_GLOW_MOTION = `transition-[transform,opacity] duration-[450ms] ${WAVE_EASE}`;
 
 const SQUARE_CLASS =
   'flex h-11 w-11 items-center justify-center rounded-xl transition-[background-color,color,transform] duration-[180ms] ease-in-out group-active:scale-[.92] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:outline-offset-2 motion-reduce:transition-none';
@@ -48,11 +55,14 @@ function squareClass(active: boolean) {
   }`;
 }
 
-// The hidden label is the tab's accessible name (no aria-label).
+// The hidden label is the tab's accessible name (no aria-label). data-nav-active
+// marks the highlighted square: the wave goes to the cell holding it.
 function TabContent({ active, icon, label }: { active: boolean; icon: ReactNode; label: string }) {
   return (
     <>
-      <span className={squareClass(active)}>{icon}</span>
+      <span className={squareClass(active)} data-nav-active={active || undefined}>
+        {icon}
+      </span>
       <span className="sr-only">{label}</span>
     </>
   );
@@ -65,6 +75,8 @@ export default function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const [waveMoves, setWaveMoves] = useState(false);
 
   const tabs = [
     { to: '/', end: true, label: t('nav.journal'), icon: <JournalIcon size={26} /> },
@@ -109,6 +121,52 @@ export default function BottomNav() {
       desktop.removeEventListener('change', onDesktop);
     };
   }, [moreOpen]);
+
+  // The wave sits over the highlighted square's cell, measured from the DOM: it
+  // follows whatever squareClass highlights, "More" included. With nothing
+  // highlighted (a workout, 404) it fades out where it was. Set as variables on
+  // the panel, before paint; the first placement doesn't animate - the
+  // transitions come on a frame after it. Neither does a resize: it jumps.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    let frame = 0;
+    function place(nav: HTMLElement) {
+      // Hidden on lg+ (display: none) - nothing to measure; placed when it shows.
+      if (!nav.clientWidth) return;
+      const cell = nav.querySelector('[data-nav-active]')?.parentElement;
+      if (!cell) {
+        nav.style.setProperty('--wave-o', '0');
+        return;
+      }
+      const { waveX, glowX } = navWavePositions(cell.offsetLeft + cell.offsetWidth / 2, nav.clientWidth);
+      nav.style.setProperty('--wave-x', `${waveX}px`);
+      nav.style.setProperty('--glow-x', `${glowX}px`);
+      nav.style.setProperty('--wave-o', '1');
+      if (!waveMoves && !frame) frame = requestAnimationFrame(() => setWaveMoves(true));
+    }
+    place(nav);
+    // Rotation, a safe-area change, a new width, coming back below lg: in place
+    // at once, not sliding there. Not its first call: observe() fires one right
+    // away, after place() above - it would cut the tab switch's slide short.
+    let initial = true;
+    const observer = new ResizeObserver(() => {
+      if (initial) {
+        initial = false;
+        return;
+      }
+      const layers = nav.querySelectorAll<HTMLElement>('.nav-wave-line, .nav-wave-glow');
+      layers.forEach((layer) => (layer.style.transition = 'none'));
+      place(nav);
+      void nav.offsetWidth; // commit the jump before the transition comes back
+      layers.forEach((layer) => (layer.style.transition = ''));
+    });
+    observer.observe(nav);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [user, pathname, moreActive, waveMoves]);
 
   if (!user) return null;
 
@@ -168,9 +226,10 @@ export default function BottomNav() {
       )}
 
       <nav
+        ref={navRef}
         aria-label={t('nav.mainNav')}
         // Above the dimming while the sheet is open: the tabs stay lit and usable.
-        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border border-surface-border bg-surface px-1.5 py-1 lg:hidden ${
+        className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border border-accent/80 bg-surface px-1.5 py-1 lg:hidden ${
           moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'
         }`}
         style={{
@@ -178,6 +237,10 @@ export default function BottomNav() {
           height: `calc(var(--bottom-nav-h) - ${PANEL_GAP})`,
         }}
       >
+        {/* Decorative, under the tabs: no focus, no name. Not in forced colors -
+            noise there, the Highlight square already shows the tab. */}
+        <span aria-hidden className={`nav-wave-glow forced-colors:hidden ${waveMoves ? WAVE_GLOW_MOTION : ''}`} />
+        <span aria-hidden className={`nav-wave-line forced-colors:hidden ${waveMoves ? WAVE_LINE_MOTION : ''}`} />
         {tabs.map((tab) => (
           <NavLink
             key={tab.to}
