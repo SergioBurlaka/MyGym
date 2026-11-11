@@ -1,14 +1,15 @@
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import { formatCompactNumber, formatDate, formatKg } from '../utils/weight.js';
+import ChartSkeleton from './ChartSkeleton.js';
 
 type Point = { date: string; value: number | null; isPR?: boolean };
 
@@ -56,9 +57,30 @@ export default function ProgressChart({
   label: string;
 }) {
   const { t } = useTranslation();
+  // Recharts is the heaviest render here (Progress page: four of these took
+  // ~360 ms of a 4x-throttled phone's main thread at once, the tap that opened
+  // the page froze until they were done). So the chart is drawn in a transition
+  // after the page shows: React renders it in slices and keeps taps and
+  // animations going. Until then its skeleton, of the chart's height, so nothing
+  // jumps. The width is measured here, also in a transition - Recharts'
+  // ResponsiveContainer measures itself and sets its state outside of one, which
+  // renders the whole chart in one blocking go again.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
   const points = data.filter((d) => d.value != null);
+  const hasPoints = points.length > 0;
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const observer = new ResizeObserver(() => {
+      const w = Math.floor(box.clientWidth);
+      startTransition(() => setWidth(w));
+    });
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [hasPoints]);
 
-  if (points.length === 0) {
+  if (!hasPoints) {
     return <p className="py-8 text-center text-sm text-slate-400">{emptyLabel}</p>;
   }
 
@@ -75,9 +97,11 @@ export default function ProgressChart({
   });
 
   return (
-    <div role="img" aria-label={summary}>
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+    <div ref={boxRef} role="img" aria-label={summary} className="h-[220px]">
+      {width === 0 ? (
+        <ChartSkeleton className="h-full" />
+      ) : (
+        <LineChart width={width} height={220} data={points} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" vertical={false} />
           <XAxis
             dataKey="date"
@@ -97,7 +121,7 @@ export default function ProgressChart({
             isAnimationActive={false}
           />
         </LineChart>
-      </ResponsiveContainer>
+      )}
     </div>
   );
 }
