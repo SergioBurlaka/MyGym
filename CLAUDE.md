@@ -175,6 +175,10 @@ en/uk, автовизначення мови з браузера (див. "Ст�
   `formatCompactNumber` (осі; слово «тис.»/«K» — з мови). Усі йдуть через приватну
   `formatNumber` (`Intl.NumberFormat.formatToParts`: `decimal` → «.», `group` прибирається).
   Введення з комою приймає `parseKg`. Тест — `utils/weight.test.ts`.
+- **Intl-форматери кешуються** на сесію за (локаль, JSON опцій) — `cached` у `utils/weight.ts`:
+  створення форматера на кожен виклик заморожувало графіки. `formatDate` — кешований
+  `Intl.DateTimeFormat`, що дає той самий вивід, що й `toLocaleDateString`, лише коли в опціях є
+  поле дати — новий виклик `formatDate` мусить його мати.
 - Дати й тривалість — мовозалежні (`formatDate`/`formatDuration` у `utils/weight.ts`).
   Ці функції читають `i18n.language` напряму — plain-функції поза React-деревом, не хуки.
 - **Назви вправ НЕ перекладаються** — це дані користувача (свої/сідовані при
