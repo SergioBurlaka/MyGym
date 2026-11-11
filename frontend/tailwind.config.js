@@ -25,13 +25,15 @@ export default {
       boxShadow: {
         // The active tab's square in the bottom panel: a soft accent glow.
         'nav-active': '0 4px 14px rgba(255,90,54,0.35)',
-        // The bottom panel: a light shadow that only separates its edge from the
-        // content (a heavy one ate the card above it on a phone) and a highlight on
-        // its top edge. With the "More" sheet open only the highlight stays: the
-        // panel is above the sheet then, and the shadow would darken its last row.
+        // The bottom panel, in the accent so it stands out from the page it shares
+        // a colour with: a thin 4px ring outside the border, an upward glow and a
+        // warm highlight on its top edge. The ring doesn't take layout room - it
+        // fits in the panel's 6px gap. With the "More" sheet open there is no
+        // upward glow: the panel is above the sheet then, and it would tint its
+        // last row. Not brighter - the user had it toned down to this.
         'nav-panel':
-          '0 -6px 16px rgba(0,0,0,0.35), 0 -1px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.07)',
-        'nav-panel-open': 'inset 0 1px 0 rgba(255,255,255,0.07)',
+          '0 0 0 4px rgba(255,90,54,0.07), 0 -8px 30px rgba(255,90,54,0.28), inset 0 1px 0 rgba(255,140,110,0.14)',
+        'nav-panel-open': '0 0 0 4px rgba(255,90,54,0.07), inset 0 1px 0 rgba(255,140,110,0.14)',
       },
       fontFamily: {
         display: ['"Bebas Neue"', 'system-ui', 'sans-serif'],
