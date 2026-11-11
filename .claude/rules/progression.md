@@ -12,6 +12,7 @@ paths:
   - "frontend/src/components/TryMoreStatusBadge.tsx"
   - "frontend/src/components/ProgressionBadge.tsx"
   - "frontend/src/components/ProgressChart.tsx"
+  - "frontend/src/components/ChartSkeleton.tsx"
   - "frontend/src/components/WeeklyCategoryChart.tsx"
   - "frontend/src/utils/weeklyVolume*.ts"
   - "frontend/src/pages/ProgressPage.tsx"
@@ -207,6 +208,15 @@ paths:
   поточного року), «Тренувань без прогресу» — «N з M тренувань» (`progressStatus.ofWorkouts`).
   Вправа, у якої в жодній сесії нема ваги (`hasWeight`), не показує графіків робочої ваги й 1ПМ;
   без історії — видно всі чотири, кожен зі своїм порожнім підписом.
+- **Завантаження графіків на «Прогресі»:** історія йде через `useDeferredValue` пари
+  `{id, data}` — плитка підсвічується одразу, графіки перемальовуються у фоні. `chartsLoading`
+  (запит pending, відкладене значення — іншої вправи, або ще порожнє) → справжні картки
+  (заголовок + опис), а замість кожного графіка `ChartSkeleton` — без зсуву макета й без старих
+  ліній під новою назвою; скільки карток (2 чи 4) — вгадує з огляду (`lastWorkoutDate`/
+  `lastTotalWeightKg`). Рефетч тієї ж вправи — графіки `opacity-50`. Тижневий графік pending →
+  `WeeklyChartSkeleton` (421 px телефон / 342 px від `sm`, як справжній). Під час завантаження —
+  sr-only `role="status"` (`common.loadingChart` / `common.loading`). Сітки графіків —
+  `grid-cols-1`: неявна колонка не стискається нижче піксельної ширини графіка.
 - `GET /api/progression/volume-by-category?weeks=all|N` — сума обсягу по (ISO-тиждень, категорія)
   лише за тижні з підходами; `all` — уся історія (так кличе «Прогрес»), число — вікно 1–52, default 12,
   назад від `getUserToday`.
@@ -230,3 +240,7 @@ paths:
   `strokeDasharray`, і в цьому проєкті анімація стабільно застрягає на першому
   кадрі (лінія невидима, хоч шлях у SVG правильний) — тому `isAnimationActive={false}`
   на `<Line>` в `ProgressChart.tsx`.
+- **Gotcha:** у `ProgressChart.tsx` **без `ResponsiveContainer`** — він міряє себе й робить
+  setState поза transition, і весь графік рендериться одним блокуючим проходом (заморожував
+  «Прогрес»). Ширину міряє власний `ResizeObserver` і ставить у `startTransition`, `LineChart`
+  отримує явні `width` і `height` 220; поки ширина 0 — `ChartSkeleton`.

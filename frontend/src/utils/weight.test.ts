@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDecimal, formatKg, formatStepKg, parseKg } from './weight.js';
+import { formatCompactNumber, formatDate, formatDecimal, formatKg, formatStepKg, parseKg } from './weight.js';
 
 describe('parseKg', () => {
   it('reads a point and a comma alike', () => {
@@ -48,5 +48,32 @@ describe.each(['uk', 'en'])('number format (%s): decimal point, no thousands sep
     expect(formatDecimal(16.14, 1)).toBe('16.1');
     expect(formatCompactNumber(1500)).toMatch(/^1\.5/);
     expect(formatCompactNumber(12000)).not.toMatch(/,/);
+  });
+});
+
+// Formatters are cached per language and options (weight.ts) - a language
+// switch must not keep the other language's formatter.
+describe('formatter cache', () => {
+  afterEach(() => {
+    lang.language = 'uk';
+  });
+
+  it('follows the current language', () => {
+    lang.language = 'en';
+    const en = formatDate('2026-03-05', { day: 'numeric', month: 'long' });
+    lang.language = 'uk';
+    const uk = formatDate('2026-03-05', { day: 'numeric', month: 'long' });
+    expect(en).toBe('March 5');
+    expect(uk).toBe('5 березня');
+    lang.language = 'en';
+    expect(formatDate('2026-03-05', { day: 'numeric', month: 'long' })).toBe(en);
+  });
+
+  it('keeps options apart', () => {
+    lang.language = 'en';
+    expect(formatDate('2026-03-05', { day: '2-digit', month: '2-digit' })).toBe('03/05');
+    expect(formatDate('2026-03-05', { day: 'numeric', month: 'long' })).toBe('March 5');
+    expect(formatStepKg(1)).toBe('1.00');
+    expect(formatKg(1)).toBe('1');
   });
 });

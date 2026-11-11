@@ -105,13 +105,34 @@ export function formatDuration(
   return h > 0 ? i18n.t('duration.hoursMinutes', { h, m }) : i18n.t('duration.minutes', { m });
 }
 
+// Building an Intl formatter is slow (ICU data, ~0.3 ms each and far more on a
+// phone), and charts format hundreds of ticks, tooltips and labels per render -
+// new formatters per call froze the Progress page for most of a second. So one
+// formatter per (locale, options), kept for the session: a handful in all.
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
+function uiLocale() {
+  return i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
+}
+
+function cached<F>(cache: Map<string, F>, locale: string, options: object, make: () => F): F {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = cache.get(key);
+  if (!formatter) {
+    formatter = make();
+    cache.set(key, formatter);
+  }
+  return formatter;
+}
+
 // One number format in both languages (user's decision): a decimal POINT,
 // never a comma, and no thousands separator - "40.5", "16.25", "172063".
 // Words stay the language's own ("12 тис." / "12K"). Every number shown
 // to the user goes through here; typing a comma still works (parseKg).
 function formatNumber(value: number, options: Intl.NumberFormatOptions): string {
-  const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
-  return new Intl.NumberFormat(locale, options)
+  const locale = uiLocale();
+  return cached(numberFormats, locale, options, () => new Intl.NumberFormat(locale, options))
     .formatToParts(value)
     .map((part) => (part.type === 'decimal' ? '.' : part.type === 'group' ? '' : part.value))
     .join('');
@@ -139,9 +160,10 @@ export function formatCompactNumber(value: number): string {
 }
 
 // Locale-aware date formatter driven by the current UI language, not a
-// fixed 'uk-UA' - used everywhere a workout/history date is shown.
+// fixed 'uk-UA' - used everywhere a workout/history date is shown. Same output
+// as toLocaleDateString while `opts` has a date field (every caller's does).
 export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' }): string {
   const d = new Date(`${iso}T00:00:00`);
-  const locale = i18n.language?.startsWith('uk') ? 'uk-UA' : 'en-US';
-  return d.toLocaleDateString(locale, opts);
+  const locale = uiLocale();
+  return cached(dateFormats, locale, opts, () => new Intl.DateTimeFormat(locale, opts)).format(d);
 }
