@@ -6,6 +6,7 @@ paths:
   - "frontend/src/components/NavIcons.tsx"
   - "frontend/src/components/LanguageSwitcher.tsx"
   - "frontend/src/utils/initials.ts"
+  - "frontend/src/utils/navWave*.ts"
   - "frontend/src/App.tsx"
   - "frontend/src/pages/ProgramsPage.tsx"
   - "frontend/src/styles/index.css"
@@ -14,7 +15,8 @@ paths:
 # Навігація: хедер, нижня панель, меню акаунта
 
 Макети — `docs/tasks/design/NavMobileA.dc.html` (аркуш «Додатково», поведінка) і
-`docs/tasks/design/NavFloatingRounded.dc.html` (панель), `NavRoundedPanel.dc.html` (таби). Межа — `lg` (1024 px): нижче п'ять
+`docs/tasks/design/NavFloatingRounded.dc.html` (панель), `NavRoundedPanel.dc.html` (таби),
+`NavNeonWave.dc.html` (акцентна рамка, світіння, хвиля). Межа — `lg` (1024 px): нижче п'ять
 посилань разом із таймером не вміщаються в хедер. Усе навігаційне рендериться лише для
 залогіненого (`if (!user) return null`).
 
@@ -35,14 +37,37 @@ paths:
   Програми, Прогрес, Вправи — і кнопка «Додатково» (`aria-haspopup="dialog"`, `aria-expanded`).
 - **Панель** — плаваюча капсула: 6 px від низу (`PANEL_GAP` + inset у `bottom`) і з боків
   (`max(6px, inset)` у класах), радіус 24 з усіх боків (`rounded-[24px]`). Фон `bg-surface` — колір
-  сторінки, рамка `border-surface-border` по всьому контуру. Висота 66 px, без inset: рамка 2 + padding
+  сторінки, рамка 1 px `border-accent/80` по всьому контуру (1.5 px з макета Chromium малює як 1 px). Висота 66 px, без inset: рамка 2 + padding
   4+4 (`py-1`) + таб 56, тож іконки рівно посередині; з боків padding 6 px (`px-1.5`). Home-indicator
   inset іде у відступ панелі від низу, а не всередину. У щілини під панеллю й з боків видно сторінку.
-- **Тінь панелі** — токени в `frontend/tailwind.config.js`. `shadow-nav-panel`: легка тінь угору, що
-  лише відділяє край панелі від вмісту (важка з'їдала картку над панеллю на телефоні), і внутрішній
-  1 px відблиск на верхньому краї. При відкритому аркуші —
-  `shadow-nav-panel-open`, лише відблиск: панель тоді вище за аркуш, і тінь затемнювала б його
-  останній рядок.
+- **Тінь панелі** — токени в `frontend/tailwind.config.js`, в `accent`, бо панель одного кольору зі
+  сторінкою. `shadow-nav-panel`: зовнішнє кільце 4 px (місця в розкладці не займає — вміщується в
+  зазор 6 px), світіння вгору `0 -8px 30px` і теплий внутрішній 1 px відблиск на верхньому краї. При
+  відкритому аркуші — `shadow-nav-panel-open`: кільце й відблиск, без світіння вгору — панель тоді вище
+  за аркуш, і світіння підфарбовувало б його останній рядок. Яскравість рамки, тіні й хвилі —
+  приглушена на вимогу користувача, не підвищувати.
+- **Хвиля** — два декоративні `span aria-hidden` у `<nav>` під табами: `.nav-wave-line` (110×3,
+  `top: -2px`, на верхньому краї) і `.nav-wave-glow` (180×52, м'яке світіння під лінією). Класи — у
+  `@layer components` `styles/index.css`; світліші тони акценту (`#ff6a45`, `#ffb199`) живуть лише там.
+  Таби — `relative` (`TAB_CLASS`), тож малюються поверх шарів.
+  - **Ціль** — клітинка (батько) квадрата з `data-nav-active`, а це та сама умова, що й підсвітка в
+    `squareClass`: зокрема «Додатково», коли аркуш відкритий або маршрут — пункт аркуша. Центр —
+    `offsetLeft + offsetWidth / 2` клітинки; позиції рахує й обмежує чиста `navWavePositions`
+    (`utils/navWave.ts`, тест `navWave.test.ts`): лінія — не ближче `NAV_WAVE_INSET` (14) до країв, щоб
+    не заходити на заокруглені кути, світіння — в межах панелі. `NAV_WAVE_LINE_W`/`NAV_WAVE_GLOW_W`
+    мусять збігатися з шириною класів у CSS.
+  - `useLayoutEffect` (до відмальовки) пише на `<nav>` змінні `--wave-x`, `--glow-x`, `--wave-o`.
+    Підсвіченого таба нема (сторінка тренування, 404) → `--wave-o: 0`, хвиля гасне там, де була.
+    Поки `nav.clientWidth` = 0 (`lg+`, `display: none`) `place()` нічого не робить.
+  - **Переходи** — класи Tailwind на `transform` і `opacity`: лінія 420 ms, світіння 450 ms (легкий
+    шлейф), `cubic-bezier(.22,1,.36,1)`. Вмикаються станом `waveMoves` через кадр (`requestAnimationFrame`)
+    після першого вдалого розміщення — на першому рендері хвиля не їде.
+  - **Ресайз** (поворот, safe area, повернення нижче `lg`) — `ResizeObserver` ставить хвилю одразу:
+    inline `transition: none` → `place()` → reflow (`offsetWidth`) → перехід назад. Перше сповіщення
+    `observe()` пропускається: ефект перепідписується на кожну зміну `pathname`/`moreActive`, і це
+    сповіщення обірвало б ковзання при перемиканні таба.
+  - `motion-reduce:transition-none`; у forced-colors обидва шари `hidden` — там таб і так показує
+    квадрат `Highlight`.
 - **Таби:** `grid-cols-5`, кожен займає свою п'яту частину. Тап-зона — уся клітинка заввишки 56 px
   (`h-14`), стан показує квадрат усередині: 44×44, радіус 12 (`rounded-xl`) — форма логотипа (36 px /
   радіус 9). Активний — `bg-accent`, біла іконка `text-white` (3.1:1 на `accent`; `slate-100`, як у
