@@ -49,7 +49,12 @@ export default function ProgressPage() {
   const historyQuery = useProgressionHistoryQuery(selectedId);
   // Deferred: a new history (loaded, or another tile tapped) re-renders the
   // charts in the background - the tile lights up at once (see ProgressChart).
-  const history = useDeferredValue(historyQuery.data ?? EMPTY_HISTORY);
+  // While the charts still show the old value: a skeleton when they have
+  // nothing yet (four "no data" would flash), else the old charts dimmed.
+  const freshHistory = historyQuery.data ?? EMPTY_HISTORY;
+  const history = useDeferredValue(freshHistory);
+  const chartsStale = history !== freshHistory;
+  const chartsLoading = historyQuery.isPending || (chartsStale && history === EMPTY_HISTORY);
 
   const selected = useMemo(
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
@@ -165,22 +170,33 @@ export default function ProgressPage() {
             </dl>
           </div>
 
-          {historyQuery.isPending ? (
-            // The four chart cards' shape: heading, description, chart.
-            <div role="status" className="grid gap-4 sm:grid-cols-2">
+          {chartsLoading ? (
+            // The four chart cards' shape: heading (20px line), description (16px),
+            // chart - the same heights as the real cards.
+            // grid-cols-1, not an implicit column: that one doesn't shrink below a
+            // chart's pixel width when the screen narrows.
+            <div role="status" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <span className="sr-only">{t('common.loadingChart')}</span>
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} aria-hidden className="card">
-                  <div className="animate-pulse space-y-2 motion-reduce:animate-none">
-                    <span className="block h-3.5 w-36 rounded bg-surface-border" />
-                    <span className="mb-2 block h-3 w-full rounded bg-surface-border" />
+                  <div className="animate-pulse motion-reduce:animate-none">
+                    <div className="flex h-5 items-center">
+                      <span className="h-3.5 w-36 rounded bg-surface-border" />
+                    </div>
+                    <div className="mb-2 mt-1 flex h-4 items-center">
+                      <span className="h-3 w-full rounded bg-surface-border" />
+                    </div>
                   </div>
-                  <ChartSkeleton className="mt-3 h-[220px]" />
+                  <ChartSkeleton />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div
+              className={`grid grid-cols-1 gap-4 transition-opacity motion-reduce:transition-none sm:grid-cols-2 ${
+                chartsStale ? 'opacity-50' : ''
+              }`}
+            >
               {hasWeight && (
                 <div className="card">
                   <h3 className="text-sm uppercase tracking-wide text-slate-400">{t('progress.charts.workingWeightTitle')}</h3>
