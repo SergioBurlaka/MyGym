@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
@@ -6,6 +6,7 @@ import {
   useProgressionQuery,
   useVolumeByCategoryQuery,
 } from '../shared/api/progression/index.js';
+import ChartSkeleton, { WeeklyChartSkeleton } from '../components/ChartSkeleton.js';
 import ProgressChart from '../components/ProgressChart.js';
 import ProgressionBadge from '../components/ProgressionBadge.js';
 import WeeklyCategoryChart from '../components/WeeklyCategoryChart.js';
@@ -13,6 +14,9 @@ import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import { formatDate, formatKg } from '../utils/weight.js';
 import { tryMoreStatus, tryMoreUrgency } from '../utils/tryMoreCountdown.js';
+
+// One stable empty list: a new [] every render would never let the deferred value settle.
+const EMPTY_HISTORY: never[] = [];
 
 export default function ProgressPage() {
   const { t } = useTranslation();
@@ -43,7 +47,9 @@ export default function ProgressPage() {
   const selectedId = manualSelectedId ?? defaultSelectedId;
 
   const historyQuery = useProgressionHistoryQuery(selectedId);
-  const history = historyQuery.data ?? [];
+  // Deferred: a new history (loaded, or another tile tapped) re-renders the
+  // charts in the background - the tile lights up at once (see ProgressChart).
+  const history = useDeferredValue(historyQuery.data ?? EMPTY_HISTORY);
 
   const selected = useMemo(
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
@@ -77,7 +83,10 @@ export default function ProgressPage() {
         <p className="mt-0.5 text-[13px] text-slate-400">{t('progress.weeklyVolumeDescription')}</p>
         <div className="mt-3">
           {volumeByCategoryQuery.isPending ? (
-            <p className="text-slate-400">{t('common.loading')}</p>
+            <div role="status">
+              <span className="sr-only">{t('common.loading')}</span>
+              <WeeklyChartSkeleton />
+            </div>
           ) : (
             <WeeklyCategoryChart data={volumeByCategoryQuery.data ?? []} />
           )}
@@ -157,7 +166,19 @@ export default function ProgressPage() {
           </div>
 
           {historyQuery.isPending ? (
-            <p className="text-slate-400">{t('common.loadingChart')}</p>
+            // The four chart cards' shape: heading, description, chart.
+            <div role="status" className="grid gap-4 sm:grid-cols-2">
+              <span className="sr-only">{t('common.loadingChart')}</span>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} aria-hidden className="card">
+                  <div className="animate-pulse space-y-2 motion-reduce:animate-none">
+                    <span className="block h-3.5 w-36 rounded bg-surface-border" />
+                    <span className="mb-2 block h-3 w-full rounded bg-surface-border" />
+                  </div>
+                  <ChartSkeleton className="mt-3 h-[220px]" />
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {hasWeight && (
