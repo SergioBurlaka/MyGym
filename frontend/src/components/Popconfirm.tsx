@@ -11,6 +11,7 @@ export default function Popconfirm({
   confirmText,
   cancelText,
   onConfirm,
+  onOpenChange,
   children,
 }: {
   title: string;
@@ -18,6 +19,9 @@ export default function Popconfirm({
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
+  // Called when the panel opens and once it has finished closing - e.g. to
+  // lift the trigger's wrapper above the next card while it's open.
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -34,6 +38,7 @@ export default function Popconfirm({
     closeTimeout.current = setTimeout(() => {
       setOpen(false);
       setClosing(false);
+      onOpenChange?.(false);
     }, CLOSE_ANIMATION_MS);
   }
 
@@ -45,6 +50,7 @@ export default function Popconfirm({
     clearTimeout(closeTimeout.current);
     setClosing(false);
     setOpen(true);
+    onOpenChange?.(true);
   }
 
   useEffect(() => {
