@@ -56,7 +56,6 @@ erDiagram
         enum category "large | small | bodyweight"
         smallint rep_range_min
         smallint rep_range_max
-        numeric weight_step_kg "0-50"
         boolean unilateral
         enum limb "arm | leg, лише з unilateral"
         numeric default_bar_kg "0-50, лише штанга"
@@ -270,8 +269,7 @@ dimension (type 2)**: замість перезапису історії дод�
 правила прогресії для вправи:
 
 - `category` (`large`/`small`/`bodyweight`) визначає логіку підказок;
-- `rep_range_min`/`rep_range_max` задають діапазон повторень (6–15 / 6–20 / 6–30);
-- `weight_step_kg` — крок ваги **на одну сторону/гантель** (1.25 / 0.5).
+- `rep_range_min`/`rep_range_max` задають діапазон повторень (6–15 / 6–20 / 6–30).
 
 `equipment` описує інвентар (`barbell`/`dumbbell`/`bodyweight`) і від категорії
 не залежить. Приклад: «Жим стоячи» — штанга, але категорія `small` через травму плеча.
@@ -386,7 +384,6 @@ dimension (type 2)**: замість перезапису історії дод�
 | `api_tokens_kind_check` | `grant_id` і `expires_at` або обидва є (OAuth-токен), або обох нема (PAT) |
 | `exercises_user_name_idx` UNIQUE | `(user_id, lower(btrim(name)))` — **разом з архівними** |
 | `exercises_rep_range_check` | `1 ≤ min ≤ max ≤ 100` |
-| `exercises_weight_step_check` | 0…50 кг |
 | `exercises_default_bar_check` | `default_bar_kg` 0…50 кг і **лише для штанги** (міграція 0026) |
 | `exercises_limb_check` | `limb` лише з `unilateral` (міграція 0026) |
 | `program_exercises_try_more_check` | 1…60 (або `null`) |
