@@ -222,12 +222,6 @@
       "equipDumbbell1": "1 гантель",
       "equipDumbbell2": "2 гантелі",
       "equipBodyweight": "Власна вага",
-      "limbs": {
-        "together": "кінцівки разом",
-        "arm": "кожна рука окремо",
-        "leg": "кожна нога окремо",
-        "side": "кожна сторона окремо"
-      },
       "limbsPlural": {
         "arm": "руки",
         "leg": "ноги",
@@ -244,11 +238,6 @@
         "leg": "Підходи · повт. на кожну ногу",
         "side": "Підходи · повт. на кожну сторону"
       },
-      "loadBarbell": "Гриф {{bar}} + 2 × {{plates}} = {{total}} кг",
-      "loadDumbbell2": "2 × {{weight}} = {{total}} кг в одному повторенні",
-      "loadDumbbell1": "{{weight}} кг в одному повторенні",
-      "loadBodyweightExtra": "Власна вага + {{weight}} кг",
-      "loadBodyweightOnly": "Тільки власна вага",
       "lastTime": "Минулого разу ({{date}}): {{reps}}{{perLimb}}",
       "targetSuffix": " → сьогодні +1 у підході {{set}}",
       "volumeTitle": "Обсяг сьогодні",

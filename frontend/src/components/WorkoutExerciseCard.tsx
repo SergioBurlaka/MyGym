@@ -192,7 +192,6 @@ export default function WorkoutExerciseCard({
     : isDumbbell
       ? t(block.weightUnits === 1 ? 'workout.card.equipDumbbell1' : 'workout.card.equipDumbbell2')
       : t('workout.card.equipBodyweight');
-  const limbsLabel = t(limb ? `workout.card.limbs.${limb}` : 'workout.card.limbs.together');
 
   const load = hasWeight
     ? loadPerRep(exercise.equipment, {
@@ -201,17 +200,15 @@ export default function WorkoutExerciseCard({
         barKg: block.barKg,
       })
     : null;
+  // How one rep's weight adds up, for the volume line: "(8 + 2 × 20)" for a
+  // barbell, "2 × 10" for two dumbbells, the plain weight otherwise. Only
+  // numbers and signs - the same in both languages.
   const weight = parseKg(block.weightPerUnitKg);
-  let loadLine: string | null = null;
-  if (load != null && Number.isFinite(load)) {
-    if (isBarbell) loadLine = t('workout.card.loadBarbell', { bar: kg(Number(block.barKg)), plates: kg(weight), total: kg(load) });
-    else if (isDumbbell)
-      loadLine = block.weightUnits === 2
-        ? t('workout.card.loadDumbbell2', { weight: kg(weight), total: kg(load) })
-        : t('workout.card.loadDumbbell1', { weight: kg(weight) });
-    else loadLine = load > 0 ? t('workout.card.loadBodyweightExtra', { weight: kg(load) }) : t('workout.card.loadBodyweightOnly');
-  } else if (!isBarbell && !isDumbbell) {
-    loadLine = t('workout.card.loadBodyweightOnly');
+  let loadExpr = load != null ? kg(load) : '';
+  if (load != null && Number.isFinite(weight) && weight > 0) {
+    const bar = Number(block.barKg) || 0;
+    if (isBarbell) loadExpr = bar > 0 ? `(${kg(bar)} + 2 × ${kg(weight)})` : `2 × ${kg(weight)}`;
+    else if (isDumbbell && block.weightUnits === 2) loadExpr = `2 × ${kg(weight)}`;
   }
 
   // Last time's weight as the weight field's placeholder; a tap fills it in
@@ -242,8 +239,8 @@ export default function WorkoutExerciseCard({
   if (totalReps > 0) {
     if (load != null && load > 0) {
       volumeLine = sides === 2
-        ? t('workout.card.volumeSides', { load: kg(load), reps: totalReps, limbs: t(`workout.card.limbsPlural.${limb}`), total: kg(load * totalReps * 2) })
-        : t('workout.card.volume', { load: kg(load), reps: totalReps, total: kg(load * totalReps) });
+        ? t('workout.card.volumeSides', { load: loadExpr, reps: totalReps, limbs: t(`workout.card.limbsPlural.${limb}`), total: kg(load * totalReps * 2) })
+        : t('workout.card.volume', { load: loadExpr, reps: totalReps, total: kg(load * totalReps) });
     } else {
       volumeLine = t('workout.card.volumeReps', { count: totalReps * sides });
     }
@@ -309,8 +306,6 @@ export default function WorkoutExerciseCard({
       <div className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
         <EquipmentIcon equipment={exercise.equipment} units={block.weightUnits} filled size={18} className="text-accent" />
         <span className="font-semibold text-slate-100">{equipLabel}</span>
-        <span className="text-hint" aria-hidden="true">·</span>
-        <span className={`font-semibold ${limb ? 'text-warn' : 'text-slate-300'}`}>{limbsLabel}</span>
       </div>
 
       {counter && <TryMoreStatusBadge status={counter} className="w-full" />}
@@ -363,7 +358,6 @@ export default function WorkoutExerciseCard({
             />
           </div>
         )}
-        {loadLine && <span className="text-right text-sm tabular-nums text-slate-300">{loadLine}</span>}
       </div>
 
       <div className="flex flex-col gap-2">
