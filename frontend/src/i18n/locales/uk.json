@@ -88,7 +88,6 @@
     "inProgress": "триває…",
     "autoFinished": "завершено автоматично",
     "emptyWorkout": "Порожньо — додайте вправи",
-    "perSide": "по {{weight}} кг на сторону",
     "reminderSessions_one": "{{count}} трен.",
     "reminderSessions_few": "{{count}} трен.",
     "reminderSessions_many": "{{count}} трен.",

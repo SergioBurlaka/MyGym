@@ -163,7 +163,7 @@ export default function DashboardPage() {
                     <li key={we.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5">
                       <span>
                         {we.exercise.name}:{' '}
-                        <SetsSummary workoutExercise={we} perSideClassName="ml-2 text-xs text-slate-400" />
+                        <SetsSummary workoutExercise={we} />
                       </span>
                       <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} />
                     </li>
@@ -382,14 +382,14 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
   );
 }
 
-// One exercise of the phone card: name over reps on the left, weight over the
-// per-side hint on the right - the two lower cells share a line, so the row's
-// height doesn't jump. Reads setsSummary() directly because SetsSummary's single
-// line can't be split across a grid; its rules stay: no sets is "—" and no
-// weight, bodyweight leaves the right column empty.
+// One exercise of the phone card: name with the weight on its right, the reps
+// below across the whole width - the reps line is always there ("—" without
+// sets), so the row's height doesn't jump. Reads setsSummary() directly because
+// SetsSummary's single line can't be split across a grid; its rules stay: no
+// sets is "—" and no weight, bodyweight leaves the weight cell empty.
 function JournalExerciseRow({ workoutExercise: we }: { workoutExercise: WorkoutExercise }) {
   const { t } = useTranslation();
-  const { totalKg, perSideKg, reps } = setsSummary(we);
+  const { totalKg, reps } = setsSummary(we);
   const done = reps.length > 0;
 
   return (
@@ -398,10 +398,7 @@ function JournalExerciseRow({ workoutExercise: we }: { workoutExercise: WorkoutE
       <span className="whitespace-nowrap text-right text-[17px] font-bold tabular-nums text-slate-100">
         {done && totalKg != null && `${formatKg(totalKg)} ${t('common.kg')}`}
       </span>
-      <span className="text-sm tabular-nums text-slate-300">{done ? reps.join(' · ') : '—'}</span>
-      <span className="whitespace-nowrap text-right text-xs text-hint">
-        {done && perSideKg != null && t('dashboard.perSide', { weight: formatKg(perSideKg) })}
-      </span>
+      <span className="col-span-2 text-sm tabular-nums text-slate-300">{done ? reps.join(' · ') : '—'}</span>
       <span className="col-span-2 mt-1.5 empty:hidden">
         <TryMoreStatusBadge status={journalTryMoreStatus(we.progressAt)} variant="row" />
       </span>

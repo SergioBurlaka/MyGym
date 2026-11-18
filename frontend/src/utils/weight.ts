@@ -66,16 +66,14 @@ export function lastRepsForSet(lastReps: number[], index: number): number | null
 
 // The numbers behind a journal line (components/SetsSummary.tsx): weight in
 // one rep (null without weight - 0 kg counts as none, as in the progression
-// rules), the plates per side for a barbell, and reps in set order.
+// rules) and reps in set order.
 export function setsSummary(we: LoggedLoad & {
   exercise: { equipment: Equipment };
   sets: { setNumber: number; reps: number }[];
-}): { totalKg: number | null; perSideKg: number | null; reps: number[] } {
+}): { totalKg: number | null; reps: number[] } {
   const totalKg = loadPerRep(we.exercise.equipment, we);
-  const weighted = totalKg != null && totalKg > 0;
   return {
-    totalKg: weighted ? totalKg : null,
-    perSideKg: weighted && we.exercise.equipment === 'barbell' ? Number(we.weightPerUnitKg) : null,
+    totalKg: totalKg != null && totalKg > 0 ? totalKg : null,
     reps: [...we.sets].sort((a, b) => a.setNumber - b.setNumber).map((s) => s.reps),
   };
 }
