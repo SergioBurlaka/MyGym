@@ -217,9 +217,6 @@ export const exercises = pgTable('exercises', {
   category: muscleCategoryEnum('category').notNull(),
   repRangeMin: smallint('rep_range_min').notNull(),
   repRangeMax: smallint('rep_range_max').notNull(),
-  // Weight increment applied to ONE side/unit (e.g. one side of the barbell,
-  // or one dumbbell) when the user hits the top of the rep range.
-  weightStepKg: numeric('weight_step_kg', { precision: 5, scale: 2 }).notNull().default('0.5'),
   // false - limbs work together; true - left and right one after the other,
   // reps are logged per side and the volume counts both (see load.ts).
   unilateral: boolean('unilateral').notNull().default(false),
@@ -245,7 +242,6 @@ export const exercises = pgTable('exercises', {
     'exercises_rep_range_check',
     sql`${table.repRangeMin} >= 1 AND ${table.repRangeMax} <= 100 AND ${table.repRangeMin} <= ${table.repRangeMax}`,
   ),
-  weightStepCheck: check('exercises_weight_step_check', sql`${table.weightStepKg} BETWEEN 0 AND 50`),
   defaultBarCheck: check(
     'exercises_default_bar_check',
     sql`${table.defaultBarKg} IS NULL OR (${table.defaultBarKg} BETWEEN 0 AND 50 AND ${table.equipment} = 'barbell')`,

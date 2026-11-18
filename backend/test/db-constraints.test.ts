@@ -78,7 +78,6 @@ describe('check constraints', () => {
     // No weight but units set.
     await rejected(db.update(workoutExercises).set({ weightPerUnitKg: null }).where(eq(workoutExercises.id, we.id)));
     await rejected(db.update(exercises).set({ repRangeMin: 20, repRangeMax: 10 }).where(eq(exercises.id, exerciseId)));
-    await rejected(db.update(exercises).set({ weightStepKg: '51' }).where(eq(exercises.id, exerciseId)));
     await rejected(db.update(programExercises).set({ targetSets: 0 }).where(eq(programExercises.exerciseId, exerciseId)));
     await rejected(db.update(programExercises).set({ tryMoreAfterWorkouts: 0 }).where(eq(programExercises.exerciseId, exerciseId)));
     await rejected(db.update(users).set({ trainingDurationMin: 5 }).where(eq(users.id, userId)));
