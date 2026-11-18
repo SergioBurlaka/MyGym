@@ -265,7 +265,10 @@ export default function WorkoutExerciseCard({
   // nor a stall yet). The status words ("✓ Progress"...) switch with it.
   const todayCounts = saved?.progressAt != null && saved.sets.length >= (previous?.reps.length || 1);
   const tryMore = todayCounts ? journalTryMoreStatus(saved?.progressAt) : ({ kind: 'unknown' } as const);
-  const showStatusChip = tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due';
+  // The counter bar below already shows the countdown, "due" and the reset
+  // after a break ("0 of N") - the chip only adds what the bar doesn't.
+  const showStatusChip =
+    tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due' && tryMore.kind !== 'after_break';
   const counter = counterStatus(todayCounts ? saved?.progressAt : saved?.counterBefore);
 
   return (
@@ -277,7 +280,8 @@ export default function WorkoutExerciseCard({
             <span className="badge bg-surface-border text-slate-300">
               {categoryLabel} · {exercise.repRangeMin}–{exercise.repRangeMax}
             </span>
-            {progression && (
+            {/* "On track" repeats the counter bar - only a call to act gets a badge. */}
+            {progression && progression.suggestion !== 'ok' && (
               <ProgressionBadge suggestion={progression.suggestion} title={progressionMessage(progression, t)} />
             )}
             {showStatusChip && <TryMoreStatusBadge status={tryMore} />}
