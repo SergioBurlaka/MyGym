@@ -89,9 +89,11 @@ export default function Popconfirm({
     const nav = document.querySelector<HTMLElement>('[data-bottom-nav]');
     const navTop = nav && nav.clientWidth > 0 ? nav.getBoundingClientRect().top : window.innerHeight;
     const limit = Math.min(navTop, window.innerHeight) - EDGE_GAP_PX;
-    const panelRect = panel.getBoundingClientRect();
-    const fitsBelow = panelRect.bottom <= limit;
-    const fitsAbove = trigger.getBoundingClientRect().top - panelRect.height - EDGE_GAP_PX >= EDGE_GAP_PX;
+    // offsetHeight, not the rect: the pop-in animation is scaling it down right now.
+    const height = panel.offsetHeight;
+    const triggerRect = trigger.getBoundingClientRect();
+    const fitsBelow = triggerRect.bottom + EDGE_GAP_PX + height <= limit;
+    const fitsAbove = triggerRect.top - EDGE_GAP_PX - height >= EDGE_GAP_PX;
     setAbove(!fitsBelow && fitsAbove);
   }, [open]);
 
