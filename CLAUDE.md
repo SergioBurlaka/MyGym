@@ -63,7 +63,8 @@ Express/NestJS, Drizzle над Prisma/TypeORM, Recharts над Chart.js, JWT н�
 | PAT, OAuth для MCP-клієнтів (CIMD, DCR, згода, іконки) | `.claude/rules/oauth-and-tokens.md` |
 | MCP-сервер (`mcp-server/`) | `.claude/rules/mcp-server.md` |
 | Вправи: унікальність назви, архів, однобічні, гриф | `.claude/rules/exercises.md` |
-| Прогресія: «Спробуй більше», перерви, ручний зсув, модель навантаження, аналітика | `.claude/rules/progression.md` |
+| Прогресія: «Спробуй більше», перерви, ручний зсув, модель навантаження | `.claude/rules/progression.md` |
+| Аналітика: історія вправи, сторінка «Прогрес», графіки, тижневий обсяг | `.claude/rules/progress-analytics.md` |
 | Журнал: пагінація, картка тренування (посилання), рядок вправи | `.claude/rules/journal.md` |
 | Тренування: сторінка тренування, автозбереження, автозавершення, таймер, екран, офлайн-банер, сторінка 404 | `.claude/rules/workouts.md` |
 | Шаблони А/Б і програми | `.claude/rules/programs.md` |
