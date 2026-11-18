@@ -120,7 +120,8 @@
     "exerciseCount_few": "{{count}} вправи",
     "exerciseCount_many": "{{count}} вправ",
     "exerciseCount_other": "{{count}} вправи",
-    "cardMenuLabel": "Дії з програмою {{name}}",
+    "editProgramAria": "Редагувати програму {{name}}",
+    "deleteProgramAria": "Видалити програму {{name}}",
     "setsLocked": "Підходи зафіксовано: на тренуванні не можна додавати й видаляти",
     "form": {
       "nameLabel": "Назва програми",
