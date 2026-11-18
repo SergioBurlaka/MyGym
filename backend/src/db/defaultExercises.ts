@@ -14,7 +14,6 @@ export type DefaultExercise = {
   category: 'large' | 'small' | 'bodyweight';
   repRangeMin: number;
   repRangeMax: number;
-  weightStepKg: string;
   // Set for a unilateral exercise (left and right one after the other).
   limb?: 'arm' | 'leg';
 };
@@ -23,17 +22,17 @@ export type DefaultExercise = {
 export const DEFAULT_BAR_KG = '20';
 
 export const DEFAULT_EXERCISES: DefaultExercise[] = [
-  { name: 'Присідання', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
-  { name: 'Випади', equipment: 'dumbbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25', limb: 'leg' },
-  { name: 'Жим штанги лежачи', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
-  { name: 'Тяга в нахилі', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
-  { name: 'Станова тяга', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' },
-  { name: 'Піднімання на біцепс', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
-  { name: 'Розведення в нахилі в сторону', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
-  { name: 'Розведення в сторону стоячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
-  { name: 'Французький жим сидячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5', limb: 'arm' },
-  { name: 'Жим стоячи', equipment: 'barbell', category: 'small', repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' },
-  { name: 'Віджимання', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30, weightStepKg: '0.5' },
-  { name: 'Підняття ніг на прес (шведська стінка)', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30, weightStepKg: '0.5' },
-  { name: 'Підняття корпусу на прес', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30, weightStepKg: '0.5' },
+  { name: 'Присідання', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15 },
+  { name: 'Випади', equipment: 'dumbbell', category: 'large', repRangeMin: 6, repRangeMax: 15, limb: 'leg' },
+  { name: 'Жим штанги лежачи', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15 },
+  { name: 'Тяга в нахилі', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15 },
+  { name: 'Станова тяга', equipment: 'barbell', category: 'large', repRangeMin: 6, repRangeMax: 15 },
+  { name: 'Піднімання на біцепс', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20 },
+  { name: 'Розведення в нахилі в сторону', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20 },
+  { name: 'Розведення в сторону стоячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20 },
+  { name: 'Французький жим сидячи', equipment: 'dumbbell', category: 'small', repRangeMin: 6, repRangeMax: 20, limb: 'arm' },
+  { name: 'Жим стоячи', equipment: 'barbell', category: 'small', repRangeMin: 6, repRangeMax: 20 },
+  { name: 'Віджимання', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30 },
+  { name: 'Підняття ніг на прес (шведська стінка)', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30 },
+  { name: 'Підняття корпусу на прес', equipment: 'bodyweight', category: 'bodyweight', repRangeMin: 6, repRangeMax: 30 },
 ];

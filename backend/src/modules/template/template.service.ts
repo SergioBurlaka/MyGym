@@ -126,7 +126,6 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
       category: ex.category,
       repRangeMin: ex.repRangeMin,
       repRangeMax: ex.repRangeMax,
-      weightStepKg: ex.weightStepKg,
       unilateral: ex.unilateral,
       limb: ex.limb,
       defaultBarKg: ex.defaultBarKg,

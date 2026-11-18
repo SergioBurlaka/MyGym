@@ -46,7 +46,6 @@ export type ExerciseProgression = {
   category: 'large' | 'small' | 'bodyweight';
   repRangeMin: number;
   repRangeMax: number;
-  weightStepKg: number;
   lastWorkoutDate: string | null;
   lastTotalWeightKg: number | null;
   lastMaxReps: number | null;
@@ -680,7 +679,6 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
 
   for (const ex of userExercises) {
     const history = buildHistoryPoints(rowsByExercise.get(ex.id) ?? [], ex);
-    const weightStepKg = Number(ex.weightStepKg);
     const fromPrograms = tryMoreAfterWorkoutsByExercise.get(ex.id);
     const tryMoreAfterWorkouts = effectiveTryMoreAfterWorkouts(fromPrograms, ex.category);
     const tryMoreIsDefault = fromPrograms == null || fromPrograms === DEFAULT_TRY_MORE_AFTER_WORKOUTS[ex.category];
@@ -692,7 +690,6 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
         category: ex.category,
         repRangeMin: ex.repRangeMin,
         repRangeMax: ex.repRangeMax,
-        weightStepKg,
         lastWorkoutDate: null,
         lastTotalWeightKg: null,
         lastMaxReps: null,
@@ -724,7 +721,6 @@ export async function getProgressionOverview(userId: string): Promise<ExercisePr
       category: ex.category,
       repRangeMin: ex.repRangeMin,
       repRangeMax: ex.repRangeMax,
-      weightStepKg,
       lastWorkoutDate: last.date,
       lastTotalWeightKg: last.totalWeightKg,
       lastMaxReps: last.maxReps,
