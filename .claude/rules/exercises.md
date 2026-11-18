@@ -27,3 +27,13 @@ paths:
   `exercises.form.weightStepHint`, прив'язана до поля через `aria-describedby`.
   Поле кроку зберігає введений рядок (число загубило б «0.» і кому), у число — `parseKg` (кома =
   крапка) у `toPayload`; не число або поза 0–50 → `exercises.form.weightStepInvalid`, запит не йде.
+- **Картка вправи (`ExerciseCard`): тап будь-де відкриває форму редагування на її місці**
+  (`editingId` у `ExercisesPage`, картку заміняє `EditExerciseForm`) — патерн «клікабельна картка»,
+  як `ProgramCard` (`.claude/rules/programs.md`): назва в `<h3>` — `<button>` (`aria-label`
+  `exercises.editExerciseAria` з назвою), розтягнутий на всю картку (`after:absolute after:inset-0`,
+  картка `relative`, `hover:border-accent/50`), кільце фокусу — на `::after` навколо картки. Меню дій
+  нема: єдина інша дія — смітник 44 px (`h-11 w-11`, `-my-1 -mr-2`), `aria-label`/`title`
+  `exercises.archiveExerciseAria` з назвою, `aria-expanded` = відкрите підтвердження; `Popconfirm`
+  `exercises.archiveConfirmTitle`/`archiveConfirmDescription`/`archiveConfirmText` →
+  `useArchiveExerciseMutation` (архів, не видалення). Обгортка смітника — `relative z-10`, поки
+  підтвердження відкрите (`onOpenChange`) — `z-30`, інакше панель опиняється під кнопкою наступної картки.
