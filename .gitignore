@@ -10,3 +10,5 @@ backend/node_modules/
 backups/
 # Let's Encrypt certificates and private keys - never commit
 certbot/
+# Throwaway API checks by the tester agent (tokens, responses)
+qa/
