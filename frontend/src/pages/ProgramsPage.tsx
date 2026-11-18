@@ -12,8 +12,7 @@ import { useProgressionQuery } from '../shared/api/progression/index.js';
 import type { ExerciseProgression, MuscleCategory, Program } from '../types/index.js';
 import Popconfirm from '../components/Popconfirm.js';
 import { translateApiError } from '../utils/apiError.js';
-import { DEFAULT_TRY_MORE_AFTER_WORKOUTS, tryMoreStatus } from '../utils/tryMoreCountdown.js';
-import TryMoreStatusBadge from '../components/TryMoreStatusBadge.js';
+import { DEFAULT_TRY_MORE_AFTER_WORKOUTS } from '../utils/tryMoreCountdown.js';
 import LockIcon from '../components/LockIcon.js';
 
 // Backend limits (programs.schema.ts).
@@ -109,7 +108,6 @@ export default function ProgramsPage() {
             key={program.id}
             program={program}
             exerciseById={exerciseById}
-            progressionById={progressionById}
             onEdit={() => setEditingId(program.id)}
           />
         ))}
@@ -121,12 +119,10 @@ export default function ProgramsPage() {
 function ProgramCard({
   program,
   exerciseById,
-  progressionById,
   onEdit,
 }: {
   program: Program;
   exerciseById: Map<string, { name: string; category: string }>;
-  progressionById: ProgressionById | null;
   onEdit: () => void;
 }) {
   const { t } = useTranslation();
@@ -211,11 +207,8 @@ function ProgramCard({
 
       <div className="divide-y divide-surface-border">
         {program.programExercises.map((pe) => (
-          <div
-            key={pe.id}
-            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm first:pt-0 last:pb-0"
-          >
-            <span className="min-w-0 text-slate-200">
+          <div key={pe.id} className="py-2 text-sm first:pt-0 last:pb-0">
+            <span className="text-slate-200">
               {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
               <span className="text-slate-400">×{pe.targetSets}</span>
               {pe.lockSets && (
@@ -224,30 +217,12 @@ function ProgramCard({
                 </span>
               )}
             </span>
-            {progressionById && (
-              <TryMoreCountdown
-                progression={progressionById.get(pe.exerciseId)}
-                threshold={
-                  pe.tryMoreAfterWorkouts ?? defaultThresholdOf(exerciseById.get(pe.exerciseId)?.category ?? pe.exercise.category)
-                }
-              />
-            )}
           </div>
         ))}
       </div>
 
     </div>
   );
-}
-
-function TryMoreCountdown({
-  progression,
-  threshold,
-}: {
-  progression: ExerciseProgression | undefined;
-  threshold: number;
-}) {
-  return <TryMoreStatusBadge status={tryMoreStatus(progression, threshold)} />;
 }
 
 
