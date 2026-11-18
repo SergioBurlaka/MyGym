@@ -157,7 +157,7 @@
       "availableLabel": "Exercises not in the program yet",
       "helpTitle": "How \"Try more\" is counted",
       "helpProgress": "It counts workouts of this exercise without progress. Progress is more volume (weight × reps of all sets) or a heavier weight. Skipped schedule days don't add to the count.",
-      "helpStandard": "The defaults come from research: reps vary by ±1 per set, so 3 workouts without growth only hint at a plateau, the 4th confirms it. Small exercises have a relatively bigger weight step, so they need ~1.5 times more attempts.",
+      "helpStandard": "The defaults come from research: reps vary by ±1 per set, so 3 workouts without growth only hint at a plateau, the 4th confirms it. Small exercises progress more slowly, so they need ~1.5 times more attempts.",
       "helpBreaks": "After a 10-13 day break the first workout back doesn't count; after 14+ days the count starts from zero."
     }
   },
@@ -322,9 +322,6 @@
       "category": "Category (progression rule)",
       "repRangeMin": "Min. reps",
       "repRangeMax": "Max. reps",
-      "weightStep": "Weight step, kg",
-      "weightStepHint": "0 — no added weight",
-      "weightStepInvalid": "The weight step must be a number from 0 to 50",
       "limbs": "Limbs",
       "defaultBar": "Default bar",
       "submit": "Save exercise",
@@ -345,8 +342,8 @@
       "large": "Large group",
       "small": "Small group",
       "bodyweight": "No weight",
-      "largeWithRange": "Large group (6-15, +1.25 kg step)",
-      "smallWithRange": "Small group (6-20, +0.50 kg step)",
+      "largeWithRange": "Large group (6-15)",
+      "smallWithRange": "Small group (6-20)",
       "bodyweightWithRange": "No weight (6-30)"
     },
     "filterLabel": "Filter by equipment",
@@ -355,8 +352,6 @@
     "editExerciseAria": "Edit exercise {{name}}",
     "archiveExerciseAria": "Remove exercise {{name}}",
     "repsChip": "{{min}}–{{max}} reps",
-    "stepLabel": "step",
-    "stepChip": "{{step}} kg",
     "archiveConfirmTitle": "Remove exercise",
     "archiveConfirmDescription": "The exercise will be removed from the list. Set history in already-saved workouts stays intact.",
     "archiveConfirmText": "Yes, remove",
@@ -432,7 +427,7 @@
     "message": {
       "no_data": "No entries for this exercise yet.",
       "start_adding_weight": "Reached {{repRangeMax}} reps with no weight — time to start adding some.",
-      "increase_weight": "Reached the top of the range ({{repRangeMax}} reps) — add +{{weightStep}} kg per side.",
+      "increase_weight": "Reached the top of the range ({{repRangeMax}} reps) — add weight.",
       "try_more": "No progress for {{sessions}} workouts - try one more set, more reps or more weight.",
       "ok": "On track.",
       "okCountdown_one": "One more workout without progress and we will suggest trying more.",

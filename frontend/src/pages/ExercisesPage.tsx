@@ -1,4 +1,4 @@
-import { type FormEvent, useId, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
@@ -12,7 +12,7 @@ import EquipmentIcon from '../components/EquipmentIcon.js';
 import Popconfirm from '../components/Popconfirm.js';
 import Select from '../components/Select.js';
 import { translateApiError } from '../utils/apiError.js';
-import { formatKg, formatStepKg, parseKg } from '../utils/weight.js';
+import { formatKg } from '../utils/weight.js';
 
 const EQUIPMENT_FILTERS: Equipment[] = ['barbell', 'dumbbell', 'bodyweight'];
 
@@ -22,7 +22,6 @@ type ExerciseFormValues = {
   category: 'large' | 'small' | 'bodyweight';
   repRangeMin: number;
   repRangeMax: number;
-  weightStepKg: string; // as typed: a number would drop "0." and a comma
   // Limbs together, or one side after the other (unilateral) - each arm / leg.
   limbs: 'together' | 'arm' | 'leg';
   // Barbell only.
@@ -35,7 +34,6 @@ const DEFAULT_BAR_OPTIONS = [20, 15, 10, 0];
 function toPayload({ limbs, defaultBarKg, ...rest }: ExerciseFormValues) {
   return {
     ...rest,
-    weightStepKg: parseKg(rest.weightStepKg),
     unilateral: limbs !== 'together',
     limb: limbs === 'together' ? null : limbs,
     defaultBarKg: rest.equipment === 'barbell' ? defaultBarKg : null,
@@ -48,7 +46,6 @@ const emptyForm: ExerciseFormValues = {
   category: 'large',
   repRangeMin: 6,
   repRangeMax: 15,
-  weightStepKg: '1.25',
   limbs: 'together',
   defaultBarKg: 20,
 };
@@ -187,14 +184,6 @@ function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => 
         <span className="rounded-lg bg-surface-border px-2.5 py-1">
           {t('exercises.repsChip', { min: exercise.repRangeMin, max: exercise.repRangeMax })}
         </span>
-        {Number(exercise.weightStepKg) > 0 && (
-          <span className="rounded-lg bg-surface-border px-2.5 py-1 text-slate-400">
-            {t('exercises.stepLabel')}{' '}
-            <b className="font-semibold text-slate-200">
-              {t('exercises.stepChip', { step: formatStepKg(Number(exercise.weightStepKg)) })}
-            </b>
-          </span>
-        )}
       </div>
     </div>
   );
@@ -212,7 +201,6 @@ function EditExerciseForm({ exercise, onDone }: { exercise: Exercise; onDone: ()
         category: exercise.category,
         repRangeMin: exercise.repRangeMin,
         repRangeMax: exercise.repRangeMax,
-        weightStepKg: String(Number(exercise.weightStepKg)),
         limbs: exercise.unilateral ? (exercise.limb ?? 'arm') : 'together',
         defaultBarKg: exercise.defaultBarKg != null ? Number(exercise.defaultBarKg) : 20,
       }}
@@ -244,24 +232,18 @@ function ExerciseForm({
   className?: string;
 }) {
   const { t } = useTranslation();
-  const stepHintId = useId();
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function categoryDefaults(category: ExerciseFormValues['category']) {
-    if (category === 'large') return { repRangeMin: 6, repRangeMax: 15, weightStepKg: '1.25' };
-    if (category === 'small') return { repRangeMin: 6, repRangeMax: 20, weightStepKg: '0.5' };
-    return { repRangeMin: 6, repRangeMax: 30, weightStepKg: '0.5' };
+    if (category === 'large') return { repRangeMin: 6, repRangeMax: 15 };
+    if (category === 'small') return { repRangeMin: 6, repRangeMax: 20 };
+    return { repRangeMin: 6, repRangeMax: 30 };
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const step = parseKg(form.weightStepKg);
-    if (!(step >= 0 && step <= 50)) {
-      setError(t('exercises.form.weightStepInvalid'));
-      return;
-    }
     setError(null);
     setSubmitting(true);
     try {
@@ -314,7 +296,7 @@ function ExerciseForm({
           />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">{t('exercises.form.repRangeMin')}</label>
           <input
@@ -334,22 +316,6 @@ function ExerciseForm({
             value={form.repRangeMax}
             onChange={(e) => setForm((f) => ({ ...f, repRangeMax: Number(e.target.value) }))}
           />
-        </div>
-        <div>
-          <label className="label">{t('exercises.form.weightStep')}</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            className="input"
-            value={form.weightStepKg}
-            aria-describedby={form.equipment === 'bodyweight' ? stepHintId : undefined}
-            onChange={(e) => setForm((f) => ({ ...f, weightStepKg: e.target.value }))}
-          />
-          {form.equipment === 'bodyweight' && (
-            <p id={stepHintId} className="mt-1 text-xs text-slate-400">
-              {t('exercises.form.weightStepHint')}
-            </p>
-          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

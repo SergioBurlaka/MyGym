@@ -157,11 +157,6 @@ export function formatKg(value: number): string {
   return formatNumber(value, { maximumFractionDigits: 2 });
 }
 
-// A weight step is a setting, always with 2 decimals: "0.50", "1.25".
-export function formatStepKg(value: number): string {
-  return formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 // Up to `digits` decimals: tonnes on the weekly tiles, "16.1".
 export function formatDecimal(value: number, digits: number): string {
   return formatNumber(value, { maximumFractionDigits: digits });

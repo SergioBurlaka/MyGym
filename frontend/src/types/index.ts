@@ -10,7 +10,6 @@ export type Exercise = {
   category: MuscleCategory;
   repRangeMin: number;
   repRangeMax: number;
-  weightStepKg: string;
   // Left and right one after the other - reps are per side (see utils/weight.ts).
   unilateral: boolean;
   // Labels per-side reps; only for a unilateral exercise.
@@ -148,7 +147,6 @@ export type ExerciseProgression = {
   category: MuscleCategory;
   repRangeMin: number;
   repRangeMax: number;
-  weightStepKg: number;
   lastWorkoutDate: string | null;
   lastTotalWeightKg: number | null;
   lastMaxReps: number | null;
