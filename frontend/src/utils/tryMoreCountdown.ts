@@ -18,20 +18,16 @@ export type TryMoreStatus =
   | { kind: 'due'; done: number; total: number }
   | { kind: 'countdown'; done: number; total: number; left: number };
 
-// How far an exercise is from the "try_more" nudge under ONE program's
-// threshold (the exercise's own value there, else the category default).
-// Computed here rather than taken from p.suggestion: the backend judges an
-// exercise by the smallest threshold across all programs that include it,
-// while a program card should count down to its own. Without a threshold
-// (null) it uses the backend's.
-export function tryMoreStatus(p: ExerciseProgression | undefined, threshold: number | null): TryMoreStatus {
+// How far an exercise is from the "try_more" nudge, under the backend's
+// threshold (the smallest across the programs that include it).
+export function tryMoreStatus(p: ExerciseProgression | undefined): TryMoreStatus {
   // Not in the overview at all (e.g. an archived exercise) - nothing to say.
   if (!p) return { kind: 'unknown' };
   if (p.suggestion === 'no_data') return { kind: 'no_data' };
   // Topping the rep range wins over the stall reminder on the backend too.
   if (p.suggestion === 'increase_weight' || p.suggestion === 'start_adding_weight') return { kind: 'add_weight' };
 
-  const total = threshold ?? p.tryMoreAfterWorkouts;
+  const total = p.tryMoreAfterWorkouts;
   const done = p.sessionsSinceProgress ?? 0;
   if (done >= total) return { kind: 'due', done, total };
   return { kind: 'countdown', done, total, left: total - done };

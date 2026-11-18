@@ -4,8 +4,8 @@ import type { TryMoreStatus } from '../utils/tryMoreCountdown.js';
 // Above this many workouts the segments get too thin to count - one bar instead.
 const MAX_SEGMENTS = 12;
 
-// An exercise's place on the "try more" scale - shared by the Programs
-// cards, the journal, the Progress chips and the workout page. The counter
+// An exercise's place on the "try more" scale - shared by the journal, the
+// Progress chips and the workout page. The counter
 // is the same on all but the phone journal (user's decision 2026-10-29,
 // design 5; that row is `variant="row"` below): "To 'Try
 // more'" on the left, "1 of 6 workouts" on the right, and below it one

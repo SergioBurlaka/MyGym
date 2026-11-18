@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { WorkoutProgressAt } from '../types/index.js';
-import { journalTryMoreStatus } from './tryMoreCountdown.js';
+import type { ExerciseProgression, WorkoutProgressAt } from '../types/index.js';
+import { journalTryMoreStatus, tryMoreStatus } from './tryMoreCountdown.js';
 
 function at(over: Partial<WorkoutProgressAt>): WorkoutProgressAt {
   return {
@@ -50,5 +50,44 @@ describe('journalTryMoreStatus', () => {
     expect(journalTryMoreStatus(at({ isFirst: true, isProgress: true, sessionsSinceProgress: 0 }))).toEqual({
       kind: 'first',
     });
+  });
+});
+
+function overview(over: Partial<ExerciseProgression>): ExerciseProgression {
+  return {
+    exerciseId: 'e1',
+    name: 'Bench press',
+    category: 'large',
+    repRangeMin: 8,
+    repRangeMax: 12,
+    weightStepKg: 2.5,
+    lastWorkoutDate: '2026-11-10',
+    lastTotalWeightKg: 60,
+    lastMaxReps: 10,
+    daysSinceLastWorkout: 8,
+    daysSinceProgress: 8,
+    sessionsSinceProgress: 1,
+    tryMoreAfterWorkouts: 4,
+    tryMoreIsDefault: true,
+    suggestion: 'ok',
+    ...over,
+  };
+}
+
+describe('tryMoreStatus', () => {
+  it('is nothing for an exercise missing from the overview', () => {
+    expect(tryMoreStatus(undefined)).toEqual({ kind: 'unknown' });
+  });
+
+  it('passes no data and the add-weight rules through', () => {
+    expect(tryMoreStatus(overview({ suggestion: 'no_data' }))).toEqual({ kind: 'no_data' });
+    expect(tryMoreStatus(overview({ suggestion: 'increase_weight' }))).toEqual({ kind: 'add_weight' });
+    expect(tryMoreStatus(overview({ suggestion: 'start_adding_weight' }))).toEqual({ kind: 'add_weight' });
+  });
+
+  it("counts down to the backend's threshold and is due at it", () => {
+    expect(tryMoreStatus(overview({}))).toEqual({ kind: 'countdown', done: 1, total: 4, left: 3 });
+    expect(tryMoreStatus(overview({ suggestion: 'try_more', sessionsSinceProgress: 4 }))).toEqual({ kind: 'due', done: 4, total: 4 });
+    expect(tryMoreStatus(overview({ sessionsSinceProgress: null }))).toEqual({ kind: 'countdown', done: 0, total: 4, left: 4 });
   });
 });
