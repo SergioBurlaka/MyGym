@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDate, formatDecimal, formatKg, formatStepKg, parseKg } from './weight.js';
+import { formatCompactNumber, formatDate, formatDecimal, formatKg, formatStepKg, parseKg, setsSummary } from './weight.js';
 
 describe('parseKg', () => {
   it('reads a point and a comma alike', () => {
@@ -75,5 +75,32 @@ describe('formatter cache', () => {
     expect(formatDate('2026-03-05', { day: 'numeric', month: 'long' })).toBe('March 5');
     expect(formatStepKg(1)).toBe('1.00');
     expect(formatKg(1)).toBe('1');
+  });
+});
+
+describe('setsSummary', () => {
+  const sets = [
+    { setNumber: 2, reps: 10 },
+    { setNumber: 1, reps: 12 },
+    { setNumber: 3, reps: 8 },
+  ];
+
+  it('gives a barbell the whole load in one rep and reps in set order', () => {
+    const s = setsSummary({ weightPerUnitKg: '16.25', weightUnits: 2, barKg: '20', exercise: { equipment: 'barbell' }, sets });
+    expect(s).toEqual({ totalKg: 52.5, reps: [12, 10, 8] });
+  });
+
+  it('counts every dumbbell in a rep', () => {
+    expect(setsSummary({ weightPerUnitKg: 14, weightUnits: 2, exercise: { equipment: 'dumbbell' }, sets }).totalKg).toBe(28);
+    expect(setsSummary({ weightPerUnitKg: 14, weightUnits: 1, exercise: { equipment: 'dumbbell' }, sets }).totalKg).toBe(14);
+  });
+
+  it('has no weight for bodyweight without a load or a 0 kg load', () => {
+    expect(setsSummary({ weightPerUnitKg: null, weightUnits: null, exercise: { equipment: 'bodyweight' }, sets }).totalKg).toBeNull();
+    expect(setsSummary({ weightPerUnitKg: 0, weightUnits: 1, exercise: { equipment: 'bodyweight' }, sets }).totalKg).toBeNull();
+  });
+
+  it('has no reps for an exercise without sets', () => {
+    expect(setsSummary({ weightPerUnitKg: 10, weightUnits: 2, exercise: { equipment: 'dumbbell' }, sets: [] }).reps).toEqual([]);
   });
 });
