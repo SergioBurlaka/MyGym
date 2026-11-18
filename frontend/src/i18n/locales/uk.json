@@ -218,6 +218,7 @@
     },
     "card": {
       "removeExerciseAria": "Прибрати вправу з тренування",
+      "metaLine": "<b>{{equipment}}</b> · {{category}} · {{min}}–{{max}} {{reps}}",
       "equipBarbell": "Штанга",
       "equipDumbbell1": "1 гантель",
       "equipDumbbell2": "2 гантелі",
