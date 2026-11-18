@@ -314,6 +314,7 @@ function MobileWorkoutCard({ workout }: { workout: Workout }) {
               type="button"
               aria-label={t('dashboard.deleteWorkoutAria', { date: dateLabel })}
               title={t('dashboard.deleteWorkoutAria', { date: dateLabel })}
+              aria-expanded={confirmOpen}
               className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
