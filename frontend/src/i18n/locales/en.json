@@ -206,6 +206,7 @@
     },
     "card": {
       "removeExerciseAria": "Remove exercise from the workout",
+      "metaLine": "<b>{{equipment}}</b> · {{category}} · {{min}}–{{max}} {{reps}}",
       "equipBarbell": "Barbell",
       "equipDumbbell1": "1 dumbbell",
       "equipDumbbell2": "2 dumbbells",

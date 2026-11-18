@@ -34,7 +34,11 @@
       "Bash(npm run build:*)",
       "Bash(docker compose -f docker-compose.dev.yml ps:*)",
       "Bash(docker compose -f docker-compose.dev.yml logs:*)",
-      "Bash(docker compose -f docker-compose.dev.yml restart:*)"
+      "Bash(docker compose -f docker-compose.dev.yml restart:*)",
+      "Bash(node qa/*)",
+      "Bash(node ./qa/*)",
+      "Bash(curl -s localhost:4000/*)",
+      "Bash(curl -s http://localhost:4000/*)"
     ]
   },
   "hooks": {

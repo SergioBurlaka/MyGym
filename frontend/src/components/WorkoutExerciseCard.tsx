@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import type { Exercise, ExerciseProgression, PreviousSession, WorkoutExercise } from '../types/index.js';
 import { formatDate, formatKg, lastRepsForSet, loadBreakdown, loadPerRep, sidesOf } from '../utils/weight.js';
 import { journalTryMoreStatus, type TryMoreStatus } from '../utils/tryMoreCountdown.js';
@@ -263,23 +263,51 @@ export default function WorkoutExerciseCard({
   // The counter bar below already shows the countdown and "due" - the chip
   // only adds the events the bar doesn't.
   const showStatusChip = tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due';
+  // "On track" repeats the counter bar - only a call to act gets a badge.
+  const showProgressionBadge = progression != null && progression.suggestion !== 'ok';
+  // One line under the name: equipment (bold) · category · rep range. The
+  // template is one key, so a language can reorder it; the tooltip is the same
+  // text without the bold tag.
+  const metaValues = {
+    equipment: equipLabel,
+    category: categoryLabel,
+    min: exercise.repRangeMin,
+    max: exercise.repRangeMax,
+    reps: t('common.reps'),
+  };
+  const metaTitle = t('workout.card.metaLine', metaValues).replace(/<\/?b>/g, '');
   const counter = counterStatus(todayCounts ? saved?.progressAt : saved?.counterBefore);
 
   return (
     <article className="flex flex-col gap-4 rounded-xl border border-surface-border bg-surface-raised p-4">
       <div className="flex items-start gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <h2 className="text-xl font-bold leading-tight text-slate-100">{exercise.name}</h2>
-          <div className="flex flex-wrap gap-1.5">
-            <span className="badge bg-surface-border text-slate-300">
-              {categoryLabel} · {exercise.repRangeMin}–{exercise.repRangeMax}
+          {/* Always one line: the end is cut with "…", the equipment at the start stays. */}
+          <div className="flex min-w-0 items-center gap-1.5 text-sm text-slate-400" title={metaTitle}>
+            <EquipmentIcon
+              equipment={exercise.equipment}
+              units={block.weightUnits}
+              filled
+              size={16}
+              className="text-accent"
+            />
+            <span className="truncate">
+              <Trans
+                i18nKey="workout.card.metaLine"
+                values={metaValues}
+                components={{ b: <span className="font-semibold text-slate-200" /> }}
+              />
             </span>
-            {/* "On track" repeats the counter bar - only a call to act gets a badge. */}
-            {progression && progression.suggestion !== 'ok' && (
-              <ProgressionBadge suggestion={progression.suggestion} title={progressionMessage(progression, t)} />
-            )}
-            {showStatusChip && <TryMoreStatusBadge status={tryMore} />}
           </div>
+          {(showProgressionBadge || showStatusChip) && (
+            <div className="flex flex-wrap gap-1.5">
+              {showProgressionBadge && (
+                <ProgressionBadge suggestion={progression.suggestion} title={progressionMessage(progression, t)} />
+              )}
+              {showStatusChip && <TryMoreStatusBadge status={tryMore} />}
+            </div>
+          )}
         </div>
         <Popconfirm
           title={t('workout.removeExerciseConfirmTitle')}
@@ -298,11 +326,6 @@ export default function WorkoutExerciseCard({
             </svg>
           </button>
         </Popconfirm>
-      </div>
-
-      <div className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
-        <EquipmentIcon equipment={exercise.equipment} units={block.weightUnits} filled size={18} className="text-accent" />
-        <span className="font-semibold text-slate-100">{equipLabel}</span>
       </div>
 
       {counter && <TryMoreStatusBadge status={counter} className="w-full" />}
