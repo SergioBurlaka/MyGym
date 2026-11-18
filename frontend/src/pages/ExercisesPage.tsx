@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
+import { type FormEvent, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePageTitle } from '../hooks/usePageTitle.js';
 import {
@@ -135,77 +135,47 @@ export default function ExercisesPage() {
 function ExerciseCard({ exercise, onEdit }: { exercise: Exercise; onEdit: () => void }) {
   const { t } = useTranslation();
   const archiveMutation = useArchiveExerciseMutation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    function onEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    document.addEventListener('keydown', onEscape);
-    return () => {
-      document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('keydown', onEscape);
-    };
-  }, [menuOpen]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <div className="card space-y-2.5 py-3.5">
+    <div className="card relative space-y-2.5 py-3.5 transition-colors hover:border-accent/50">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold text-slate-100">{exercise.name}</h3>
-        <div className="relative -mr-2 shrink-0" ref={menuRef}>
+        <h3 className="text-lg font-semibold text-slate-100">
+          {/* Stretched over the whole card (the card is `relative`), like
+              ProgramCard: a tap anywhere on the card opens the form in its
+              place. The ring goes round the card; the button below sits above. */}
           <button
             type="button"
-            aria-label={t('exercises.cardMenuLabel', { name: exercise.name })}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-white"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={onEdit}
+            aria-label={t('exercises.editExerciseAria', { name: exercise.name })}
+            className="text-left outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-accent"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.8" />
-              <circle cx="12" cy="12" r="1.8" />
-              <circle cx="12" cy="19" r="1.8" />
-            </svg>
+            {exercise.name}
           </button>
-
-          {menuOpen && (
-            <div className="absolute right-0 z-20 mt-1 w-44 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-1.5 shadow-xl">
-              <button
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 hover:bg-surface-border"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit();
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 20h4L19 9l-4-4L4 16z" />
-                </svg>
-                {t('common.edit')}
-              </button>
-              <Popconfirm
-                title={t('exercises.archiveConfirmTitle')}
-                description={t('exercises.archiveConfirmDescription')}
-                confirmText={t('exercises.archiveConfirmText')}
-                onConfirm={() => {
-                  setMenuOpen(false);
-                  archiveMutation.mutate(exercise.id);
-                }}
-              >
-                <button className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-red-400 hover:bg-surface-border">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
-                  </svg>
-                  {t('exercises.archiveButton')}
-                </button>
-              </Popconfirm>
-            </div>
-          )}
+        </h3>
+        {/* Editing is a tap on the card, so removing is the only action left here.
+            Above the stretched button; while the confirmation is open the wrapper
+            rises above the next card's button, or the panel would slide under it. */}
+        <div className={`relative -my-1 -mr-2 shrink-0 ${confirmOpen ? 'z-30' : 'z-10'}`}>
+          <Popconfirm
+            title={t('exercises.archiveConfirmTitle')}
+            description={t('exercises.archiveConfirmDescription')}
+            confirmText={t('exercises.archiveConfirmText')}
+            onConfirm={() => archiveMutation.mutate(exercise.id)}
+            onOpenChange={setConfirmOpen}
+          >
+            <button
+              type="button"
+              aria-label={t('exercises.archiveExerciseAria', { name: exercise.name })}
+              title={t('exercises.archiveExerciseAria', { name: exercise.name })}
+              aria-expanded={confirmOpen}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+              </svg>
+            </button>
+          </Popconfirm>
         </div>
       </div>
 
