@@ -11,7 +11,7 @@ export function registerExerciseTools(server: McpServer, api: ApiClient) {
     {
       title: 'List exercises',
       description:
-        "Lists the user's exercises with their ids, equipment, category (large / small / bodyweight muscle group), rep range, weight step, " +
+        "Lists the user's exercises with their ids, equipment, category (large / small / bodyweight muscle group), rep range, " +
         'unilateral (left and right one after the other - reps are logged per side; limb says arm or leg) and defaultBarKg (barbell). ' +
         'Call this first to find the exerciseId for any other tool.',
       annotations: { readOnlyHint: true },
