@@ -6,7 +6,6 @@ export type CreateExerciseBody = {
   category: MuscleCategory;
   repRangeMin: number;
   repRangeMax: number;
-  weightStepKg: number;
   unilateral?: boolean;
   limb?: Limb | null;
   defaultBarKg?: number | null;

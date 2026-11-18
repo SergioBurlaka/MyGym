@@ -161,7 +161,6 @@ export async function importWorkoutCsv(userId: string, fileContent: string): Pro
         category: defaults?.category ?? 'large',
         repRangeMin: defaults?.repRangeMin ?? 6,
         repRangeMax: defaults?.repRangeMax ?? 15,
-        weightStepKg: defaults?.weightStepKg ?? '1.25',
         unilateral: defaults?.limb != null,
         limb: defaults?.limb ?? null,
         defaultBarKg: (defaults?.equipment ?? 'barbell') === 'barbell' ? DEFAULT_BAR_KG : null,

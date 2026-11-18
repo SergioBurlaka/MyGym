@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDate, formatDecimal, formatKg, formatStepKg, loadBreakdown, parseKg, setsSummary } from './weight.js';
+import { formatCompactNumber, formatDate, formatDecimal, formatKg, loadBreakdown, parseKg, setsSummary } from './weight.js';
 
 describe('parseKg', () => {
   it('reads a point and a comma alike', () => {
@@ -34,13 +34,6 @@ describe.each(['uk', 'en'])('number format (%s): decimal point, no thousands sep
     expect(formatKg(32.499999)).toBe('32.5');
     expect(formatKg(1728)).toBe('1728');
     expect(formatKg(172063)).toBe('172063');
-  });
-
-  it('formats a weight step with 2 decimals', () => {
-    lang.language = language;
-    expect(formatStepKg(0.5)).toBe('0.50');
-    expect(formatStepKg(1.25)).toBe('1.25');
-    expect(formatStepKg(0)).toBe('0.00');
   });
 
   it('formats tonnes and compact axis labels with a point', () => {
@@ -73,7 +66,6 @@ describe('formatter cache', () => {
     lang.language = 'en';
     expect(formatDate('2026-03-05', { day: '2-digit', month: '2-digit' })).toBe('03/05');
     expect(formatDate('2026-03-05', { day: 'numeric', month: 'long' })).toBe('March 5');
-    expect(formatStepKg(1)).toBe('1.00');
     expect(formatKg(1)).toBe('1');
   });
 });

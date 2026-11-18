@@ -204,6 +204,13 @@
       "when": 1793400595970,
       "tag": "0028_program_threshold_drop",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795002674233,
+      "tag": "0029_exercise_weight_step_drop",
+      "breakpoints": true
     }
   ]
 }

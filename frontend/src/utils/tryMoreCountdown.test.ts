@@ -60,7 +60,6 @@ function overview(over: Partial<ExerciseProgression>): ExerciseProgression {
     category: 'large',
     repRangeMin: 8,
     repRangeMax: 12,
-    weightStepKg: 2.5,
     lastWorkoutDate: '2026-11-10',
     lastTotalWeightKg: 60,
     lastMaxReps: 10,

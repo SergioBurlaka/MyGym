@@ -50,7 +50,6 @@ async function createUserWithDefaults(values: typeof users.$inferInsert) {
         category: ex.category,
         repRangeMin: ex.repRangeMin,
         repRangeMax: ex.repRangeMax,
-        weightStepKg: ex.weightStepKg,
         unilateral: ex.limb != null,
         limb: ex.limb ?? null,
         defaultBarKg: ex.equipment === 'barbell' ? DEFAULT_BAR_KG : null,

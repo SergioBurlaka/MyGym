@@ -14,7 +14,6 @@ export const createExerciseSchema = z
     category: z.enum(categoryValues),
     repRangeMin: z.coerce.number().int().min(1).max(100),
     repRangeMax: z.coerce.number().int().min(1).max(100),
-    weightStepKg: z.coerce.number().min(0).max(50).default(0.5),
     unilateral: z.boolean().default(false),
     // Only kept for a unilateral exercise.
     limb: z.enum(limbValues).nullable().optional(),
@@ -32,7 +31,6 @@ export const updateExerciseSchema = z
     category: z.enum(categoryValues).optional(),
     repRangeMin: z.coerce.number().int().min(1).max(100).optional(),
     repRangeMax: z.coerce.number().int().min(1).max(100).optional(),
-    weightStepKg: z.coerce.number().min(0).max(50).optional(),
     unilateral: z.boolean().optional(),
     limb: z.enum(limbValues).nullable().optional(),
     defaultBarKg: barKgSchema.nullable().optional(),

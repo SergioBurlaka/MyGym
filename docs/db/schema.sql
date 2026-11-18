@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Fb3H4PmSvATJTCx14aCmuQrZR08eSLRUIt4kKVvG17clR3y5XYjwEnIThgkxt8N
+\restrict 4QuXa6KRZ11vdfkTqcRJC7vCgGXiexncy5XOZwJIrs5ofE4lroAE21afoplwuuo
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -122,7 +122,6 @@ CREATE TABLE public.exercises (
     category public.muscle_category NOT NULL,
     rep_range_min smallint NOT NULL,
     rep_range_max smallint NOT NULL,
-    weight_step_kg numeric(5,2) DEFAULT 0.5 NOT NULL,
     archived_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     try_more_counter_adjust smallint DEFAULT 0 NOT NULL,
@@ -132,8 +131,7 @@ CREATE TABLE public.exercises (
     default_bar_kg numeric(5,2),
     CONSTRAINT exercises_default_bar_check CHECK (((default_bar_kg IS NULL) OR (((default_bar_kg >= (0)::numeric) AND (default_bar_kg <= (50)::numeric)) AND (equipment = 'barbell'::public.equipment)))),
     CONSTRAINT exercises_limb_check CHECK (((limb IS NULL) OR unilateral)),
-    CONSTRAINT exercises_rep_range_check CHECK (((rep_range_min >= 1) AND (rep_range_max <= 100) AND (rep_range_min <= rep_range_max))),
-    CONSTRAINT exercises_weight_step_check CHECK (((weight_step_kg >= (0)::numeric) AND (weight_step_kg <= (50)::numeric)))
+    CONSTRAINT exercises_rep_range_check CHECK (((rep_range_min >= 1) AND (rep_range_max <= 100) AND (rep_range_min <= rep_range_max)))
 );
 
 
@@ -793,5 +791,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Fb3H4PmSvATJTCx14aCmuQrZR08eSLRUIt4kKVvG17clR3y5XYjwEnIThgkxt8N
+\unrestrict 4QuXa6KRZ11vdfkTqcRJC7vCgGXiexncy5XOZwJIrs5ofE4lroAE21afoplwuuo
 

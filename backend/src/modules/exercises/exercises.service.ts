@@ -49,7 +49,6 @@ export async function createExercise(userId: string, input: CreateExerciseInput)
     category: input.category,
     repRangeMin: input.repRangeMin,
     repRangeMax: input.repRangeMax,
-    weightStepKg: String(input.weightStepKg),
     ...loadFields(input.equipment, input.unilateral, input.limb, input.defaultBarKg),
   };
   try {
@@ -103,7 +102,6 @@ export async function updateExercise(userId: string, exerciseId: string, input: 
         ...(input.category !== undefined ? { category: input.category } : {}),
         ...(input.repRangeMin !== undefined ? { repRangeMin: input.repRangeMin } : {}),
         ...(input.repRangeMax !== undefined ? { repRangeMax: input.repRangeMax } : {}),
-        ...(input.weightStepKg !== undefined ? { weightStepKg: String(input.weightStepKg) } : {}),
       })
       .where(eq(exercises.id, exerciseId))
       .returning();
