@@ -41,8 +41,6 @@ export default function TryMoreStatusBadge({
       return <span className="text-xs text-slate-400">{t('progressStatus.first')}</span>;
     case 'progress':
       return <span className="text-xs font-semibold text-good">{t('progressStatus.progress')}</span>;
-    case 'after_break':
-      return <span className="text-xs text-slate-400">{t('progressStatus.afterBreak')}</span>;
     case 'add_weight':
       return <span className="text-xs font-semibold text-good">{t('progressStatus.addWeight')}</span>;
   }
@@ -103,8 +101,6 @@ function RowStatus({ status }: { status: TryMoreStatus }) {
       return <span className={`${line} text-slate-400`}>{t('progressStatus.noData')}</span>;
     case 'first':
       return <span className={`${line} text-slate-400`}>{t('progressStatus.first')}</span>;
-    case 'after_break':
-      return <span className={`${line} text-slate-400`}>{t('progressStatus.afterBreak')}</span>;
     case 'progress':
       return <span className={`${line} text-good`}>{t('progressStatus.progress')}</span>;
     case 'add_weight':

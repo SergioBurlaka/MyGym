@@ -14,7 +14,6 @@ export type TryMoreStatus =
   | { kind: 'no_data' }
   | { kind: 'first' }
   | { kind: 'progress' }
-  | { kind: 'after_break' }
   | { kind: 'add_weight' }
   | { kind: 'due'; done: number; total: number }
   | { kind: 'countdown'; done: number; total: number; left: number };
@@ -40,13 +39,14 @@ export function tryMoreStatus(p: ExerciseProgression | undefined, threshold: num
 
 // The same scale for a journal workout: where the counter stood after that
 // session (backend's progressAt), with the same rule priority as the
-// backend's suggestion - top of the rep range first.
+// backend's suggestion - top of the rep range first. An event if there was
+// one, else the counter: a break is not an event but why the counter reset,
+// so the first session after it is a plain "0 of N" (backend sends 0).
 export function journalTryMoreStatus(p: WorkoutProgressAt | null | undefined): TryMoreStatus {
   if (!p) return { kind: 'unknown' };
   if (p.atTopOfRange) return { kind: 'add_weight' };
   if (p.isFirst) return { kind: 'first' };
   if (p.isProgress) return { kind: 'progress' };
-  if (p.afterBreak) return { kind: 'after_break' };
 
   const total = p.tryMoreAfterWorkouts;
   const done = p.sessionsSinceProgress;

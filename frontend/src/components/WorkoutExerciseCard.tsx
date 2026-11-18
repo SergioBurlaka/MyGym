@@ -260,10 +260,9 @@ export default function WorkoutExerciseCard({
   // nor a stall yet). The status words ("✓ Progress"...) switch with it.
   const todayCounts = saved?.progressAt != null && saved.sets.length >= (previous?.reps.length || 1);
   const tryMore = todayCounts ? journalTryMoreStatus(saved?.progressAt) : ({ kind: 'unknown' } as const);
-  // The counter bar below already shows the countdown, "due" and the reset
-  // after a break ("0 of N") - the chip only adds what the bar doesn't.
-  const showStatusChip =
-    tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due' && tryMore.kind !== 'after_break';
+  // The counter bar below already shows the countdown and "due" - the chip
+  // only adds the events the bar doesn't.
+  const showStatusChip = tryMore.kind !== 'unknown' && tryMore.kind !== 'countdown' && tryMore.kind !== 'due';
   const counter = counterStatus(todayCounts ? saved?.progressAt : saved?.counterBefore);
 
   return (
