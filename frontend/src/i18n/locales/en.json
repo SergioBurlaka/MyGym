@@ -91,7 +91,7 @@
     "reminderSessions_one": "{{count}} workout",
     "reminderSessions_other": "{{count}} workouts",
     "showAllReminders": "Show all {{count}}",
-    "workoutMenuLabel": "Actions for {{date}}",
+    "deleteWorkoutAria": "Delete workout {{date}}",
     "samples": {
       "badge": "sample",
       "title": "These are sample workouts",

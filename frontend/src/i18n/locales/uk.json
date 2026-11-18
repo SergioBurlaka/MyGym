@@ -93,7 +93,7 @@
     "reminderSessions_many": "{{count}} трен.",
     "reminderSessions_other": "{{count}} трен.",
     "showAllReminders": "Показати всі {{count}}",
-    "workoutMenuLabel": "Дії з тренуванням {{date}}",
+    "deleteWorkoutAria": "Видалити тренування {{date}}",
     "samples": {
       "badge": "приклад",
       "title": "Це приклади тренувань",
