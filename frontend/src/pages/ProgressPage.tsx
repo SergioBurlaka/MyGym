@@ -30,7 +30,7 @@ export default function ProgressPage() {
   const chips = useMemo(
     () =>
       (progressionQuery.data ?? [])
-        .map((p) => ({ p, status: tryMoreStatus(p, null) }))
+        .map((p) => ({ p, status: tryMoreStatus(p) }))
         .sort((a, b) => tryMoreUrgency(a.status) - tryMoreUrgency(b.status) || a.p.name.localeCompare(b.p.name)),
     [progressionQuery.data],
   );
@@ -65,7 +65,7 @@ export default function ProgressPage() {
     () => progression.find((p) => p.exerciseId === selectedId) ?? null,
     [progression, selectedId],
   );
-  const selectedStatus = selected && selected.suggestion === 'ok' ? tryMoreStatus(selected, null) : null;
+  const selectedStatus = selected && selected.suggestion === 'ok' ? tryMoreStatus(selected) : null;
 
   const weightData = history.map((h) => ({ date: h.date, value: h.totalWeightKg, isPR: h.isWeightPR }));
   const repsData = history.map((h) => ({ date: h.date, value: h.maxReps, isPR: h.isRepsPR }));
