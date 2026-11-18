@@ -210,12 +210,6 @@
       "equipDumbbell1": "1 dumbbell",
       "equipDumbbell2": "2 dumbbells",
       "equipBodyweight": "Bodyweight",
-      "limbs": {
-        "together": "both limbs together",
-        "arm": "each arm separately",
-        "leg": "each leg separately",
-        "side": "each side separately"
-      },
       "limbsPlural": {
         "arm": "arms",
         "leg": "legs",
@@ -232,11 +226,6 @@
         "leg": "Sets · reps per leg",
         "side": "Sets · reps per side"
       },
-      "loadBarbell": "Bar {{bar}} + 2 × {{plates}} = {{total}} kg",
-      "loadDumbbell2": "2 × {{weight}} = {{total}} kg per rep",
-      "loadDumbbell1": "{{weight}} kg per rep",
-      "loadBodyweightExtra": "Bodyweight + {{weight}} kg",
-      "loadBodyweightOnly": "Bodyweight only",
       "lastTime": "Last time ({{date}}): {{reps}}{{perLimb}}",
       "targetSuffix": " → today +1 in set {{set}}",
       "volumeTitle": "Volume today",

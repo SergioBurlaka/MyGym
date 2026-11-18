@@ -36,6 +36,22 @@ export function loadPerRep(equipment: Equipment, load: LoggedLoad): number | nul
   return perUnit;
 }
 
+// How one rep's weight adds up, for the workout card's volume line:
+// "(8 + 2 × 20)" for a barbell, "2 × 10" for two dumbbells, the plain weight
+// otherwise - read like loadPerRep, two dumbbells when the count is unknown.
+// Numbers and signs only, the same in both languages. null without a weight.
+export function loadBreakdown(equipment: Equipment, load: LoggedLoad): string | null {
+  const total = loadPerRep(equipment, load);
+  if (total == null || !Number.isFinite(total) || total <= 0) return null;
+  const perUnit = typeof load.weightPerUnitKg === 'string' ? parseKg(load.weightPerUnitKg) : Number(load.weightPerUnitKg);
+  if (perUnit > 0 && equipment === 'barbell') {
+    const bar = load.barKg == null ? 0 : Number(load.barKg);
+    return bar > 0 ? `(${formatKg(bar)} + 2 × ${formatKg(perUnit)})` : `2 × ${formatKg(perUnit)}`;
+  }
+  if (perUnit > 0 && equipment === 'dumbbell' && (load.weightUnits ?? 2) === 2) return `2 × ${formatKg(perUnit)}`;
+  return formatKg(total);
+}
+
 export function sidesOf(unilateral: boolean): 1 | 2 {
   return unilateral ? 2 : 1;
 }

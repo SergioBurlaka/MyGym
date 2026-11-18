@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const lang = vi.hoisted(() => ({ language: 'uk' }));
 vi.mock('../i18n/index.js', () => ({ default: lang }));
 
-import { formatCompactNumber, formatDate, formatDecimal, formatKg, formatStepKg, parseKg, setsSummary } from './weight.js';
+import { formatCompactNumber, formatDate, formatDecimal, formatKg, formatStepKg, loadBreakdown, parseKg, setsSummary } from './weight.js';
 
 describe('parseKg', () => {
   it('reads a point and a comma alike', () => {
@@ -102,5 +102,33 @@ describe('setsSummary', () => {
 
   it('has no reps for an exercise without sets', () => {
     expect(setsSummary({ weightPerUnitKg: 10, weightUnits: 2, exercise: { equipment: 'dumbbell' }, sets: [] }).reps).toEqual([]);
+  });
+});
+
+describe('loadBreakdown', () => {
+  it('shows a barbell as the bar plus two sides', () => {
+    expect(loadBreakdown('barbell', { weightPerUnitKg: '20', weightUnits: 2, barKg: '8' })).toBe('(8 + 2 × 20)');
+    expect(loadBreakdown('barbell', { weightPerUnitKg: '16,25', weightUnits: 2, barKg: '20' })).toBe('(20 + 2 × 16.25)');
+  });
+
+  it('drops the bar or the plates when there are none', () => {
+    expect(loadBreakdown('barbell', { weightPerUnitKg: '20', weightUnits: 2, barKg: '0' })).toBe('2 × 20');
+    expect(loadBreakdown('barbell', { weightPerUnitKg: '0', weightUnits: 2, barKg: '20' })).toBe('20');
+  });
+
+  it('counts two dumbbells, also when the count is unknown', () => {
+    expect(loadBreakdown('dumbbell', { weightPerUnitKg: '10', weightUnits: 2 })).toBe('2 × 10');
+    expect(loadBreakdown('dumbbell', { weightPerUnitKg: 10, weightUnits: null })).toBe('2 × 10');
+    expect(loadBreakdown('dumbbell', { weightPerUnitKg: '10', weightUnits: 1 })).toBe('10');
+  });
+
+  it('is the plain extra weight for bodyweight', () => {
+    expect(loadBreakdown('bodyweight', { weightPerUnitKg: '7.5', weightUnits: 1 })).toBe('7.5');
+  });
+
+  it('is null without a weight', () => {
+    expect(loadBreakdown('bodyweight', { weightPerUnitKg: '0', weightUnits: 1 })).toBeNull();
+    expect(loadBreakdown('dumbbell', { weightPerUnitKg: null, weightUnits: 2 })).toBeNull();
+    expect(loadBreakdown('barbell', { weightPerUnitKg: 'abc', weightUnits: 2, barKg: '20' })).toBeNull();
   });
 });
