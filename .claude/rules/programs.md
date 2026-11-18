@@ -92,9 +92,19 @@ paths:
   список програм + форма
   створення/редагування (на весь екран, макет C — див. "UI (`ProgramsPage.tsx`)" у `.claude/rules/progression.md`):
   назва, вправи з крокером підходів, замком і порогом, реордер через меню «⋯».
-  Картка програми: назва, кількість вправ, меню «⋮» (редагувати / видалити з `Popconfirm`);
-  рядок вправи — назва `×targetSets` + замок (`LockIcon`, `programs.setsLocked`), якщо
-  `lockSets`. Статусу прогресу на картці нема — див. `.claude/rules/progression.md`.
+  Картка програми (`ProgramCard`): назва, кількість вправ, смітник; рядок вправи — назва
+  `×targetSets` + замок (`LockIcon`, `programs.setsLocked`), якщо `lockSets`. Статусу прогресу
+  на картці нема — див. `.claude/rules/progression.md`.
+  **Тап будь-де по картці відкриває форму редагування** — патерн «клікабельна картка», як
+  `WorkoutCardLink` журналу (`.claude/rules/journal.md`): назва в `<h3>` — `<button>`
+  (`aria-label` `programs.editProgramAria` з назвою), розтягнутий на всю картку
+  (`after:absolute after:inset-0`, картка `relative`, `hover:border-accent/50`), кільце фокусу — на
+  `::after` навколо картки. Меню дій нема: єдина інша дія — смітник 44 px (`h-11 w-11`,
+  `-mr-2 -mt-2`), `aria-label`/`title` `programs.deleteProgramAria` з назвою, `aria-expanded` =
+  відкрите підтвердження; `Popconfirm` `programs.deleteConfirmTitle`/`deleteConfirmDescription` →
+  `useDeleteProgramMutation`. Усе клікабельне лежить над кнопкою-назвою: обгортка смітника —
+  `relative z-10`, поки підтвердження відкрите (`onOpenChange`) — `z-30`, інакше панель опиняється
+  під кнопкою наступної картки; замок `lockSets` (`title`) — `relative z-10`.
 - `WorkoutFormPage.tsx` — кнопка «Зберегти як програму»: створює нову
   Програму з поточного стану форми (вправи + кількість підходів кожної, як
   `targetSets`); попап із полем назви, підставляється поточна "Назва"

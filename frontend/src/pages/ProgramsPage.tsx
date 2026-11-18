@@ -128,81 +128,52 @@ function ProgramCard({
 }) {
   const { t } = useTranslation();
   const deleteMutation = useDeleteProgramMutation(program.id);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    function onEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    document.addEventListener('keydown', onEscape);
-    return () => {
-      document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('keydown', onEscape);
-    };
-  }, [menuOpen]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <div className="card space-y-3">
+    <div className="card relative space-y-3 transition-colors hover:border-accent/50">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-xl font-semibold text-slate-100">{program.name}</h3>
+          <h3 className="text-xl font-semibold text-slate-100">
+            {/* Stretched over the whole card (the card is `relative`), like the
+                journal's WorkoutCardLink: a tap anywhere on the card edits the
+                program. The ring goes round the card; anything else clickable
+                in it sits above. */}
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={t('programs.editProgramAria', { name: program.name })}
+              className="text-left outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-accent"
+            >
+              {program.name}
+            </button>
+          </h3>
           <p className="mt-0.5 text-sm text-slate-400">
             {t('programs.exerciseCount', { count: program.programExercises.length })}
           </p>
         </div>
-        <div className="relative shrink-0" ref={menuRef}>
-          <button
-            type="button"
-            aria-label={t('programs.cardMenuLabel', { name: program.name })}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-white"
-            onClick={() => setMenuOpen((v) => !v)}
+        {/* Editing is a tap on the card, so delete is the only action left here.
+            Above the stretched button; while the confirmation is open the wrapper
+            rises above the next card's button, or the panel would slide under it. */}
+        <div className={`relative -mr-2 -mt-2 shrink-0 ${confirmOpen ? 'z-30' : 'z-10'}`}>
+          <Popconfirm
+            title={t('programs.deleteConfirmTitle')}
+            description={t('programs.deleteConfirmDescription', { name: program.name })}
+            onConfirm={() => deleteMutation.mutate()}
+            onOpenChange={setConfirmOpen}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="12" cy="5" r="1.8" />
-              <circle cx="12" cy="12" r="1.8" />
-              <circle cx="12" cy="19" r="1.8" />
-            </svg>
-          </button>
-
-          {menuOpen && (
-            <div className="absolute right-0 z-20 mt-1 w-44 animate-pop-in rounded-lg border border-surface-border bg-surface-raised p-1.5 shadow-xl">
-              <button
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 hover:bg-surface-border"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit();
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 20h4L19 9l-4-4L4 16z" />
-                </svg>
-                {t('common.edit')}
-              </button>
-              <Popconfirm
-                title={t('programs.deleteConfirmTitle')}
-                description={t('programs.deleteConfirmDescription', { name: program.name })}
-                onConfirm={() => {
-                  setMenuOpen(false);
-                  deleteMutation.mutate();
-                }}
-              >
-                <button className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-red-400 hover:bg-surface-border">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
-                  </svg>
-                  {t('common.delete')}
-                </button>
-              </Popconfirm>
-            </div>
-          )}
+            <button
+              type="button"
+              aria-label={t('programs.deleteProgramAria', { name: program.name })}
+              title={t('programs.deleteProgramAria', { name: program.name })}
+              aria-expanded={confirmOpen}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-surface-border hover:text-red-400"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+              </svg>
+            </button>
+          </Popconfirm>
         </div>
       </div>
 
@@ -213,7 +184,7 @@ function ProgramCard({
               {exerciseById.get(pe.exerciseId)?.name ?? pe.exercise.name}{' '}
               <span className="text-slate-400">×{pe.targetSets}</span>
               {pe.lockSets && (
-                <span role="img" aria-label={t('programs.setsLocked')} title={t('programs.setsLocked')} className="ml-1.5 inline-flex align-[-2px] text-hint">
+                <span role="img" aria-label={t('programs.setsLocked')} title={t('programs.setsLocked')} className="relative z-10 ml-1.5 inline-flex align-[-2px] text-hint">
                   <LockIcon size={15} />
                 </span>
               )}

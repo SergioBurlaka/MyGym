@@ -5,6 +5,7 @@ paths:
   - "frontend/src/components/AccountMenu.tsx"
   - "frontend/src/components/NavIcons.tsx"
   - "frontend/src/components/LanguageSwitcher.tsx"
+  - "frontend/src/components/Popconfirm.tsx"
   - "frontend/src/utils/initials.ts"
   - "frontend/src/utils/navWave*.ts"
   - "frontend/src/App.tsx"
@@ -124,6 +125,15 @@ inset додають окремо; змінна — `:root` у `@layer base` `st
 
 Новий липкий/fixed низ сторінки → теж через `var(--bottom-nav-h)`: над нижньою панеллю або під нею
 з таким самим padding.
+
+**`Popconfirm` не відкривається під панеллю** (`components/Popconfirm.tsx`): `<nav>` панелі має
+атрибут `data-bottom-nav`, за ним `Popconfirm` знаходить панель. Панель підтвердження відкривається
+вниз; якщо там вона зайшла б під панель (видиму — `clientWidth > 0`, тобто нижче `lg`) чи за низ
+екрана із зазором `EDGE_GAP_PX` (8 px), а згори місце є — відкривається вгору (`bottom-full mb-2
+origin-bottom-right`). Міряє `useLayoutEffect` до відмальовки, раз на відкриття; висота —
+`offsetHeight`, а не `getBoundingClientRect()`: анімація `pop-in` у цей момент масштабує панель.
+Перейменував атрибут → зміни й селектор у `Popconfirm`.
+
 `ReactQueryDevtools` (dev, `main.tsx`) — `buttonPosition="top-left"`: справа знизу кнопка
 перекривала б «Додатково».
 

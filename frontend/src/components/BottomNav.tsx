@@ -228,6 +228,8 @@ export default function BottomNav() {
       <nav
         ref={navRef}
         aria-label={t('nav.mainNav')}
+        // Popconfirm looks for it, so a confirmation doesn't open under the panel.
+        data-bottom-nav=""
         // Above the dimming while the sheet is open: the tabs stay lit and usable.
         className={`fixed left-[max(6px,env(safe-area-inset-left))] right-[max(6px,env(safe-area-inset-right))] grid grid-cols-5 items-center rounded-[24px] border border-accent/80 bg-surface px-1.5 py-1 lg:hidden ${
           moreOpen ? 'z-50 shadow-nav-panel-open' : 'z-30 shadow-nav-panel'

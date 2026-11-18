@@ -114,7 +114,8 @@
     "deleteConfirmDescription": "«{{name}}» will be deleted. Workouts already created from it are unaffected.",
     "exerciseCount_one": "{{count}} exercise",
     "exerciseCount_other": "{{count}} exercises",
-    "cardMenuLabel": "Actions for {{name}}",
+    "editProgramAria": "Edit program {{name}}",
+    "deleteProgramAria": "Delete program {{name}}",
     "setsLocked": "Sets are fixed: no adding or removing them in a workout",
     "form": {
       "nameLabel": "Program name",
