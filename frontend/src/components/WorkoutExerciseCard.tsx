@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Exercise, ExerciseProgression, PreviousSession, WorkoutExercise } from '../types/index.js';
-import { formatDate, formatKg, lastRepsForSet, loadPerRep, parseKg, sidesOf } from '../utils/weight.js';
+import { formatDate, formatKg, lastRepsForSet, loadBreakdown, loadPerRep, sidesOf } from '../utils/weight.js';
 import { journalTryMoreStatus, type TryMoreStatus } from '../utils/tryMoreCountdown.js';
 import { progressionMessage } from '../utils/progressionMessage.js';
 import ProgressionBadge from './ProgressionBadge.js';
@@ -200,16 +200,14 @@ export default function WorkoutExerciseCard({
         barKg: block.barKg,
       })
     : null;
-  // How one rep's weight adds up, for the volume line: "(8 + 2 × 20)" for a
-  // barbell, "2 × 10" for two dumbbells, the plain weight otherwise. Only
-  // numbers and signs - the same in both languages.
-  const weight = parseKg(block.weightPerUnitKg);
-  let loadExpr = load != null ? kg(load) : '';
-  if (load != null && Number.isFinite(weight) && weight > 0) {
-    const bar = Number(block.barKg) || 0;
-    if (isBarbell) loadExpr = bar > 0 ? `(${kg(bar)} + 2 × ${kg(weight)})` : `2 × ${kg(weight)}`;
-    else if (isDumbbell && block.weightUnits === 2) loadExpr = `2 × ${kg(weight)}`;
-  }
+  // How that weight adds up - "(8 + 2 × 20)" - for the volume line.
+  const loadExpr = hasWeight
+    ? loadBreakdown(exercise.equipment, {
+        weightPerUnitKg: block.weightPerUnitKg,
+        weightUnits: block.weightUnits,
+        barKg: block.barKg,
+      })
+    : null;
 
   // Last time's weight as the weight field's placeholder; a tap fills it in
   // with the bar / dumbbells of that session.
@@ -239,8 +237,8 @@ export default function WorkoutExerciseCard({
   if (totalReps > 0) {
     if (load != null && load > 0) {
       volumeLine = sides === 2
-        ? t('workout.card.volumeSides', { load: loadExpr, reps: totalReps, limbs: t(`workout.card.limbsPlural.${limb}`), total: kg(load * totalReps * 2) })
-        : t('workout.card.volume', { load: loadExpr, reps: totalReps, total: kg(load * totalReps) });
+        ? t('workout.card.volumeSides', { load: loadExpr ?? kg(load), reps: totalReps, limbs: t(`workout.card.limbsPlural.${limb}`), total: kg(load * totalReps * 2) })
+        : t('workout.card.volume', { load: loadExpr ?? kg(load), reps: totalReps, total: kg(load * totalReps) });
     } else {
       volumeLine = t('workout.card.volumeReps', { count: totalReps * sides });
     }
