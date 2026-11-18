@@ -59,7 +59,8 @@ export default function ProgramsPage() {
   usePageTitle(t('nav.programs'));
   const programsQuery = useProgramsQuery();
   const exercisesQuery = useExercisesQuery();
-  // Optional - the countdowns just don't show while it loads or if it fails.
+  // Optional - only the form's sessions-done scale uses it, and waits for it
+  // (disabled while it loads or if it fails).
   const progressionQuery = useProgressionQuery();
 
   const programs = programsQuery.data ?? [];
