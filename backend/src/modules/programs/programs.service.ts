@@ -23,6 +23,29 @@ async function applySessionsDone(tx: Tx, userId: string, input: SaveProgramInput
   }
 }
 
+// The rows of program_exercises for a save. Added weight is kept only for a
+// bodyweight exercise and only when above 0 - a barbell/dumbbell weight comes
+// from last time, never from the program.
+function programExerciseRows(
+  programId: string,
+  input: SaveProgramInput,
+  owned: { id: string; equipment: string }[],
+) {
+  const equipmentById = new Map(owned.map((e) => [e.id, e.equipment]));
+  return input.exercises.map((ex, i) => ({
+    programId,
+    exerciseId: ex.exerciseId,
+    targetSets: ex.targetSets,
+    tryMoreAfterWorkouts: ex.tryMoreAfterWorkouts ?? null,
+    lockSets: ex.lockSets ?? false,
+    extraWeightKg:
+      equipmentById.get(ex.exerciseId) === 'bodyweight' && ex.extraWeightKg != null && ex.extraWeightKg > 0
+        ? String(ex.extraWeightKg)
+        : null,
+    orderIndex: i,
+  }));
+}
+
 const withExercises = {
   programExercises: {
     orderBy: (pe: any, { asc }: any) => [asc(pe.orderIndex)],
@@ -94,14 +117,7 @@ export async function createProgram(userId: string, input: SaveProgramInput) {
       .returning();
 
     await tx.insert(programExercises).values(
-      input.exercises.map((ex, i) => ({
-        programId: program.id,
-        exerciseId: ex.exerciseId,
-        targetSets: ex.targetSets,
-        tryMoreAfterWorkouts: ex.tryMoreAfterWorkouts ?? null,
-        lockSets: ex.lockSets ?? false,
-        orderIndex: i,
-      })),
+      programExerciseRows(program.id, input, owned),
     );
 
     await applySessionsDone(tx, userId, input);
@@ -151,14 +167,7 @@ export async function updateProgram(userId: string, programId: string, input: Sa
     await tx.delete(programExercises).where(eq(programExercises.programId, programId));
 
     await tx.insert(programExercises).values(
-      input.exercises.map((ex, i) => ({
-        programId,
-        exerciseId: ex.exerciseId,
-        targetSets: ex.targetSets,
-        tryMoreAfterWorkouts: ex.tryMoreAfterWorkouts ?? null,
-        lockSets: ex.lockSets ?? false,
-        orderIndex: i,
-      })),
+      programExerciseRows(programId, input, owned),
     );
 
     await applySessionsDone(tx, userId, input);

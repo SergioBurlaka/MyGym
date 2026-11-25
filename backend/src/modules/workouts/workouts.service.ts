@@ -65,14 +65,19 @@ export async function startWorkout(
     let programLabel = opts.programLabel ?? null;
     let programId: string | null = null;
     let toCopy: SourceExercise[] = [];
-    let toPrefill: { exerciseId: string; targetSets: number; orderIndex: number }[] = [];
+    let toPrefill: {
+      exerciseId: string;
+      orderIndex: number;
+      extraWeightKg: string | null;
+      exercise: Pick<typeof exercises.$inferSelect, 'equipment' | 'defaultBarKg'>;
+    }[] = [];
 
     if (opts.programId) {
       // Explicitly authored Program - takes precedence, and its name becomes
       // the workout's label regardless of what programLabel was passed.
       const program = await tx.query.programs.findFirst({
         where: and(eq(programs.id, opts.programId), eq(programs.userId, userId)),
-        with: { programExercises: { orderBy: (pe, { asc }) => [asc(pe.orderIndex)] } },
+        with: { programExercises: { orderBy: (pe, { asc }) => [asc(pe.orderIndex)], with: { exercise: true } } },
       });
       if (program) {
         programLabel = program.name;
@@ -117,8 +122,9 @@ export async function startWorkout(
       );
     }
 
-    // Prefill from a Program: the weight comes from the last time each
-    // exercise was actually done (not stored on the program). Read history via `db`
+    // Prefill from a Program: a barbell/dumbbell weight comes from the last
+    // time each exercise was actually done; a bodyweight exercise's added load
+    // from the program (program_exercises.extraWeightKg). Read history via `db`
     // (not `tx`) - it's already-committed past data, not the row we're
     // inserting in this same transaction.
     if (toPrefill.length > 0) {
@@ -128,9 +134,15 @@ export async function startWorkout(
         toPrefill.map((pe) => ({
           workoutId: workout.id,
           exerciseId: pe.exerciseId,
-          weightPerUnitKg: lastEntries.get(pe.exerciseId)?.weightPerUnitKg ?? null,
-          weightUnits: lastEntries.get(pe.exerciseId)?.weightUnits ?? null,
-          barKg: lastEntries.get(pe.exerciseId)?.barKg ?? null,
+          // Bodyweight: the added load is set in the program (none = none,
+          // whatever was used last time); the rest: last time's weight.
+          ...(pe.exercise.equipment === 'bodyweight'
+            ? storedLoad(pe.exercise, { weightPerUnitKg: pe.extraWeightKg != null ? Number(pe.extraWeightKg) : null })
+            : {
+                weightPerUnitKg: lastEntries.get(pe.exerciseId)?.weightPerUnitKg ?? null,
+                weightUnits: lastEntries.get(pe.exerciseId)?.weightUnits ?? null,
+                barKg: lastEntries.get(pe.exerciseId)?.barKg ?? null,
+              }),
           orderIndex: pe.orderIndex,
         })),
       );
