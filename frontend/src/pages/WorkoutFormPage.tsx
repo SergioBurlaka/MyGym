@@ -758,6 +758,7 @@ export default function WorkoutFormPage() {
               progression={progressionByExerciseId.get(block.exerciseId)}
               saved={savedById.get(block.exerciseId)}
               setsLocked={lockedSetsIds.has(block.exerciseId)}
+              loadFromProgram={targetSetsById.has(block.exerciseId)}
               onChange={(patch) => updateBlock(block.exerciseId, patch)}
               onCommit={requestSave}
               onAddSet={() => addSet(block.exerciseId)}

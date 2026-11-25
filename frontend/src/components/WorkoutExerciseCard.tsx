@@ -138,6 +138,7 @@ export default function WorkoutExerciseCard({
   onChange,
   onCommit,
   setsLocked = false,
+  loadFromProgram = false,
   onAddSet,
   onRemoveSet,
   onRemove,
@@ -150,6 +151,9 @@ export default function WorkoutExerciseCard({
   saved: WorkoutExercise | undefined;
   // The program fixes the set count: no "+" cell, no long-press removal.
   setsLocked?: boolean;
+  // The exercise is in this workout's program: a bodyweight added weight is
+  // set there, so an empty weight field is hidden here.
+  loadFromProgram?: boolean;
   onChange: (patch: Partial<EditableExercise>) => void;
   // A field lost focus or a select changed - autosave.
   onCommit: () => void;
@@ -185,15 +189,16 @@ export default function WorkoutExerciseCard({
   const isBarbell = exercise.equipment === 'barbell';
   const isDumbbell = exercise.equipment === 'dumbbell';
   const hasWeight = block.weightPerUnitKg.trim() !== '';
-  // Bodyweight: the added weight is set in the program, so the field shows
-  // only when there is one - and stays while the card is open even if it's
-  // cleared, so it doesn't vanish under the finger mid-edit.
+  // Bodyweight from a program: the added weight is set in the program, so the
+  // field shows only when there is one - and stays while the card is open
+  // even if it's cleared, so it doesn't vanish under the finger mid-edit. A
+  // workout without a program, or an exercise added by hand, keeps the field.
   const isBodyweight = !isBarbell && !isDumbbell;
   const [weightFieldSeen, setWeightFieldSeen] = useState(hasWeight);
   useEffect(() => {
     if (hasWeight) setWeightFieldSeen(true);
   }, [hasWeight]);
-  const showWeightField = !isBodyweight || hasWeight || weightFieldSeen;
+  const showWeightField = !isBodyweight || !loadFromProgram || hasWeight || weightFieldSeen;
 
   const categoryLabel = t(`exercises.category.${exercise.category}`);
   const equipLabel = isBarbell
