@@ -1,0 +1,2 @@
+ALTER TABLE "program_exercises" ADD COLUMN "extra_weight_kg" numeric(6, 2);--> statement-breakpoint
+ALTER TABLE "program_exercises" ADD CONSTRAINT "program_exercises_extra_weight_check" CHECK ("program_exercises"."extra_weight_kg" BETWEEN 0 AND 500);
