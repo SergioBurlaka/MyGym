@@ -185,6 +185,15 @@ export default function WorkoutExerciseCard({
   const isBarbell = exercise.equipment === 'barbell';
   const isDumbbell = exercise.equipment === 'dumbbell';
   const hasWeight = block.weightPerUnitKg.trim() !== '';
+  // Bodyweight: the added weight is set in the program, so the field shows
+  // only when there is one - and stays while the card is open even if it's
+  // cleared, so it doesn't vanish under the finger mid-edit.
+  const isBodyweight = !isBarbell && !isDumbbell;
+  const [weightFieldSeen, setWeightFieldSeen] = useState(hasWeight);
+  useEffect(() => {
+    if (hasWeight) setWeightFieldSeen(true);
+  }, [hasWeight]);
+  const showWeightField = !isBodyweight || hasWeight || weightFieldSeen;
 
   const categoryLabel = t(`exercises.category.${exercise.category}`);
   const equipLabel = isBarbell
@@ -330,55 +339,57 @@ export default function WorkoutExerciseCard({
 
       {counter && <TryMoreStatusBadge status={counter} className="w-full" />}
 
-      <div className="flex flex-col gap-2">
-        <label className="flex items-center gap-3">
-          <span className="flex-1 text-sm text-slate-400">
-            {isBarbell ? t('workout.platesPerSideLabel') : isDumbbell ? t('workout.dumbbellWeightLabel') : t('workout.extraWeightLabel')}
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            className="h-11 w-32 rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none"
-            placeholder={weightPlaceholder}
-            value={block.weightPerUnitKg}
-            onClick={(e) => fillWeightFromPrevious(e.currentTarget)}
-            onChange={(e) => onChange({ weightPerUnitKg: e.target.value })}
-            onBlur={onCommit}
-          />
-        </label>
-        {/* Without a weight nothing is saved, the bar and dumbbells included - so no selects. */}
-        {isBarbell && hasWeight && (
-          <div className="flex items-center gap-3">
-            <span className="flex-1 text-sm text-slate-400">{t('workout.barLabel')}</span>
-            <Select
-              className="w-32"
-              value={block.barKg}
-              onChange={(v) => {
-                onChange({ barKg: v });
-                onCommit();
-              }}
-              options={barOptions.map((value) => ({ value, label: barLabel(value, t) }))}
+      {showWeightField && (
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-3">
+            <span className="flex-1 text-sm text-slate-400">
+              {isBarbell ? t('workout.platesPerSideLabel') : isDumbbell ? t('workout.dumbbellWeightLabel') : t('workout.extraWeightLabel')}
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="h-11 w-32 rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none"
+              placeholder={weightPlaceholder}
+              value={block.weightPerUnitKg}
+              onClick={(e) => fillWeightFromPrevious(e.currentTarget)}
+              onChange={(e) => onChange({ weightPerUnitKg: e.target.value })}
+              onBlur={onCommit}
             />
-          </div>
-        )}
-        {isDumbbell && hasWeight && (
-          <div className="flex items-center gap-3">
-            <span className="flex-1 text-sm text-slate-400">{t('workout.dumbbellsPerRepLabel')}</span>
-            <Select
-              className="w-32"
-              value={String(block.weightUnits)}
-              onChange={(v) => {
-                onChange({ weightUnits: Number(v) as 1 | 2 });
-                onCommit();
-              }}
-              options={[
-                { value: '1', label: '1' },
-                { value: '2', label: '2' },
-              ]}
-            />
-          </div>
-        )}
-      </div>
+          </label>
+          {/* Without a weight nothing is saved, the bar and dumbbells included - so no selects. */}
+          {isBarbell && hasWeight && (
+            <div className="flex items-center gap-3">
+              <span className="flex-1 text-sm text-slate-400">{t('workout.barLabel')}</span>
+              <Select
+                className="w-32"
+                value={block.barKg}
+                onChange={(v) => {
+                  onChange({ barKg: v });
+                  onCommit();
+                }}
+                options={barOptions.map((value) => ({ value, label: barLabel(value, t) }))}
+              />
+            </div>
+          )}
+          {isDumbbell && hasWeight && (
+            <div className="flex items-center gap-3">
+              <span className="flex-1 text-sm text-slate-400">{t('workout.dumbbellsPerRepLabel')}</span>
+              <Select
+                className="w-32"
+                value={String(block.weightUnits)}
+                onChange={(v) => {
+                  onChange({ weightUnits: Number(v) as 1 | 2 });
+                  onCommit();
+                }}
+                options={[
+                  { value: '1', label: '1' },
+                  { value: '2', label: '2' },
+                ]}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <div className="relative flex min-h-6 items-center gap-2">

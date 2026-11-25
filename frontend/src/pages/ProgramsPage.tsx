@@ -14,6 +14,7 @@ import Popconfirm from '../components/Popconfirm.js';
 import { translateApiError } from '../utils/apiError.js';
 import { DEFAULT_TRY_MORE_AFTER_WORKOUTS } from '../utils/tryMoreCountdown.js';
 import LockIcon from '../components/LockIcon.js';
+import { parseKg } from '../utils/weight.js';
 
 // Backend limits (programs.schema.ts).
 const SETS_MAX = 20;
@@ -22,7 +23,7 @@ const TRY_MORE_MAX = 60;
 // instead (the same cut-off as TryMoreStatusBadge's segments).
 const MAX_SEGMENTS = 12;
 
-type ExerciseOption = { id: string; name: string; category: string; repRangeMin: number; repRangeMax: number };
+type ExerciseOption = { id: string; name: string; category: string; equipment: string; repRangeMin: number; repRangeMax: number };
 
 type EditableExercise = {
   exerciseId: string;
@@ -33,6 +34,8 @@ type EditableExercise = {
   tryMoreAfterWorkouts: number | null;
   // A workout from this program can't add or remove sets of this exercise.
   lockSets: boolean;
+  // Bodyweight only: added load a workout starts with, as typed; '' = none.
+  extraWeightKg: string;
   // "Already without progress" position; null = untouched, not sent, so
   // saving the program leaves the counter as it is.
   sessionsDone: number | null;
@@ -50,6 +53,7 @@ function toEditable(program?: Program): EditableExercise[] {
     targetSets: pe.targetSets,
     tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts,
     lockSets: pe.lockSets,
+    extraWeightKg: pe.extraWeightKg != null && Number(pe.extraWeightKg) > 0 ? String(Number(pe.extraWeightKg)) : '',
     sessionsDone: null,
   }));
 }
@@ -236,7 +240,7 @@ function ProgramForm({
     const saved = toEditable(program).find((b) => b.exerciseId === exerciseId);
     setBlocks((prev) => [
       ...prev,
-      saved ?? { exerciseId, targetSets: 3, tryMoreAfterWorkouts: null, lockSets: false, sessionsDone: null },
+      saved ?? { exerciseId, targetSets: 3, tryMoreAfterWorkouts: null, lockSets: false, extraWeightKg: '', sessionsDone: null },
     ]);
     setAddOpen(false);
   }
@@ -272,6 +276,21 @@ function ProgramForm({
       return;
     }
 
+    // Only a bodyweight exercise carries an added weight; the rest is ignored.
+    const extraWeightOf = (b: EditableExercise) =>
+      exerciseById.get(b.exerciseId)?.equipment === 'bodyweight' && b.extraWeightKg.trim() !== ''
+        ? parseKg(b.extraWeightKg)
+        : null;
+    if (
+      blocks.some((b) => {
+        const w = extraWeightOf(b);
+        return w != null && !(Number.isFinite(w) && w >= 0 && w <= 500);
+      })
+    ) {
+      setError(t('programs.form.errorExtraWeight'));
+      return;
+    }
+
     const body = {
       name: trimmedName,
       exercises: blocks.map((b) => {
@@ -281,6 +300,7 @@ function ProgramForm({
           targetSets: b.targetSets,
           tryMoreAfterWorkouts: b.tryMoreAfterWorkouts,
           lockSets: b.lockSets,
+          extraWeightKg: extraWeightOf(b),
           // Only a moved scale is sent, clamped to what the user sees -
           // otherwise an invisible shift would be stored.
           ...(b.sessionsDone != null ? { sessionsDone: Math.min(b.sessionsDone, threshold) } : {}),
@@ -538,6 +558,24 @@ function ExerciseBlockCard({
           ? t('programs.form.lockSetsOn', { count: block.targetSets })
           : t('programs.form.lockSetsOff')}
       </span>
+
+      {/* Bodyweight only: the workout shows its weight field only when this is set. */}
+      {exercise.equipment === 'bodyweight' && (
+        <>
+          <label className="flex items-center gap-2 pr-3">
+            <span className="flex-1 text-sm text-slate-400">{t('programs.form.extraWeightLabel')}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              className="h-11 w-32 rounded-lg border border-surface-border bg-surface text-center text-base font-bold tabular-nums text-slate-100 placeholder:font-medium placeholder:text-hint focus:border-accent focus:outline-none"
+              placeholder={t('workout.weightPlaceholderNoWeight')}
+              value={block.extraWeightKg}
+              onChange={(e) => onChange({ extraWeightKg: e.target.value })}
+            />
+          </label>
+          <span className="-mt-1.5 text-xs text-hint">{t('programs.form.extraWeightHint')}</span>
+        </>
+      )}
 
       <div className="flex flex-col gap-2 rounded-xl bg-surface px-3 py-2.5">
         <div className="flex items-center gap-2">

@@ -477,7 +477,16 @@ export default function WorkoutFormPage() {
     // a workout started from this program shows that many.
     const programExercises = blocks
       .filter((b) => b.sets.length > 0)
-      .map((b) => ({ exerciseId: b.exerciseId, targetSets: b.sets.length }));
+      .map((b) => {
+        // Today's added weight becomes the program's (the backend keeps it
+        // for bodyweight exercises only).
+        const weight = b.weightPerUnitKg.trim() === '' ? NaN : parseKg(b.weightPerUnitKg);
+        return {
+          exerciseId: b.exerciseId,
+          targetSets: b.sets.length,
+          extraWeightKg: Number.isFinite(weight) && weight > 0 ? weight : null,
+        };
+      });
     if (programExercises.length === 0) {
       setSaveAsProgramError(t('workout.saveAsProgramErrorNoExercises'));
       return;
