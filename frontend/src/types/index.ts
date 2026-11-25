@@ -126,6 +126,9 @@ export type ProgramExercise = {
   tryMoreAfterWorkouts: number | null;
   // A workout from this program can't add or remove sets of this exercise.
   lockSets: boolean;
+  // Bodyweight only: added load a workout from this program starts with
+  // (numeric string, as Postgres sends it); null = none.
+  extraWeightKg: string | null;
   orderIndex: number;
   exercise: Exercise;
 };

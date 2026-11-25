@@ -29,6 +29,13 @@ async function exerciseIds(auth: Auth): Promise<string[]> {
   return (res.json() as { id: string }[]).map((e) => e.id);
 }
 
+// Barbell/dumbbell only: a bodyweight exercise's weight comes from the program,
+// not from last time (test/program-extra-weight.test.ts).
+async function weightedExerciseIds(auth: Auth): Promise<string[]> {
+  const res = await app.inject({ method: 'GET', url: '/api/exercises', headers: auth });
+  return (res.json() as { id: string; equipment: string }[]).filter((e) => e.equipment !== 'bodyweight').map((e) => e.id);
+}
+
 type LoggedExercise = { exerciseId: string; weightPerUnitKg?: number | null; weightUnits?: number | null; reps: number[] };
 
 async function logWorkout(auth: Auth, date: string, entries: LoggedExercise[]) {
@@ -81,7 +88,7 @@ const shape = (we: StartedExercise) => ({
 describe('start a workout from a program', () => {
   it('prefills the weight of each exercise from its own last session, in program order, with no reps', async () => {
     const { auth } = await registerUser(app);
-    const [a, b, c, d] = await exerciseIds(auth);
+    const [a, b, c, d] = await weightedExerciseIds(auth);
     // a: older session, then a newer one in another workout - the newer wins.
     await logWorkout(auth, day(-6), [{ exerciseId: a, weightPerUnitKg: 10, weightUnits: 2, reps: [5, 5] }]);
     await logWorkout(auth, day(-3), [

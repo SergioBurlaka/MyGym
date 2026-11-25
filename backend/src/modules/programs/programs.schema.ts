@@ -10,6 +10,9 @@ const programExerciseInputSchema = z.object({
   // A workout from this program can't add or remove sets of this exercise.
   // Omitted = false.
   lockSets: z.boolean().optional(),
+  // Bodyweight exercises only: added load (kg) a workout from this program
+  // starts with. Null/omitted/0 = none; ignored for barbell and dumbbell.
+  extraWeightKg: z.coerce.number().min(0).max(500).nullable().optional(),
   // Where the try-more slider was dragged: the workouts-without-progress
   // counter of this exercise should read this now. Omitted = untouched.
   sessionsDone: z.coerce.number().int().min(0).max(60).optional(),

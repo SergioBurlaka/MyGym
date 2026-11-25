@@ -3,6 +3,7 @@ export type SaveProgramExerciseBody = {
   targetSets: number;
   tryMoreAfterWorkouts?: number | null;
   lockSets?: boolean;
+  extraWeightKg?: number | null;
   sessionsDone?: number;
 };
 

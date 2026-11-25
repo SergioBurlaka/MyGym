@@ -291,6 +291,11 @@ export const programExercises = pgTable('program_exercises', {
   // the exercise: no "+" cell, no long-press removal - a lock on the card says
   // so (user's decision 2026-10-30). False = sets can be added and removed.
   lockSets: boolean('lock_sets').notNull().default(false),
+  // Bodyweight exercises only: the added load (vest, plate) a workout from
+  // this program starts with - the program, not last time, is its source, so
+  // removing it here really removes it. Null = no added weight. Ignored (and
+  // stored as null) for barbell/dumbbell: their weight comes from last time.
+  extraWeightKg: numeric('extra_weight_kg', { precision: 6, scale: 2 }),
   orderIndex: smallint('order_index').notNull().default(0),
 }, (table) => ({
   programIdx: index('program_exercises_program_idx').on(table.programId),
@@ -300,6 +305,7 @@ export const programExercises = pgTable('program_exercises', {
   exerciseIdx: index('program_exercises_exercise_idx').on(table.exerciseId),
   targetSetsCheck: check('program_exercises_target_sets_check', sql`${table.targetSets} BETWEEN 1 AND 20`),
   tryMoreCheck: check('program_exercises_try_more_check', sql`${table.tryMoreAfterWorkouts} BETWEEN 1 AND 60`),
+  extraWeightCheck: check('program_exercises_extra_weight_check', sql`${table.extraWeightKg} BETWEEN 0 AND 500`),
 }));
 
 // ---------- workouts ----------

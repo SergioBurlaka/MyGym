@@ -168,6 +168,7 @@ export async function copyTemplateData(tx: Tx, sourceId: string, targetId: strin
           targetSets: pe.targetSets,
           tryMoreAfterWorkouts: pe.tryMoreAfterWorkouts,
           lockSets: pe.lockSets,
+          extraWeightKg: pe.extraWeightKg,
           orderIndex: pe.orderIndex,
         })),
       );
