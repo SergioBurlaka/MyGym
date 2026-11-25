@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 4QuXa6KRZ11vdfkTqcRJC7vCgGXiexncy5XOZwJIrs5ofE4lroAE21afoplwuuo
+\restrict n7AgmosZLq2ZTKOdHkvZ6ioYBTdP2gjwdFI0kqsYy0WmDXx0M4HFClvxCVsysEU
 
 -- Dumped from database version 16.15
 -- Dumped by pg_dump version 16.15
@@ -218,6 +218,8 @@ CREATE TABLE public.program_exercises (
     target_sets smallint DEFAULT 3 NOT NULL,
     try_more_after_workouts smallint,
     lock_sets boolean DEFAULT false NOT NULL,
+    extra_weight_kg numeric(6,2),
+    CONSTRAINT program_exercises_extra_weight_check CHECK (((extra_weight_kg >= (0)::numeric) AND (extra_weight_kg <= (500)::numeric))),
     CONSTRAINT program_exercises_target_sets_check CHECK (((target_sets >= 1) AND (target_sets <= 20))),
     CONSTRAINT program_exercises_try_more_check CHECK (((try_more_after_workouts >= 1) AND (try_more_after_workouts <= 60)))
 );
@@ -791,5 +793,5 @@ ALTER TABLE ONLY public.workouts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4QuXa6KRZ11vdfkTqcRJC7vCgGXiexncy5XOZwJIrs5ofE4lroAE21afoplwuuo
+\unrestrict n7AgmosZLq2ZTKOdHkvZ6ioYBTdP2gjwdFI0kqsYy0WmDXx0M4HFClvxCVsysEU
 
